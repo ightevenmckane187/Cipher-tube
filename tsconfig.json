@@ -1,0 +1,1 @@
+{\n  \"compilerOptions\": {\n    \"target\": \"ES2020\",\n    \"module\": \"commonjs\",\n    \"strict\": true,\n    \"outDir\": \"dist\",\n    \"rootDir\": \"src\",\n    \"declaration\": true,\n    \"sourceMap\": true\n  }\n}
