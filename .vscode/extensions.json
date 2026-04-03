@@ -1,0 +1,10 @@
+{
+    "recommendations": [
+        "github.copilot-chat",
+        "davidanson.vscode-markdownlint",
+        "ms-azuretools.vscode-containers",
+        "eamodio.gitlens",
+        "christian-kohler.npm-intellisense",
+        "steoates.autoimport"
+    ]
+}

@@ -1,4 +1,4 @@
-### “cipher tube” analogy
+mm mi### “cipher tube” analogy
 Here’s how it translates in modern cryptographic architecture language:
 
 - **Main outer layer (“what happened tube”)** → Represents the *audit or event surface* — the observable world where encrypted data or transactions occur.  
