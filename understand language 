@@ -1,0 +1,268 @@
+To run the **Baby Talk Generator Script**, you must first ensure that the required libraries are installed using the command: `pip install gtts SpeechRecognition pyaudio` [1, 2]. Below is the complete Python script as detailed in the sources [1-36].
+
+```python
+import re
+import random
+from gtts import gTTS
+import os
+import speech_recognition as sr
+
+# --- 1. Expanded Baby Talk Dictionary (for Phonetic Shifts) ---
+baby_talk_dict = {
+    r'\bhello\b': 'hewwo',
+    r'\blittle\b': 'widdle',
+    r'\blove\b': 'wuv',
+    r'\breally\b': 'weawwy',
+    r'\brobot\b': 'wobot',
+    r'\brunning\b': 'wunning',
+    r'\bcat\b': 'kitty',
+    r'\bdog\b': 'woofy', # Could also be "doggy"
+    r'\bhorse\b': 'horsey',
+    r'\bbig\b': 'bwig',
+    r'\bfriend\b': 'fwiend',
+    r'\bbrother\b': 'bwother',
+    r'\bsister\b': 'sissy',
+    r'\byou\b': 'chu', # Common "ch" sound substitution
+    r'\bthis\b': 'dis', # 'th' to 'd'
+    r'\bthat\b': 'dat', # 'th' to 'd'
+    r'\bthank\b': 'tank', # 'th' to 't'
+    r'\bplease\b': 'pwease', # 'l' to 'w' and 's' to 'sh'
+    r'\bmommy\b': 'mama', # Direct substitution
+    r'\bdaddy\b': 'dada', # Direct substitution
+    r'\btummy\b': 'tum-tum', # Reduplication via dict
+    r'\bwater\b': 'wawa',
+    # New phonetic shifts
+    r'\b(th)ink\b': r'fink', # 'th' to 'f'
+    r'\b(th)ree\b': r'fwee', # 'th' to 'f' and 'r' to 'w'
+    r'\b(st)op\b': r'top', # 'st' to 't'
+    r'\b(str)eet\b': r'teet', # 'str' to 't'
+    r'\b(dr)ink\b': r'jink', # 'dr' to 'j'
+    r'\b(sk)y\b': r'ky', # 'sk' to 'k'
+    r'\b(gr)eat\b': r'gweat', # 'gr' to 'gw'
+    r'\b(sl)eep\b': r'sweep', # 'sl' to 'sw'
+}
+
+# Regional variations for `apply_regional_variations`
+regional_variations = {
+    "Spanish": {"dog": "perrito", "cat": "gatito", "mom": "mamita"},
+    "Japanese": {"hello": "aho~", "friend": "tomodachi~", "cute": "kawaii~"},
+    "French": {"little": "petit-petit", "love": "l’amour~", "baby": "bébé-bébé"},
+}
+
+# --- Functional Functions ---
+
+def apply_phonetic_shifts_extended(text):
+    """
+    Applies phonetic transformations based on baby talk patterns defined
+    in `baby_talk_dict`.
+    """
+    for pattern, replacement in baby_talk_dict.items():
+        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+    return text
+
+def add_reduplication_and_diminutives(word):
+    """
+    Applies diminutive suffixes ('y', 'ie') and simple word reduplication
+    to a single word to mimic baby talk sounds.
+    """
+    original_word = word
+    # Handle punctuation for words at the end of sentences
+    punctuation = ''
+    if original_word and not original_word[-1].isalnum():
+        punctuation = original_word[-1]
+        original_word = original_word[:-1]
+
+    # Diminutive suffix 'y' or 'ie'
+    if len(original_word) > 2:
+        if original_word[-1].lower() not in 'aeiouy' and \
+           not original_word.lower().endswith(('ing', 'ed', 's')):
+            original_word += 'y'
+        elif original_word[-1].lower() == 'e' and original_word[-2].lower() not in 'aeiou':
+            original_word = original_word[:-1] + 'ie'
+
+    # Simple reduplication for longer words
+    if len(original_word) > 4 and random.random() < 0.3: # Apply to some longer words
+        return original_word + '-' + original_word.lower() + punctuation
+    return original_word + punctuation
+
+def elongate_vowels(text):
+    """
+    Randomly elongates vowels in words by repeating them 1 to 3 times,
+    mimicking exaggerated articulation.
+    """
+    words = text.split()
+    elongated_words = []
+    for word in words:
+        if len(word) > 2 and random.random() > 0.6: # Apply elongation to some words
+            word = re.sub(r'([aeiouAEIOU])', lambda m: m.group(0) * random.randint(1, 3), word)
+        elongated_words.append(word)
+    return ' '.join(elongated_words)
+
+def restructure_syllables(text):
+    """
+    Attempts to break up longer words into hyphenated segments to imitate
+    a baby's developing cadence.
+    """
+    words = text.split()
+    restructured_words = []
+    for word in words:
+        # Preserve punctuation
+        punctuation = ''
+        if word and not word[-1].isalnum():
+            punctuation = word[-1]
+            word = word[:-1]
+
+        if len(word) > 5 and random.random() > 0.5: # Apply to longer words occasionally
+            # Basic attempt to find vowel groups as proxy for syllables
+            syllables = re.findall(r'[bcdfghjklmnpqrstvwxyz]*[aeiou]+[bcdfghjklmnpqrstvwxyz]*', word, re.IGNORECASE)
+            if len(syllables) > 1:
+                # Filter out empty strings from regex findall
+                restructured_words.append('-'.join(s for s in syllables if s) + punctuation)
+            else:
+                restructured_words.append(word + punctuation)
+        else:
+            restructured_words.append(word + punctuation)
+    return ' '.join(restructured_words)
+
+def add_interjections(text):
+    """
+    Randomly adds common baby talk interjections at the beginning or end
+    of sentences.
+    """
+    interjections = ["goo goo", "da da", "wawa", "ooh-ooh", "choo choo", "cuz-cuz"]
+    # Split by sentence-ending punctuation, keeping the punctuation
+    sentences = re.split(r'([.!?])', text)
+    modified_sentences = []
+
+    # Iterate over actual sentences and their subsequent punctuation
+    for i in range(0, len(sentences), 2):
+        sentence = sentences[i].strip()
+        if not sentence: # Skip empty strings from splits
+            continue
+        
+        # Get punctuation if it exists after the sentence
+        punctuation = sentences[i+1] if (i+1) < len(sentences) else ''
+
+        if random.random() < 0.2: # 20% chance to add an interjection
+            interjection_to_add = random.choice(interjections)
+            if random.random() < 0.5: # 50% chance to add at beginning
+                sentence = interjection_to_add.capitalize() + ', ' + sentence.lower() + sentence[1:] # Adjust capitalization
+            else: # 50% chance to add at end
+                sentence = sentence + ', ' + interjection_to_add.lower()
+        
+        modified_sentences.append(sentence + punctuation)
+    return ''.join(modified_sentences)
+
+def apply_regional_variations(text, region=None):
+    """
+    Applies culturally specific baby talk variations based on a specified region.
+    """
+    if region and region in regional_variations:
+        for word, variation in regional_variations[region].items():
+            text = re.sub(fr'\b{word}\b', variation, text, flags=re.IGNORECASE)
+    return text
+
+# --- Main Baby Talk Transformation Function ---
+
+def baby_talk(text, region=None):
+    """
+    Applies a comprehensive set of baby talk transformations to the input text,
+    including phonetic shifts, reduplication, diminutives, vowel elongation,
+    syllable restructuring, interjections, and optional regional variations.
+    """
+    # Step 1: Apply immediate phonetic shifts and common word substitutions
+    text = apply_phonetic_shifts_extended(text)
+
+    # Step 2: Apply word-level transformations (reduplication, diminutives)
+    # This requires splitting and rejoining to handle individual words properly
+    words = text.split()
+    transformed_words = [add_reduplication_and_diminutives(word) for word in words]
+    text = ' '.join(transformed_words)
+
+    # Step 3: Apply character-level or sentence-level transformations
+    text = elongate_vowels(text)
+    text = restructure_syllables(text)
+    text = add_interjections(text)
+
+    # Step 4: Apply regional variations if specified
+    text = apply_regional_variations(text, region)
+
+    return text
+
+# --- Speech Integration Functions ---
+
+def text_to_speech_baby_talk(text, lang='en', output_filename="baby_talk_output.mp3"):
+    """
+    Converts the transformed baby talk text into an audio file (MP3)
+    and attempts to play it.
+    """
+    print(f"Generating audio for: '{text}'")
+    tts = gTTS(text=text, lang=lang)
+    tts.save(output_filename)
+    print(f"Audio saved as '{output_filename}'")
+
+    try:
+        # Command to play the audio file (may vary by OS)
+        if os.name == 'nt': # Windows
+            os.system(f"start {output_filename}")
+        elif os.name == 'posix': # macOS, Linux
+            if 'darwin' in os.sys.platform: # macOS
+                os.system(f"afplay {output_filename}")
+            else: # Linux
+                os.system(f"mpg321 {output_filename}") # Requires mpg321 to be installed
+    except Exception as e:
+        print(f"Could not play audio automatically. Please open '{output_filename}' manually. Error: {e}")
+
+def speech_to_baby_talk_pipeline(region=None):
+    """
+    Captures spoken input from the microphone, converts it to text,
+    transforms it into baby talk, and then converts the baby talk text
+    back into spoken audio.
+    """
+    recognizer = sr.Recognizer()
+    with sr.Microphone() as source:
+        print("\n--- Speech to Baby Talk Pipeline ---")
+        print("Say something now (e.g., 'Hello little friend, I really love running!')...")
+        recognizer.adjust_for_ambient_noise(source) # Listen for a second to calibrate
+        audio = recognizer.listen(source)
+
+    try:
+        print("Recognizing your speech...")
+        spoken_text = recognizer.recognize_google(audio)
+        print(f"You said: '{spoken_text}'")
+
+        transformed_text = baby_talk(spoken_text, region=region)
+        print(f"Transformed to baby talk: '{transformed_text}'")
+
+        text_to_speech_baby_talk(transformed_text)
+
+    except sr.UnknownValueError:
+        print("Sorry, I could not understand the audio.")
+    except sr.RequestError as e:
+        print(f"Could not request results from Google Speech Recognition service; {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
+# --- Example Usage ---
+
+print("--- Text Transformation Examples ---")
+sample_text_1 = "Hello little one, I really love running with my big cat and dog!"
+print(f"\nOriginal: \"{sample_text_1}\"")
+print(f"Baby Talk: \"{baby_talk(sample_text_1)}\"")
+
+sample_text_2 = "Thank you for this robot. It is a great friend!"
+print(f"\nOriginal: \"{sample_text_2}\"")
+print(f"Baby Talk (Japanese): \"{baby_talk(sample_text_2, region='Japanese')}\"")
+
+sample_text_3 = "Mommy and Daddy are sleeping. Don't make a big noise."
+print(f"\nOriginal: \"{sample_text_3}\"")
+print(f"Baby Talk (No Region): \"{baby_talk(sample_text_3)}\"")
+
+# --- Live Speech Interaction ---
+print("\n--- Live Speech-to-Baby-Talk Test ---")
+# Uncomment the line below to try the live speech interaction.
+# Make sure your microphone is connected and working.
+# speech_to_baby_talk_pipeline(region="Spanish") # Try with a regional accent!
+```
+
+This script follows a modular design, with the central `baby_talk` function orchestrating the application of individual transformation functions in a specific sequence [12, 37, 38]. The process includes phonetic shifts using a dictionary and regular expressions, word-level transformations for diminutives and reduplication, random vowel elongation, and syllable restructuring to mimic developing speech patterns [13, 39, 40]. Additionally, the script integrates external libraries like **gTTS** for text-to-speech conversion and **SpeechRecognition** for processing microphone input [14-16, 37, 41].
