@@ -3,6 +3,7 @@ import { createClient, RedisClientType } from 'redis';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { v4 as uuidv4 } from 'uuid';
+import rateLimit from 'express-rate-limit';
 
 dotenv.config();
 
@@ -15,6 +16,15 @@ app.disable('x-powered-by'); // Further ensures the header is removed
 
 // Limit JSON payload size to prevent DoS attacks
 app.use(express.json({ limit: '10kb' }));
+
+// Rate limiting to prevent DoS on database-accessing endpoints
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' }
+});
 
 // UUID v4 validation regex
 const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -42,14 +52,14 @@ const ensureSessionOwner = async (req: Request, res: Response, next: NextFunctio
 };
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
-app.post('/mcp', async (req, res) => {
+app.post('/mcp', apiLimiter, async (req, res) => {
     const userId = req.headers['x-user-id'] as string;
     if (!userId) return res.status(401).json({ error: 'Missing x-user-id' });
     const sessionId = uuidv4();
     await redisClient.set(`session:${sessionId}:owner`, userId, { EX: SESSION_TTL });
     res.status(201).json({ sessionId });
 });
-app.get('/mcp/:sessionId/check', ensureSessionOwner, (req, res) => res.json({ status: 'authorized' }));
+app.get('/mcp/:sessionId/check', apiLimiter, ensureSessionOwner, (req, res) => res.json({ status: 'authorized' }));
 
 export { app };
 
