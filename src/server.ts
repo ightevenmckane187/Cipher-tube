@@ -2,6 +2,7 @@ import express from 'express';
 import { createClient } from 'redis';
 import dotenv from 'dotenv';
 import { v4 as uuidv4 } from 'uuid';
+import rateLimit from 'express-rate-limit';
 
 dotenv.config();
 
@@ -12,6 +13,14 @@ const redisClient = createClient({ url: process.env.REDIS_URL || 'redis://localh
 redisClient.connect().catch(console.error);
 
 app.use(express.json());
+
+const mcpRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' },
+});
 
 // Middleware to ensure session owner
 export const ensureSessionOwner = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -48,7 +57,7 @@ app.get('/health', (req, res) => {
 });
 
 // Create a session
-app.post('/mcp', async (req, res) => {
+app.post('/mcp', mcpRateLimiter, async (req, res) => {
     const userId = req.headers['x-user-id'] as string;
     if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -65,7 +74,7 @@ app.post('/mcp', async (req, res) => {
 });
 
 // Check session ownership
-app.get('/mcp/:sessionId/check', ensureSessionOwner, (req, res) => {
+app.get('/mcp/:sessionId/check', mcpRateLimiter, ensureSessionOwner, (req, res) => {
     res.status(200).json({ status: 'ok', message: 'You own this session' });
 });
 
