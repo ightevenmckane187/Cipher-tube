@@ -30,6 +30,16 @@ if (process.env.NODE_ENV !== 'test') {
     redisClient.connect().catch(console.error);
 }
 
+// Accessible Landing Page with Dark Mode Support
+app.get('/', (req, res) => {
+    res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Cipher Tube</title><style>
+        body { font-family: system-ui; text-align: center; padding: 2rem; background: #fff; color: #1a1a1a; }
+        @media(prefers-color-scheme:dark){ body { background: #121212; color: #e0e0e0; } }
+    </style></head><body><h1>🧪 Cipher Tube Assembly</h1><p>Secure session service is active.</p>
+    <div role="status" style="background:#e6f4ea;color:#1e7e34;padding:.5rem;border-radius:20px;display:inline-block">Status: Operational</div>
+    </body></html>`);
+});
+
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
