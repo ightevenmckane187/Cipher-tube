@@ -23,6 +23,22 @@ describe('Server Security and Health', () => {
     expect(response.body.status).toBe('ok');
   });
 
+  it('should verify session ownership', async () => {
+    const userId = 'u1';
+    const other = 'u2';
+    const create = await request(app).post('/mcp').set('x-user-id', userId);
+    const sid = create.body.sessionId;
+
+    const checkOk = await request(app).get(`/mcp/${sid}/check`).set('x-user-id', userId);
+    expect(checkOk.status).toBe(200);
+
+    const checkFail = await request(app).get(`/mcp/${sid}/check`).set('x-user-id', other);
+    expect(checkFail.status).toBe(403);
+
+    const checkInvalid = await request(app).get('/mcp/bad/check').set('x-user-id', userId);
+    expect(checkInvalid.status).toBe(400);
+  });
+
   it('should reject large JSON payloads', async () => {
     // Create a payload larger than 10kb
     const largePayload = {
