@@ -35,4 +35,13 @@ describe('Server Security and Health', () => {
 
     expect(response.status).toBe(413);
   });
+
+  it('should serve an accessible HTML landing page at root', async () => {
+    const response = await request(app).get('/');
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toContain('text/html');
+    expect(response.text).toContain('Cipher Tube Assembly');
+    expect(response.text).toContain('prefers-color-scheme:dark');
+    expect(response.text).toContain('role="status"');
+  });
 });
