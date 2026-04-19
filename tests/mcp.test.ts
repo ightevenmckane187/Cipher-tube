@@ -43,6 +43,15 @@ describe('MCP Session Management', () => {
       const response = await request(app).post('/mcp');
       expect(response.status).toBe(401);
     });
+
+    it('should return 400 if x-user-id is too long', async () => {
+      const longUserId = 'a'.repeat(129);
+      const response = await request(app)
+        .post('/mcp')
+        .set('x-user-id', longUserId);
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Invalid x-user-id');
+    });
   });
 
   describe('GET /mcp/:sessionId/check', () => {
