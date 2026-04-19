@@ -45,7 +45,7 @@ redisClient.on('error', (err) => {
 
 // Use a mock for testing as per memory instructions
 if (process.env.NODE_ENV !== 'test') {
-    redisClient.connect().catch(console.error);
+    redisClient.connect().catch((err: any) => console.error('Redis Connection Error:', err.message));
 }
 
 app.get('/', (req: Request, res: Response) => {
@@ -89,14 +89,28 @@ app.get('/health', (req: Request, res: Response) => {
 // Middleware for JSON parsing with size limit
 const jsonParser = express.json({ limit: '10kb' });
 
+/**
+ * Middleware to validate x-user-id header.
+ * Checks for existence, type, and length to prevent DoS and cache displacement.
+ */
+const validateUserId = (req: Request, res: Response, next: NextFunction) => {
+    const userId = req.headers['x-user-id'];
+
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+        return res.status(401).json({ error: 'Unauthorized: Missing or invalid x-user-id' });
+    }
+
+    if (userId.length > 128) {
+        return res.status(400).json({ error: 'Bad Request: x-user-id exceeds maximum length' });
+    }
+
+    next();
+};
+
 // Middleware to ensure session ownership
 const ensureSessionOwner = async (req: Request, res: Response, next: NextFunction) => {
     const { sessionId } = req.params;
     const userId = req.headers['x-user-id'] as string;
-
-    if (!userId) {
-        return res.status(401).json({ error: 'Unauthorized: Missing x-user-id' });
-    }
 
     if (!sessionId) {
         return res.status(400).json({ error: 'Bad Request: Missing sessionId' });
@@ -132,19 +146,16 @@ const ensureSessionOwner = async (req: Request, res: Response, next: NextFunctio
         }
 
         next();
-    } catch (err) {
-        console.error('Session ownership check failed:', err);
+    } catch (err: any) {
+        // Sanitize error logging to prevent sensitive info leakage
+        console.error('Session ownership check failed:', err.message);
         res.status(500).json({ error: 'Internal server error' });
     }
 };
 
 // Session Creation Endpoint
-app.post('/mcp', sessionLimiter, jsonParser, async (req: Request, res: Response) => {
+app.post('/mcp', sessionLimiter, validateUserId, jsonParser, async (req: Request, res: Response) => {
     const userId = req.headers['x-user-id'] as string;
-
-    if (!userId) {
-        return res.status(401).json({ error: 'Missing x-user-id header' });
-    }
 
     const sessionId = crypto.randomUUID();
     const sessionKey = `session:${sessionId}:owner`;
@@ -154,14 +165,15 @@ app.post('/mcp', sessionLimiter, jsonParser, async (req: Request, res: Response)
         await redisClient.set(sessionKey, userId, { EX: 86400 });
 
         res.status(201).json({ sessionId });
-    } catch (err) {
-        console.error('Session creation failed:', err);
+    } catch (err: any) {
+        // Sanitize error logging to prevent sensitive info leakage
+        console.error('Session creation failed:', err.message);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // Check Session Ownership Endpoint
-app.get('/mcp/:sessionId/check', sessionLimiter, ensureSessionOwner, (req: Request, res: Response) => {
+app.get('/mcp/:sessionId/check', sessionLimiter, validateUserId, ensureSessionOwner, (req: Request, res: Response) => {
     res.json({ message: 'Session ownership verified' });
 });
 
