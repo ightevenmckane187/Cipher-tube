@@ -1,6 +1,8 @@
 import express from 'express';
 import { createClient } from 'redis';
 import helmet from 'helmet';
+import rateLimit, { Options } from 'express-rate-limit';
+import { RedisStore } from 'rate-limit-redis';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -22,34 +24,24 @@ redisClient.on('error', (err) => {
 app.use(helmet()); // Sets various security-related HTTP headers
 app.disable('x-powered-by'); // Further ensures the header is removed
 
-/**
- * Redis-backed Rate Limiter to protect against DoS attacks.
- * Uses INCR and EXPIRE to track requests per IP within a 15-minute window.
- */
-const rateLimiter = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const ip = req.ip || 'unknown';
-    const key = `rate_limit:${ip}`;
-    const limit = 100;
-    const windowSeconds = 15 * 60; // 15 minutes
-
-    try {
-        const currentRequests = await redisClient.incr(key);
-        if (currentRequests === 1) {
-            await redisClient.expire(key, windowSeconds);
-        }
-
-        if (currentRequests > limit) {
-            return res.status(429).json({ error: 'Too many requests, please try again later.' });
-        }
-        next();
-    } catch (err) {
-        // Fail securely: allow requests if Redis is unavailable, but log the issue
-        console.error('Rate limiter error:', (err as Error).message);
-        next();
-    }
+// Redis-backed rate limiting to prevent DoS attacks and avoid memory leaks
+const limiterOptions: Partial<Options> = {
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' }
 };
 
-app.use(rateLimiter);
+if (process.env.NODE_ENV !== 'test') {
+    limiterOptions.store = new RedisStore({
+        // @ts-ignore - redisClient type mismatch between libraries
+        sendCommand: (...args: string[]) => redisClient.sendCommand(args),
+    });
+}
+
+const limiter = rateLimit(limiterOptions);
+app.use(limiter);
 
 // Limit JSON payload size to prevent DoS attacks
 app.use(express.json({ limit: '10kb' }));
