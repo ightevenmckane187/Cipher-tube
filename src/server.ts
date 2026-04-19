@@ -55,28 +55,31 @@ app.get('/', (req: Request, res: Response) => {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="description" content="Cipher Tube Assembly - Optimized session management service.">
             <title>Cipher Tube Assembly</title>
             <style>
-                :root { color-scheme: light dark; }
-                body {
-                    font-family: system-ui, -apple-system, sans-serif;
-                    line-height: 1.5;
-                    max-width: 800px;
-                    margin: 2rem auto;
-                    padding: 0 1rem;
-                    background-color: canvas;
-                    color: canvastext;
-                }
-                @media (prefers-color-scheme: dark) {
-                    body { background-color: #121212; color: #e0e0e0; }
-                }
-                h1 { color: #007bff; }
+                :root { color-scheme: light dark; --primary: #007bff; --success: #28a745; }
+                @media (prefers-color-scheme: dark) { :root { --primary: #375a7f; --success: #4fd1c5; } }
+                body { font-family: system-ui, sans-serif; line-height: 1.6; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+                h1 { color: var(--primary); }
+                .status { color: var(--success); font-weight: bold; }
+                footer { margin-top: 4rem; padding-top: 1rem; border-top: 1px solid #ccc; font-size: 0.875rem; }
+                a { color: var(--primary); text-decoration: none; }
+                a:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
             </style>
         </head>
         <body>
-            <h1>Cipher Tube Assembly</h1>
-            <p>Welcome to the performance-optimized session management service.</p>
-            <p>Status: <span style="color: green;">Online</span></p>
+            <main>
+                <h1>Cipher Tube Assembly</h1>
+                <p>Performance-optimized session management. Status: <span class="status">Online</span></p>
+                <section>
+                    <h2>Quick Start</h2>
+                    <p>Create a session: <code>curl -X POST -H "x-user-id: user123" http://localhost:3000/mcp</code></p>
+                </section>
+            </main>
+            <footer>
+                <p>&copy; ${new Date().getFullYear()} Cipher Tube Assembly. <a href="/health">Health Check</a></p>
+            </footer>
         </body>
         </html>
     `);
