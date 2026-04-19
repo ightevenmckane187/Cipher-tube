@@ -45,7 +45,7 @@ redisClient.on('error', (err) => {
 
 // Use a mock for testing as per memory instructions
 if (process.env.NODE_ENV !== 'test') {
-    redisClient.connect().catch(console.error);
+    redisClient.connect().catch((err) => console.error('Redis connection failed:', err.message));
 }
 
 app.get('/', (req: Request, res: Response) => {
@@ -98,6 +98,10 @@ const ensureSessionOwner = async (req: Request, res: Response, next: NextFunctio
         return res.status(401).json({ error: 'Unauthorized: Missing x-user-id' });
     }
 
+    if (typeof userId !== 'string' || userId.length > 128) {
+        return res.status(400).json({ error: 'Bad Request: Invalid x-user-id format or length' });
+    }
+
     if (!sessionId) {
         return res.status(400).json({ error: 'Bad Request: Missing sessionId' });
     }
@@ -133,7 +137,7 @@ const ensureSessionOwner = async (req: Request, res: Response, next: NextFunctio
 
         next();
     } catch (err) {
-        console.error('Session ownership check failed:', err);
+        console.error('Session ownership check failed:', err instanceof Error ? err.message : err);
         res.status(500).json({ error: 'Internal server error' });
     }
 };
@@ -146,6 +150,10 @@ app.post('/mcp', sessionLimiter, jsonParser, async (req: Request, res: Response)
         return res.status(401).json({ error: 'Missing x-user-id header' });
     }
 
+    if (typeof userId !== 'string' || userId.length > 128) {
+        return res.status(400).json({ error: 'Bad Request: Invalid x-user-id format or length' });
+    }
+
     const sessionId = crypto.randomUUID();
     const sessionKey = `session:${sessionId}:owner`;
 
@@ -155,7 +163,7 @@ app.post('/mcp', sessionLimiter, jsonParser, async (req: Request, res: Response)
 
         res.status(201).json({ sessionId });
     } catch (err) {
-        console.error('Session creation failed:', err);
+        console.error('Session creation failed:', err instanceof Error ? err.message : err);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
