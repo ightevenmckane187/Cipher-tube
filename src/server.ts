@@ -82,8 +82,18 @@ app.get('/', (req: Request, res: Response) => {
     `);
 });
 
+// Optimization: Cache health check response for 1s to reduce CPU overhead (Bolt Optimization)
+let cachedHealthResponse: string | null = null;
+let lastHealthCheckTime = 0;
+
 app.get('/health', (req: Request, res: Response) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    const now = Date.now();
+    if (!cachedHealthResponse || now - lastHealthCheckTime > 1000) {
+        cachedHealthResponse = JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() });
+        lastHealthCheckTime = now;
+    }
+    res.setHeader('Content-Type', 'application/json');
+    res.send(cachedHealthResponse);
 });
 
 // Middleware for JSON parsing with size limit
@@ -152,6 +162,9 @@ app.post('/mcp', sessionLimiter, jsonParser, async (req: Request, res: Response)
     try {
         // Store session ownership with 24-hour TTL (86400 seconds)
         await redisClient.set(sessionKey, userId, { EX: 86400 });
+
+        // Optimization: Pre-warm the in-memory cache to skip the first Redis lookup (Bolt Optimization)
+        sessionCache.set(sessionId, userId);
 
         res.status(201).json({ sessionId });
     } catch (err) {
