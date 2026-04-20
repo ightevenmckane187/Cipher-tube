@@ -153,6 +153,9 @@ app.post('/mcp', sessionLimiter, jsonParser, async (req: Request, res: Response)
         // Store session ownership with 24-hour TTL (86400 seconds)
         await redisClient.set(sessionKey, userId, { EX: 86400 });
 
+        // Pre-warm the in-memory cache to skip the first Redis lookup on verification
+        sessionCache.set(sessionId, userId);
+
         res.status(201).json({ sessionId });
     } catch (err) {
         console.error('Session creation failed:', err);

@@ -99,6 +99,27 @@ describe('MCP Session Management', () => {
       // Verify Redis was only called once for this specific session
       expect(redisMock.get).toHaveBeenCalledTimes(1);
     });
+
+    it('should not hit Redis for verification immediately after session creation (Cache Pre-warming)', async () => {
+      // 1. Create session
+      const createResponse = await request(app)
+        .post('/mcp')
+        .set('x-user-id', 'bolt-user');
+
+      const { sessionId } = createResponse.body;
+      expect(createResponse.status).toBe(201);
+
+      // 2. Verify ownership immediately
+      const checkResponse = await request(app)
+        .get(`/mcp/${sessionId}/check`)
+        .set('x-user-id', 'bolt-user');
+
+      expect(checkResponse.status).toBe(200);
+
+      // 3. Assert that redisClient.get was NEVER called
+      // Because the cache was pre-warmed during the POST /mcp call
+      expect(redisMock.get).not.toHaveBeenCalled();
+    });
   });
 
   describe('GET /', () => {
