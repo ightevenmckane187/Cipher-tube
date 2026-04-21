@@ -1,122 +1,134 @@
 import crypto from 'crypto';
 
-export interface TubeLayer {
-  key: Buffer;
-  hash: string;
+export interface CipherTubeResult {
+  ciphertext: string;
+  tubes: any[];
+  hashChain?: string[];           // optional, for extra verification
+  audit: {
+    whatHappened: string[];
+    timestamp: string;
+    seedHash: string;
+  };
+}
+
+function deriveKey(master: Buffer, salt: Buffer, info: string): Buffer {
+  return Buffer.from(crypto.hkdfSync('sha256', master, salt, info, 32));
 }
 
 /**
- * HKDF using SHA-512 for strong key separation
+ * Builds the full Cipher Tube Assembly:
+ * - 12 Hash-Lock Tubes (integrity verification only)
+ * - 13 AES-256-GCM Encryption Layers
  */
-export function deriveKeyMaterial(seed: Buffer, info: string): Buffer {
-  return Buffer.from(crypto.hkdfSync('sha512', seed, Buffer.alloc(0), info, 32));
+export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTubeResult {
+  let current = plaintext;
+  const tubes: any[] = [];
+  const audit: string[] = [];
+  const hashChain: string[] = [];
+
+  // === 12 Hash-Lock Tubes (Integrity) ===
+  for (let i = 0; i < 12; i++) {
+    const salt = crypto.randomBytes(16);
+    const hash = crypto.createHash('sha512').update(current).digest('hex');
+
+    hashChain.push(hash);
+
+    tubes.push({
+      layer: i,
+      type: 'hash-lock',
+      salt: salt.toString('hex'),   // stored but not used for hashing in this design
+      hash: hash
+    });
+
+    audit.push(`Tube ${i}: SHA-512 hash lock computed for integrity`);
+    // IMPORTANT: Do NOT replace current with hash → data remains recoverable
+  }
+
+  // === 13 AES-256-GCM Encryption Layers ===
+  for (let j = 0; j < 13; j++) {
+    const salt = crypto.randomBytes(16);
+    const key = deriveKey(masterSeed, salt, `enc-${j}`);
+    const iv = crypto.randomBytes(12);
+
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    const encrypted = Buffer.concat([cipher.update(current), cipher.final()]);
+    const tag = cipher.getAuthTag();
+
+    current = Buffer.concat([iv, tag, encrypted]);
+
+    tubes.push({
+      layer: 12 + j,
+      type: 'aes-256-gcm',
+      salt: salt.toString('hex'),
+      iv: iv.toString('hex'),
+      tag: tag.toString('hex')
+    });
+
+    audit.push(`Layer ${12 + j}: AES-256-GCM encryption applied`);
+  }
+
+  return {
+    ciphertext: current.toString('hex'),
+    tubes,
+    hashChain,
+    audit: {
+      whatHappened: audit,
+      timestamp: new Date().toISOString(),
+      seedHash: crypto.createHash('sha256').update(masterSeed).digest('hex')
+    }
+  };
 }
 
 /**
- * AES-256-GCM encryption shell
+ * Decrypts and verifies the full Cipher Tube
  */
-export function encryptLayer(data: Buffer, key: Buffer): Buffer {
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-  const enc = Buffer.concat([cipher.update(data), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return Buffer.concat([iv, tag, enc]);
-}
+export function decryptCipherTube(
+  ciphertextHex: string,
+  masterSeed: Buffer,
+  tubes: any[]
+) {
+  let current = Buffer.from(ciphertextHex, 'hex');
+  const audit: string[] = [];
 
-/**
- * AES-256-GCM decryption shell
- */
-export function decryptLayer(ciphertext: Buffer, key: Buffer): Buffer {
-    const iv = ciphertext.subarray(0, 12);
-    const tag = ciphertext.subarray(12, 28);
-    const enc = ciphertext.subarray(28);
+  // === Decrypt 13 encryption layers in reverse ===
+  for (let j = 12; j >= 0; j--) {
+    const tube = tubes.find((t: any) => t.layer === 12 + j);
+    if (!tube) throw new Error(`Missing encryption tube for layer ${12 + j}`);
+
+    const iv = current.subarray(0, 12);
+    const tag = current.subarray(12, 28);
+    const encryptedData = current.subarray(28);
+
+    const salt = Buffer.from(tube.salt, 'hex');
+    const key = deriveKey(masterSeed, salt, `enc-${j}`);
+
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(tag);
-    return Buffer.concat([decipher.update(enc), decipher.final()]);
-}
 
-/**
- * Build Cipher Assembly (12 hash-lock tubes + 13 encryption layers)
- */
-export function buildCipherAssembly(plaintext: Buffer, seed: Buffer): { layers: TubeLayer[], payload: Buffer, auditHash: string } {
-  let payload = plaintext;
-  let currentSeed = seed;
-  const layers: TubeLayer[] = [];
-
-  // 12 hash‑lock tubes (integrity verification rings)
-  for (let i = 1; i <= 12; i++) {
-    const key = deriveKeyMaterial(currentSeed, `tube-${i}`);
-    const hash = crypto.createHash('sha512').update(payload).digest('hex');
-    layers.push({ key, hash });
-    currentSeed = key;
+    current = Buffer.concat([decipher.update(encryptedData), decipher.final()]);
+    audit.push(`Decrypted AES-256-GCM layer ${j}`);
   }
 
-  // 13 nested encryption layers (confidentiality shells)
-  for (let j = 1; j <= 13; j++) {
-    const encKey = deriveKeyMaterial(currentSeed, `layer-${j}`);
-    payload = encryptLayer(payload, encKey);
-    currentSeed = encKey;
-  }
+  // === Verify 12 hash-lock tubes in reverse ===
+  for (let i = 11; i >= 0; i--) {
+    const tube = tubes.find((t: any) => t.layer === i);
+    if (!tube) throw new Error(`Missing hash-lock tube ${i}`);
 
-  // outer proof-of-event layer (audit surface)
-  const auditHash = crypto.createHash('sha512').update(payload).digest('hex');
+    const computedHash = crypto.createHash('sha512').update(current).digest('hex');
 
-  return { layers, payload, auditHash };
-}
-
-/**
- * Verify Cipher Assembly (13 decryption shells + 12 hash-lock checks)
- */
-export function verifyCipherAssembly(ciphertext: Buffer, seed: Buffer, expectedAuditHash: string): { success: boolean, plaintext?: Buffer } {
-  let payload = ciphertext;
-
-  // 1. Verify Outer Hash
-  const actualAuditHash = crypto.createHash('sha512').update(payload).digest('hex');
-  if (actualAuditHash !== expectedAuditHash) {
-    return { success: false };
-  }
-
-  // Re-derive all key materials to match buildCipherAssembly
-  let derivationSeed = seed;
-  const layerKeys: Buffer[] = [];
-
-  for (let i = 1; i <= 12; i++) {
-    const key = deriveKeyMaterial(derivationSeed, `tube-${i}`);
-    derivationSeed = key;
-  }
-
-  for (let j = 1; j <= 13; j++) {
-    const key = deriveKeyMaterial(derivationSeed, `layer-${j}`);
-    layerKeys.push(key);
-    derivationSeed = key;
-  }
-
-  try {
-    // Reverse 13-layer decryption
-    for (let j = 13; j >= 1; j--) {
-        const key = layerKeys[j-1];
-        payload = decryptLayer(payload, key);
+    if (computedHash !== tube.hash) {
+      throw new Error(`Integrity check failed: Hash-lock tube ${i} mismatch`);
     }
 
-    // Forward walk to check 12 hash-lock tubes (though build used them in order)
-    // Actually, verification usually checks if the recovered plaintext produces the expected hashes.
-    // In our simplified build, each tube hashed the payload AT THAT STEP.
-
-    // To properly verify, we'd need the intermediate hashes.
-    // If we only have the final plaintext and the audit hash, we can only verify the whole chain.
-
-    // Let's re-simulate the hash-lock tube chain to verify integrity
-    const verificationPayload = payload;
-    for (let i = 1; i <= 12; i++) {
-        // Hash should match what was generated during build
-        // For simplicity here, we just ensure it can be re-derived.
-        // In a real system, you'd compare against stored hashes in 'layers'.
-        crypto.createHash('sha512').update(verificationPayload).digest('hex');
-    }
-
-    return { success: true, plaintext: payload };
-  } catch (error) {
-    console.error('Verification failed:', error);
-    return { success: false };
+    audit.push(`Verified hash-lock tube ${i}`);
   }
+
+  return {
+    plaintext: current.toString('utf8'),
+    audit: {
+      whatHappened: audit,
+      success: true,
+      timestamp: new Date().toISOString()
+    }
+  };
 }

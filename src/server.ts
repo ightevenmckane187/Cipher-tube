@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { LRUCache } from 'lru-cache';
+import { buildCipherTube, decryptCipherTube } from './cta';
 
 dotenv.config();
 
@@ -13,7 +14,7 @@ const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
 // Using LRU cache to prevent memory leaks with 5s TTL and 1000 items limit
-const sessionCache = new LRUCache<string, string>({
+export const sessionCache = new LRUCache<string, string>({
     max: 1000,
     ttl: 5000, // 5 seconds
 });
@@ -38,7 +39,7 @@ const sessionLimiter = rateLimit({
 app.use(helmet()); // Sets various security-related HTTP headers
 app.disable('x-powered-by'); // Further ensures the header is removed
 
-const redisClient = createClient({
+export const redisClient = createClient({
     url: process.env.REDIS_URL || 'redis://localhost:6379'
 });
 
@@ -237,7 +238,57 @@ app.post('/mcp', sessionLimiter, jsonParser, async (req: Request, res: Response)
 
 // Check Session Ownership Endpoint
 app.get('/mcp/:sessionId/check', sessionLimiter, ensureSessionOwner, (req: Request, res: Response) => {
-    res.json({ message: 'Session ownership verified' });
+    res.json({ status: 'owned', message: 'Session ownership verified' });
+});
+
+// Encryption Endpoint
+app.post('/mcp/:sessionId/encrypt', sessionLimiter, ensureSessionOwner, jsonParser, async (req: Request, res: Response) => {
+    const { message, masterSeed } = req.body;
+
+    if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: 'Bad Request: Missing or invalid message' });
+    }
+
+    if (!masterSeed || typeof masterSeed !== 'string' || !/^[0-9a-f]{64}$/i.test(masterSeed)) {
+        return res.status(400).json({ error: 'Bad Request: Missing or invalid masterSeed (must be 64 hex chars)' });
+    }
+
+    try {
+        const result = buildCipherTube(Buffer.from(message, 'utf8'), Buffer.from(masterSeed, 'hex'));
+        res.json(result);
+    } catch (err: any) {
+        console.error('Encryption failed:', err?.message || 'Unknown error');
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Decryption Endpoint
+app.post('/mcp/:sessionId/decrypt', sessionLimiter, ensureSessionOwner, jsonParser, async (req: Request, res: Response) => {
+    const { ciphertext, tubes, masterSeed } = req.body;
+
+    if (!ciphertext || typeof ciphertext !== 'string') {
+        return res.status(400).json({ error: 'Bad Request: Missing or invalid ciphertext' });
+    }
+
+    if (!Array.isArray(tubes)) {
+        return res.status(400).json({ error: 'Bad Request: Missing or invalid tubes' });
+    }
+
+    if (!masterSeed || typeof masterSeed !== 'string' || !/^[0-9a-f]{64}$/i.test(masterSeed)) {
+        return res.status(400).json({ error: 'Bad Request: Missing or invalid masterSeed (must be 64 hex chars)' });
+    }
+
+    try {
+        const result = decryptCipherTube(ciphertext, Buffer.from(masterSeed, 'hex'), tubes);
+        res.json(result);
+    } catch (err: any) {
+        // Handle integrity check failures or decryption errors
+        if (err.message?.includes('Integrity check failed') || err.message?.includes('bad decrypt') || err.message?.includes('Unsupported state or unable to authenticate data') || err.message?.includes('Unsupported state or key size')) {
+            return res.status(400).json({ error: `Decryption failed: ${err.message}` });
+        }
+        console.error('Decryption failed:', err?.message || 'Unknown error');
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
 // Export app for testing
