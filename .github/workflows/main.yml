@@ -1,0 +1,66 @@
+name: Build Container
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/cipher-tube:latestname: Build and Store Artifacts
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: |
+          mkdir output
+          echo "hello" > output/hello.txt
+
+      - name: Upload artifact to file container
+        uses: actions/upload-artifact@v4
+        with:
+          name: cipher-artifacts
+          path: output/name: Container Job
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  container-job:
+    runs-on: ubuntu-latest
+    container:
+      image: python:3.11-slim
+      options: --cpus 2
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run inside container
+        run: python -c "print('Running inside container')"

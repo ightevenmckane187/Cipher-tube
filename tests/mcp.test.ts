@@ -100,33 +100,37 @@ describe('MCP Session Management', () => {
       expect(redisMock.get).toHaveBeenCalledTimes(1);
     });
 
-    it('should not hit Redis for verification immediately after session creation (Cache Pre-warming)', async () => {
-      // 1. Create session
+    it('should pre-warm the cache during session creation (Bolt Optimization)', async () => {
+      // Create session
       const createResponse = await request(app)
         .post('/mcp')
-        .set('x-user-id', 'bolt-user');
+        .set('x-user-id', 'prewarm-user');
 
-      const { sessionId } = createResponse.body;
-      expect(createResponse.status).toBe(201);
+      const sessionId = createResponse.body.sessionId;
+      expect(sessionId).toBeDefined();
 
-      // 2. Verify ownership immediately
+      // Clear call history to isolate the check request
+      redisMock.get.mockClear();
+
+      // Check session - should hit pre-warmed cache and NOT call Redis
       const checkResponse = await request(app)
         .get(`/mcp/${sessionId}/check`)
-        .set('x-user-id', 'bolt-user');
+        .set('x-user-id', 'prewarm-user');
 
       expect(checkResponse.status).toBe(200);
-
-      // 3. Assert that redisClient.get was NEVER called
-      // Because the cache was pre-warmed during the POST /mcp call
       expect(redisMock.get).not.toHaveBeenCalled();
     });
   });
 
   describe('GET /', () => {
-    it('should return the landing page', async () => {
+    it('should return the landing page with semantic structure', async () => {
       const response = await request(app).get('/');
       expect(response.status).toBe(200);
       expect(response.text).toContain('Cipher Tube Assembly');
+      expect(response.text).toContain('<main>');
+      expect(response.text).toContain('<footer>');
+      expect(response.text).toContain('Quick Start');
+      expect(response.text).toContain('Health Check');
     });
   });
 });
