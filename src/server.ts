@@ -32,11 +32,12 @@ if (process.env.NODE_ENV === 'test') {
 
 app.use(express.json());
 
-const sessionCheckLimiter = rateLimit({
+const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
-    standardHeaders: true,
-    legacyHeaders: false,
+    max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    message: { error: 'Too many requests, please try again later.' }
 });
 
 // Ownership Enforcement Middleware
@@ -78,7 +79,7 @@ app.get('/health', (req, res) => {
  * POST /mcp
  * Auth: user id taken from header x-user-id
  */
-app.post('/mcp', async (req: Request, res: Response) => {
+app.post('/mcp', apiLimiter, async (req: Request, res: Response) => {
     const userId = req.headers['x-user-id'] as string;
     if (!userId) {
         return res.status(401).json({ error: 'Unauthorized: Missing x-user-id header' });
@@ -98,7 +99,7 @@ app.post('/mcp', async (req: Request, res: Response) => {
  * Check Session Ownership
  * GET /mcp/:sessionId/check
  */
-app.get('/mcp/:sessionId/check', sessionCheckLimiter, ensureSessionOwner, (req: Request, res: Response) => {
+app.get('/mcp/:sessionId/check', apiLimiter, ensureSessionOwner, (req: Request, res: Response) => {
     res.status(200).json({ status: 'owned' });
 });
 
