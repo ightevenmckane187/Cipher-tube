@@ -62,7 +62,11 @@ app.get('/', (req: Request, res: Response) => {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Cipher Tube Assembly</title>
             <style>
-                :root { color-scheme: light dark; }
+                :root {
+                    color-scheme: light dark;
+                    --primary: #007bff;
+                    --success: #4cd137;
+                }
                 body {
                     font-family: system-ui, -apple-system, sans-serif;
                     line-height: 1.5;
@@ -71,17 +75,60 @@ app.get('/', (req: Request, res: Response) => {
                     padding: 0 1rem;
                     background-color: canvas;
                     color: canvastext;
+                    transition: background-color 0.3s, color 0.3s;
                 }
                 @media (prefers-color-scheme: dark) {
                     body { background-color: #121212; color: #e0e0e0; }
                 }
-                h1 { color: #007bff; }
+                h1 { color: var(--primary); }
+                .skip-link {
+                    position: absolute;
+                    top: -40px;
+                    left: 0;
+                    background: var(--primary);
+                    color: white;
+                    padding: 8px;
+                    z-index: 100;
+                    transition: top 0.3s;
+                    text-decoration: none;
+                }
+                .skip-link:focus { top: 0; }
+                .status-dot {
+                    display: inline-block;
+                    width: 10px;
+                    height: 10px;
+                    background-color: var(--success);
+                    border-radius: 50%;
+                    margin-right: 8px;
+                    box-shadow: 0 0 0 rgba(76, 209, 55, 0.4);
+                    animation: pulse 2s infinite;
+                }
+                @keyframes pulse {
+                    0% { box-shadow: 0 0 0 0 rgba(76, 209, 55, 0.4); }
+                    70% { box-shadow: 0 0 0 10px rgba(76, 209, 55, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(76, 209, 55, 0); }
+                }
+                footer { margin-top: 4rem; font-size: 0.875rem; border-top: 1px solid #ccc; padding-top: 1rem; }
+                a { color: var(--primary); text-decoration: none; }
+                a:hover { text-decoration: underline; }
+                a:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
             </style>
         </head>
         <body>
-            <h1>Cipher Tube Assembly</h1>
-            <p>Welcome to the performance-optimized session management service.</p>
-            <p>Status: <span style="color: green;">Online</span></p>
+            <a class="skip-link" href="#main-content">Skip to content</a>
+            <main id="main-content">
+                <h1>Cipher Tube Assembly</h1>
+                <p>Welcome to the performance-optimized session management service.</p>
+                <p>
+                    <span class="status-dot" aria-hidden="true"></span>
+                    <strong>Status:</strong> <span style="color: var(--success);">Online</span>
+                </p>
+            </main>
+            <footer>
+                <nav aria-label="Footer navigation">
+                    <a href="/health">Service Health Status</a>
+                </nav>
+            </footer>
         </body>
         </html>
     `);
