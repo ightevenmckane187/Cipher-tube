@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { LRUCache } from 'lru-cache';
+import { buildCipherTube, decryptCipherTube } from './cta';
 
 dotenv.config();
 
@@ -13,7 +14,7 @@ const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
 // Using LRU cache to prevent memory leaks with 5s TTL and 1000 items limit
-const sessionCache = new LRUCache<string, string>({
+export const sessionCache = new LRUCache<string, string>({
     max: 1000,
     ttl: 5000, // 5 seconds
 });
@@ -38,7 +39,7 @@ const sessionLimiter = rateLimit({
 app.use(helmet()); // Sets various security-related HTTP headers
 app.disable('x-powered-by'); // Further ensures the header is removed
 
-const redisClient = createClient({
+export const redisClient = createClient({
     url: process.env.REDIS_URL || 'redis://localhost:6379'
 });
 
