@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import { createClient, RedisClientType } from 'redis';
 import dotenv from 'dotenv';
 import { v4 as uuidv4 } from 'uuid';
+import rateLimit from 'express-rate-limit';
 
 dotenv.config();
 
@@ -30,6 +31,13 @@ if (process.env.NODE_ENV === 'test') {
 }
 
 app.use(express.json());
+
+const sessionCheckLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 
 // Ownership Enforcement Middleware
 export const ensureSessionOwner = async (req: Request, res: Response, next: NextFunction) => {
@@ -90,7 +98,7 @@ app.post('/mcp', async (req: Request, res: Response) => {
  * Check Session Ownership
  * GET /mcp/:sessionId/check
  */
-app.get('/mcp/:sessionId/check', ensureSessionOwner, (req: Request, res: Response) => {
+app.get('/mcp/:sessionId/check', sessionCheckLimiter, ensureSessionOwner, (req: Request, res: Response) => {
     res.status(200).json({ status: 'owned' });
 });
 
