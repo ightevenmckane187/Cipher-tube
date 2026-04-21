@@ -81,6 +81,10 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
 
 /**
  * Decrypts and verifies the full Cipher Tube
+ *
+ * BOLT OPTIMIZATION:
+ * Used Map-based lookup for tubes instead of Array.find() to reduce complexity from O(L*N) to O(L).
+ * Where L is the number of layers (25) and N is the number of tubes (25).
  */
 export function decryptCipherTube(
   ciphertextHex: string,
@@ -90,10 +94,14 @@ export function decryptCipherTube(
   let current = Buffer.from(ciphertextHex, 'hex');
   const audit: string[] = [];
 
+  // Pre-calculate Map for O(1) lookups instead of O(N) Array.find()
+  const tubeMap = new Map(tubes.map((t: any) => [t.layer, t]));
+
   // === Decrypt 13 encryption layers in reverse ===
   for (let j = 12; j >= 0; j--) {
-    const tube = tubes.find((t: any) => t.layer === 12 + j);
-    if (!tube) throw new Error(`Missing encryption tube for layer ${12 + j}`);
+    const layerId = 12 + j;
+    const tube = tubeMap.get(layerId);
+    if (!tube) throw new Error(`Missing encryption tube for layer ${layerId}`);
 
     const iv = current.subarray(0, 12);
     const tag = current.subarray(12, 28);
@@ -111,7 +119,7 @@ export function decryptCipherTube(
 
   // === Verify 12 hash-lock tubes in reverse ===
   for (let i = 11; i >= 0; i--) {
-    const tube = tubes.find((t: any) => t.layer === i);
+    const tube = tubeMap.get(i);
     if (!tube) throw new Error(`Missing hash-lock tube ${i}`);
 
     const computedHash = crypto.createHash('sha512').update(current).digest('hex');
