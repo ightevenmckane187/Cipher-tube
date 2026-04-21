@@ -46,7 +46,8 @@ describe('Server Security and Health', () => {
     };
 
     const response = await request(app)
-      .post('/health') // Route doesn't matter, middleware hits first
+      .post('/mcp') // Route with JSON parser
+      .set('x-user-id', 'test-user')
       .send(largePayload);
 
     expect(response.status).toBe(413);
