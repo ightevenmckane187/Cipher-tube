@@ -21,6 +21,11 @@ const sessionCache = new LRUCache<string, string>({
 // Session ID Validation (UUID v4)
 const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+// x-user-id validation (type and length)
+const isValidUserId = (userId: any): userId is string => {
+    return typeof userId === 'string' && userId.length > 0 && userId.length <= 128;
+};
+
 // Rate limiter for session-related operations
 const sessionLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -139,10 +144,14 @@ const jsonParser = express.json({ limit: '10kb' });
 // Middleware to ensure session ownership
 const ensureSessionOwner = async (req: Request, res: Response, next: NextFunction) => {
     const { sessionId } = req.params;
-    const userId = req.headers['x-user-id'] as string;
+    const userId = req.headers['x-user-id'];
 
     if (!userId) {
         return res.status(401).json({ error: 'Unauthorized: Missing x-user-id' });
+    }
+
+    if (!isValidUserId(userId)) {
+        return res.status(400).json({ error: 'Bad Request: Invalid x-user-id format or length' });
     }
 
     if (!sessionId) {
@@ -179,18 +188,23 @@ const ensureSessionOwner = async (req: Request, res: Response, next: NextFunctio
         }
 
         next();
-    } catch (err) {
-        console.error('Session ownership check failed:', err);
+    } catch (err: any) {
+        // Sentinel: Log only message to avoid leaking sensitive internal state
+        console.error('Session ownership check failed:', err?.message || 'Unknown error');
         res.status(500).json({ error: 'Internal server error' });
     }
 };
 
 // Session Creation Endpoint
 app.post('/mcp', sessionLimiter, jsonParser, async (req: Request, res: Response) => {
-    const userId = req.headers['x-user-id'] as string;
+    const userId = req.headers['x-user-id'];
 
     if (!userId) {
         return res.status(401).json({ error: 'Missing x-user-id header' });
+    }
+
+    if (!isValidUserId(userId)) {
+        return res.status(400).json({ error: 'Bad Request: Invalid x-user-id format or length' });
     }
 
     const sessionId = crypto.randomUUID();
@@ -201,8 +215,9 @@ app.post('/mcp', sessionLimiter, jsonParser, async (req: Request, res: Response)
         await redisClient.set(sessionKey, userId, { EX: 86400 });
 
         res.status(201).json({ sessionId });
-    } catch (err) {
-        console.error('Session creation failed:', err);
+    } catch (err: any) {
+        // Sentinel: Log only message to avoid leaking sensitive internal state
+        console.error('Session creation failed:', err?.message || 'Unknown error');
         res.status(500).json({ error: 'Internal server error' });
     }
 });
