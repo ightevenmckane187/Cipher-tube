@@ -51,7 +51,7 @@ redisClient.on('error', (err) => {
 
 // Use a mock for testing as per memory instructions
 if (process.env.NODE_ENV !== 'test') {
-    redisClient.connect().catch(console.error);
+    redisClient.connect().catch((err: any) => console.error('Redis Connection Error:', err.message));
 }
 
 app.get('/', (req: Request, res: Response) => {
@@ -61,6 +61,7 @@ app.get('/', (req: Request, res: Response) => {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="description" content="Cipher Tube Assembly - Optimized session management service.">
             <title>Cipher Tube Assembly</title>
             <style>
                 :root {
@@ -152,6 +153,24 @@ app.get('/health', (req: Request, res: Response) => {
 // Middleware for JSON parsing with size limit
 const jsonParser = express.json({ limit: '10kb' });
 
+/**
+ * Middleware to validate x-user-id header.
+ * Checks for existence, type, and length to prevent DoS and cache displacement.
+ */
+const validateUserId = (req: Request, res: Response, next: NextFunction) => {
+    const userId = req.headers['x-user-id'];
+
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+        return res.status(401).json({ error: 'Unauthorized: Missing or invalid x-user-id' });
+    }
+
+    if (userId.length > 128) {
+        return res.status(400).json({ error: 'Bad Request: x-user-id exceeds maximum length' });
+    }
+
+    next();
+};
+
 // Middleware to ensure session ownership
 const ensureSessionOwner = async (req: Request, res: Response, next: NextFunction) => {
     const { sessionId } = req.params;
@@ -237,58 +256,8 @@ app.post('/mcp', sessionLimiter, jsonParser, async (req: Request, res: Response)
 });
 
 // Check Session Ownership Endpoint
-app.get('/mcp/:sessionId/check', sessionLimiter, ensureSessionOwner, (req: Request, res: Response) => {
-    res.json({ status: 'owned', message: 'Session ownership verified' });
-});
-
-// Encryption Endpoint
-app.post('/mcp/:sessionId/encrypt', sessionLimiter, ensureSessionOwner, jsonParser, async (req: Request, res: Response) => {
-    const { message, masterSeed } = req.body;
-
-    if (!message || typeof message !== 'string') {
-        return res.status(400).json({ error: 'Bad Request: Missing or invalid message' });
-    }
-
-    if (!masterSeed || typeof masterSeed !== 'string' || !/^[0-9a-f]{64}$/i.test(masterSeed)) {
-        return res.status(400).json({ error: 'Bad Request: Missing or invalid masterSeed (must be 64 hex chars)' });
-    }
-
-    try {
-        const result = buildCipherTube(Buffer.from(message, 'utf8'), Buffer.from(masterSeed, 'hex'));
-        res.json(result);
-    } catch (err: any) {
-        console.error('Encryption failed:', err?.message || 'Unknown error');
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-// Decryption Endpoint
-app.post('/mcp/:sessionId/decrypt', sessionLimiter, ensureSessionOwner, jsonParser, async (req: Request, res: Response) => {
-    const { ciphertext, tubes, masterSeed } = req.body;
-
-    if (!ciphertext || typeof ciphertext !== 'string') {
-        return res.status(400).json({ error: 'Bad Request: Missing or invalid ciphertext' });
-    }
-
-    if (!Array.isArray(tubes)) {
-        return res.status(400).json({ error: 'Bad Request: Missing or invalid tubes' });
-    }
-
-    if (!masterSeed || typeof masterSeed !== 'string' || !/^[0-9a-f]{64}$/i.test(masterSeed)) {
-        return res.status(400).json({ error: 'Bad Request: Missing or invalid masterSeed (must be 64 hex chars)' });
-    }
-
-    try {
-        const result = decryptCipherTube(ciphertext, Buffer.from(masterSeed, 'hex'), tubes);
-        res.json(result);
-    } catch (err: any) {
-        // Handle integrity check failures or decryption errors
-        if (err.message?.includes('Integrity check failed') || err.message?.includes('bad decrypt') || err.message?.includes('Unsupported state or unable to authenticate data') || err.message?.includes('Unsupported state or key size')) {
-            return res.status(400).json({ error: `Decryption failed: ${err.message}` });
-        }
-        console.error('Decryption failed:', err?.message || 'Unknown error');
-        res.status(500).json({ error: 'Internal server error' });
-    }
+app.get('/mcp/:sessionId/check', sessionLimiter, validateUserId, ensureSessionOwner, (req: Request, res: Response) => {
+    res.json({ message: 'Session ownership verified' });
 });
 
 // Export app for testing
