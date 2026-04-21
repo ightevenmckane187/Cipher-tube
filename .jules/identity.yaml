@@ -1,0 +1,45 @@
+cipher_tube:
+  leadership_narrative: >
+    Cipher‑tube is a modular, capability‑driven platform engineered with a Director‑level hybrid mindset.
+    Built around Sentinel (security), Bolt (performance), and Palette (UX), it demonstrates architectural
+    discipline, operational reliability, and product‑aware engineering.
+
+  architecture_summary:
+    modules:
+      sentinel:
+        - IDOR protection
+        - sanitization
+        - rate_limiting
+        - security_headers
+      bolt:
+        - caching
+        - pre_warming
+        - session_optimization
+        - healthendpointtuning
+      palette:
+        - accessibility
+        - ui_consistency
+        - ux_refinement
+    principles:
+      - capability_modularity
+      - security_first
+      - performance_core
+      - uxsystemlevel
+
+  pitch_slide:
+    sentinel: "Security layer: IDOR, DoS, validation, sanitization, rate limiting"
+    bolt: "Performance layer: caching, pre-warming, session lifecycle, health tuning"
+    palette: "UX layer: accessibility, UI consistency, user-centered design"
+
+  recruiter_description: >
+    Cipher‑tube is a modular platform built around security (Sentinel), performance (Bolt), and UX (Palette).
+    It demonstrates senior-level architectural thinking and production-grade engineering across security,
+    performance, and user experience.
+
+  authoritychainmapping:
+    executive_mandate: "Capability architecture (Bolt/Sentinel/Palette)"
+    role_charter: "System boundaries and capability layers"
+    delegationofauthority: "Security posture, caching, UX standards"
+    regulatory_constraints: "IDOR, sanitization, rate limiting, headers"
+    technical_authority: "Performance engineering, UX improvements"
+    execution_authority: "High commit velocity and delivery"
