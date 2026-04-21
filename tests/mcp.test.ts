@@ -123,10 +123,14 @@ describe('MCP Session Management', () => {
   });
 
   describe('GET /', () => {
-    it('should return the landing page', async () => {
+    it('should return the landing page with semantic structure', async () => {
       const response = await request(app).get('/');
       expect(response.status).toBe(200);
       expect(response.text).toContain('Cipher Tube Assembly');
+      expect(response.text).toContain('<main>');
+      expect(response.text).toContain('<footer>');
+      expect(response.text).toContain('Quick Start');
+      expect(response.text).toContain('Health Check');
     });
   });
 });
