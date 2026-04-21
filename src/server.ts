@@ -43,11 +43,9 @@ export const redisClient = createClient({
     url: process.env.REDIS_URL || 'redis://localhost:6379'
 });
 
-// Basic error handling for Redis connection
-redisClient.on('error', (err) => {
-    // Only log essential info to avoid leaking credentials in the URL
-    console.error('Redis Client Error:', err.message);
-});
+// UUID v4 validation regex
+const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const SESSION_TTL = 86400; // 24 hours
 
 // Use a mock for testing as per memory instructions
 if (process.env.NODE_ENV !== 'test') {
@@ -259,8 +257,8 @@ app.post('/mcp', sessionLimiter, jsonParser, async (req: Request, res: Response)
 app.get('/mcp/:sessionId/check', sessionLimiter, validateUserId, ensureSessionOwner, (req: Request, res: Response) => {
     res.json({ message: 'Session ownership verified' });
 });
+app.get('/mcp/:sessionId/check', apiLimiter, ensureSessionOwner, (req, res) => res.json({ status: 'authorized' }));
 
-// Export app for testing
 export { app };
 
 if (process.env.NODE_ENV !== 'test') {
