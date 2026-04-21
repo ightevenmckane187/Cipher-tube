@@ -1,6 +1,6 @@
 {
   "name": "cipher-tube",
-  "version": "1.0.0",
+  "version": "1.5.0",
   "description": "Cryptic advanced platform with Redis + Express session service and Cipher Tube Assembly architecture",
   "main": "dist/server.js",
   "scripts": {

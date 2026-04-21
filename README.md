@@ -1,18 +1,41 @@
 ***
 
-# Cipher Tube Assembly & Session Service
+# Cipher Tube Assembly & Session Service (v1.5.0)
+
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://ightevenmckane187.github.io/Cipher-tube/)
 
 This repository combines two main pieces:
 
 - A Redis + Express service that enforces per‑user session ownership and basic monitoring.  
 - Design and reference material for the **Cipher Tube Assembly (CTA)**, a multi‑layer cryptographic architecture.
 
+## 🚀 What's New in v1.5.0
+
+We've recently upgraded to **v1.5.0**! This release brings significant improvements:
+- **Military-Grade Security**: AES-256-GCM encryption support.
+- **Improved UX**: New Dark Mode UI for all interfaces.
+- **Rock-Solid Stability**: Fixed session timeout issues and improved Redis integration.
+
+Check out the [Full Product Update](./docs/PRODUCT_UPDATE_v1.5.0.md) for more details.
+
+## 📚 Documentation
+
+Detailed documentation is available in the [docs/](./docs/) directory or on our [GitHub Pages site](https://ightevenmckane187.github.io/Cipher-tube/):
+
+- [Getting Started](./docs/index.md)
+- [Security Guide](./docs/SECURITY.md)
+- [Session Management](./docs/SESSION_MANAGEMENT.md)
+- [UI Themes & Dark Mode](./docs/UI_THEMES.md)
+- [API Reference](./docs/API.md)
+- [Migration Guide](./docs/MIGRATION_v1.5.0.md)
+
 ## Features
 
-- Per‑user session ownership stored in Redis (`session:{sessionId}:owner`).  
-- Middleware to ensure only the owning user can use a session.  
-- Redis utilities to inspect and monitor live sessions.  
-- Documentation and LaTeX/IEEE whitepaper templates for the Cipher Tube Assembly.
+- **AES-256-GCM Encryption**: Secure cryptographic operations.
+- **Per‑user session ownership**: Stored in Redis (\`session:{sessionId}:owner\`).
+- **Middleware enforcement**: Ensures only the owning user can use a session.
+- **Redis monitoring**: Utilities to inspect live sessions.
+- **CTA Documentation**: LaTeX/IEEE whitepaper templates for the multi-layer architecture.
 
 ## Prerequisites
 
