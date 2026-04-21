@@ -50,7 +50,7 @@ redisClient.on('error', (err) => {
 
 // Use a mock for testing as per memory instructions
 if (process.env.NODE_ENV !== 'test') {
-    redisClient.connect().catch(console.error);
+    redisClient.connect().catch((err: any) => console.error('Redis Connection Error:', err.message));
 }
 
 app.get('/', (req: Request, res: Response) => {
@@ -152,6 +152,24 @@ app.get('/health', (req: Request, res: Response) => {
 // Middleware for JSON parsing with size limit
 const jsonParser = express.json({ limit: '10kb' });
 
+/**
+ * Middleware to validate x-user-id header.
+ * Checks for existence, type, and length to prevent DoS and cache displacement.
+ */
+const validateUserId = (req: Request, res: Response, next: NextFunction) => {
+    const userId = req.headers['x-user-id'];
+
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+        return res.status(401).json({ error: 'Unauthorized: Missing or invalid x-user-id' });
+    }
+
+    if (userId.length > 128) {
+        return res.status(400).json({ error: 'Bad Request: x-user-id exceeds maximum length' });
+    }
+
+    next();
+};
+
 // Middleware to ensure session ownership
 const ensureSessionOwner = async (req: Request, res: Response, next: NextFunction) => {
     const { sessionId } = req.params;
@@ -237,7 +255,7 @@ app.post('/mcp', sessionLimiter, jsonParser, async (req: Request, res: Response)
 });
 
 // Check Session Ownership Endpoint
-app.get('/mcp/:sessionId/check', sessionLimiter, ensureSessionOwner, (req: Request, res: Response) => {
+app.get('/mcp/:sessionId/check', sessionLimiter, validateUserId, ensureSessionOwner, (req: Request, res: Response) => {
     res.json({ message: 'Session ownership verified' });
 });
 

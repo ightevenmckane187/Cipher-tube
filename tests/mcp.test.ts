@@ -43,6 +43,15 @@ describe('MCP Session Management', () => {
       const response = await request(app).post('/mcp');
       expect(response.status).toBe(401);
     });
+
+    it('should return 400 if x-user-id is too long', async () => {
+      const longUserId = 'a'.repeat(129);
+      const response = await request(app)
+        .post('/mcp')
+        .set('x-user-id', longUserId);
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('exceeds maximum length');
+    });
   });
 
   describe('GET /mcp/:sessionId/check', () => {
@@ -78,6 +87,15 @@ describe('MCP Session Management', () => {
         .set('x-user-id', 'user123');
 
       expect(response.status).toBe(404);
+    });
+
+    it('should return 400 if x-user-id is too long on check', async () => {
+      const sessionId = '550e8400-e29b-41d4-a716-446655440001';
+      const longUserId = 'a'.repeat(129);
+      const response = await request(app)
+        .get(`/mcp/${sessionId}/check`)
+        .set('x-user-id', longUserId);
+      expect(response.status).toBe(400);
     });
 
     it('should use in-memory cache for subsequent requests (Bolt Optimization)', async () => {
