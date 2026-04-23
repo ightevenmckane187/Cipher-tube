@@ -22,6 +22,14 @@ export const sessionCache = new LRUCache<string, string>({
 // Session ID Validation (UUID v4)
 const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+// Rate limiter for general API operations
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 1000, // Higher limit for general API
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 // x-user-id validation (type and length)
 const isValidUserId = (userId: any): userId is string => {
     return typeof userId === 'string' && userId.length > 0 && userId.length <= 128;
@@ -43,8 +51,6 @@ export const redisClient = createClient({
     url: process.env.REDIS_URL || 'redis://localhost:6379'
 });
 
-// UUID v4 validation regex
-const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SESSION_TTL = 86400; // 24 hours
 
 // Use a mock for testing as per memory instructions
@@ -123,10 +129,12 @@ app.get('/', (req: Request, res: Response) => {
                     <span class="status-dot" aria-hidden="true"></span>
                     <strong>Status:</strong> <span style="color: var(--success);">Online</span>
                 </p>
+                <h2>Quick Start</h2>
+                <p>To get started, create a session via POST /mcp.</p>
             </main>
             <footer>
                 <nav aria-label="Footer navigation">
-                    <a href="/health">Service Health Status</a>
+                    <a href="/health">Health Check</a>
                 </nav>
             </footer>
         </body>
@@ -163,7 +171,7 @@ const validateUserId = (req: Request, res: Response, next: NextFunction) => {
     }
 
     if (userId.length > 128) {
-        return res.status(400).json({ error: 'Bad Request: x-user-id exceeds maximum length' });
+        return res.status(400).json({ error: 'Invalid x-user-id: exceeds maximum length' });
     }
 
     next();
@@ -179,7 +187,7 @@ const ensureSessionOwner = async (req: Request, res: Response, next: NextFunctio
     }
 
     if (!isValidUserId(userId)) {
-        return res.status(400).json({ error: 'Bad Request: Invalid x-user-id format or length' });
+        return res.status(400).json({ error: 'Invalid x-user-id: exceeds maximum length' });
     }
 
     if (!sessionId) {
@@ -232,7 +240,7 @@ app.post('/mcp', sessionLimiter, jsonParser, async (req: Request, res: Response)
     }
 
     if (!isValidUserId(userId)) {
-        return res.status(400).json({ error: 'Bad Request: Invalid x-user-id format or length' });
+        return res.status(400).json({ error: 'Invalid x-user-id: exceeds maximum length' });
     }
 
     const sessionId = crypto.randomUUID();
@@ -255,9 +263,70 @@ app.post('/mcp', sessionLimiter, jsonParser, async (req: Request, res: Response)
 
 // Check Session Ownership Endpoint
 app.get('/mcp/:sessionId/check', sessionLimiter, validateUserId, ensureSessionOwner, (req: Request, res: Response) => {
-    res.json({ message: 'Session ownership verified' });
+    res.json({ message: 'Session ownership verified', status: 'owned' });
 });
-app.get('/mcp/:sessionId/check', apiLimiter, ensureSessionOwner, (req, res) => res.json({ status: 'authorized' }));
+
+/**
+ * CTA Encryption Endpoint
+ * Protects message with 25-layer Cipher Tube Assembly
+ */
+app.post('/mcp/:sessionId/encrypt', sessionLimiter, jsonParser, ensureSessionOwner, (req: Request, res: Response) => {
+    const { message, masterSeed } = req.body;
+
+    if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: 'Bad Request: Missing or invalid message' });
+    }
+
+    // Validate masterSeed is a 64-char hex string (256-bit)
+    if (!masterSeed || typeof masterSeed !== 'string' || !/^[0-9a-f]{64}$/i.test(masterSeed)) {
+        return res.status(400).json({ error: 'Bad Request: Invalid masterSeed' });
+    }
+
+    try {
+        const result = buildCipherTube(Buffer.from(message, 'utf8'), Buffer.from(masterSeed, 'hex'));
+        res.json(result);
+    } catch (err: any) {
+        // Sentinel: Log only message to avoid leaking sensitive internal state
+        console.error('Encryption failed:', err?.message || 'Unknown error');
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * CTA Decryption Endpoint
+ * Reverses the 25-layer assembly and verifies integrity
+ */
+app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, ensureSessionOwner, (req: Request, res: Response) => {
+    const { ciphertext, masterSeed, tubes } = req.body;
+
+    if (!ciphertext || typeof ciphertext !== 'string') {
+        return res.status(400).json({ error: 'Bad Request: Missing or invalid ciphertext' });
+    }
+
+    if (!masterSeed || typeof masterSeed !== 'string' || !/^[0-9a-f]{64}$/i.test(masterSeed)) {
+        return res.status(400).json({ error: 'Bad Request: Invalid masterSeed' });
+    }
+
+    if (!tubes || !Array.isArray(tubes)) {
+        return res.status(400).json({ error: 'Bad Request: Missing or invalid tubes' });
+    }
+
+    try {
+        const result = decryptCipherTube(ciphertext, Buffer.from(masterSeed, 'hex'), tubes);
+        res.json(result);
+    } catch (err: any) {
+        // Sentinel: Log only message to avoid leaking sensitive internal state
+        console.error('Decryption failed:', err?.message || 'Unknown error');
+
+        // Check if it's an integrity failure or decryption failure
+        if (err.message?.includes('Integrity check failed') || err.message?.includes('bad decrypt') || err.message?.includes('Wrong tag') || err.message?.includes('Unsupported state')) {
+             // Return 400 for cryptographic failures, but don't leak details
+             return res.status(400).json({ error: err.message?.includes('Integrity check failed') ? err.message : 'Decryption failed' });
+        }
+
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 export { app };
 
