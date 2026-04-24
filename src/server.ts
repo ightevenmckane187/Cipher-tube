@@ -32,7 +32,7 @@ const apiLimiter = rateLimit({
 
 // x-user-id validation (type and length)
 const isValidUserId = (userId: any): userId is string => {
-    return typeof userId === 'string' && userId.length > 0 && userId.length <= 128;
+    return typeof userId === 'string' && userId.trim().length > 0 && userId.length <= 128;
 };
 
 // Rate limiter for session-related operations
@@ -45,6 +45,7 @@ const sessionLimiter = rateLimit({
 
 // Security Enhancements
 app.use(helmet()); // Sets various security-related HTTP headers
+app.use(apiLimiter); // Sentinel: Apply global rate limiting
 app.disable('x-powered-by'); // Further ensures the header is removed
 
 export const redisClient = createClient({
@@ -178,17 +179,10 @@ const validateUserId = (req: Request, res: Response, next: NextFunction) => {
 };
 
 // Middleware to ensure session ownership
+// Sentinel: Relies on validateUserId middleware being called first
 const ensureSessionOwner = async (req: Request, res: Response, next: NextFunction) => {
     const { sessionId } = req.params;
-    const userId = req.headers['x-user-id'];
-
-    if (!userId) {
-        return res.status(401).json({ error: 'Unauthorized: Missing x-user-id' });
-    }
-
-    if (!isValidUserId(userId)) {
-        return res.status(400).json({ error: 'Invalid x-user-id: exceeds maximum length' });
-    }
+    const userId = req.headers['x-user-id'] as string;
 
     if (!sessionId) {
         return res.status(400).json({ error: 'Bad Request: Missing sessionId' });
@@ -232,16 +226,8 @@ const ensureSessionOwner = async (req: Request, res: Response, next: NextFunctio
 };
 
 // Session Creation Endpoint
-app.post('/mcp', sessionLimiter, jsonParser, async (req: Request, res: Response) => {
-    const userId = req.headers['x-user-id'];
-
-    if (!userId) {
-        return res.status(401).json({ error: 'Missing x-user-id header' });
-    }
-
-    if (!isValidUserId(userId)) {
-        return res.status(400).json({ error: 'Invalid x-user-id: exceeds maximum length' });
-    }
+app.post('/mcp', sessionLimiter, jsonParser, validateUserId, async (req: Request, res: Response) => {
+    const userId = req.headers['x-user-id'] as string;
 
     const sessionId = crypto.randomUUID();
     const sessionKey = `session:${sessionId}:owner`;
@@ -270,7 +256,7 @@ app.get('/mcp/:sessionId/check', sessionLimiter, validateUserId, ensureSessionOw
  * CTA Encryption Endpoint
  * Protects message with 25-layer Cipher Tube Assembly
  */
-app.post('/mcp/:sessionId/encrypt', sessionLimiter, jsonParser, ensureSessionOwner, (req: Request, res: Response) => {
+app.post('/mcp/:sessionId/encrypt', sessionLimiter, jsonParser, validateUserId, ensureSessionOwner, (req: Request, res: Response) => {
     const { message, masterSeed } = req.body;
 
     if (!message || typeof message !== 'string') {
@@ -296,7 +282,7 @@ app.post('/mcp/:sessionId/encrypt', sessionLimiter, jsonParser, ensureSessionOwn
  * CTA Decryption Endpoint
  * Reverses the 25-layer assembly and verifies integrity
  */
-app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, ensureSessionOwner, (req: Request, res: Response) => {
+app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, ensureSessionOwner, (req: Request, res: Response) => {
     const { ciphertext, masterSeed, tubes } = req.body;
 
     if (!ciphertext || typeof ciphertext !== 'string') {

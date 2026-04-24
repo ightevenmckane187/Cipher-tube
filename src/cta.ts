@@ -116,7 +116,11 @@ export function decryptCipherTube(
 
     const computedHash = crypto.createHash('sha512').update(current).digest('hex');
 
-    if (computedHash !== tube.hash) {
+    // Sentinel: Use timingSafeEqual to prevent potential timing attacks on integrity checks
+    const computedBuffer = Buffer.from(computedHash, 'hex');
+    const expectedBuffer = Buffer.from(tube.hash, 'hex');
+
+    if (computedBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(computedBuffer, expectedBuffer)) {
       throw new Error(`Integrity check failed: Hash-lock tube ${i} mismatch`);
     }
 
