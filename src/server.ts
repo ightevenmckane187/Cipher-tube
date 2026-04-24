@@ -68,11 +68,28 @@ app.get('/', (req: Request, res: Response) => {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <meta name="description" content="Cipher Tube Assembly - Optimized session management service.">
             <title>Cipher Tube Assembly</title>
+            <script>
+                (function() {
+                    const savedTheme = localStorage.getItem('theme');
+                    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+                    if (theme === 'dark') {
+                        document.documentElement.setAttribute('data-theme', 'dark');
+                    }
+                })();
+            </script>
             <style>
                 :root {
-                    color-scheme: light dark;
+                    color-scheme: light;
                     --primary: #007bff;
                     --success: #4cd137;
+                    --bg-color: #ffffff;
+                    --text-color: #212529;
+                }
+                html[data-theme='dark'] {
+                    color-scheme: dark;
+                    --bg-color: #121212;
+                    --text-color: #e0e0e0;
                 }
                 body {
                     font-family: system-ui, -apple-system, sans-serif;
@@ -80,12 +97,9 @@ app.get('/', (req: Request, res: Response) => {
                     max-width: 800px;
                     margin: 2rem auto;
                     padding: 0 1rem;
-                    background-color: canvas;
-                    color: canvastext;
+                    background-color: var(--bg-color);
+                    color: var(--text-color);
                     transition: background-color 0.3s, color 0.3s;
-                }
-                @media (prefers-color-scheme: dark) {
-                    body { background-color: #121212; color: #e0e0e0; }
                 }
                 h1 { color: var(--primary); }
                 .skip-link {
@@ -118,12 +132,15 @@ app.get('/', (req: Request, res: Response) => {
                 footer { margin-top: 4rem; font-size: 0.875rem; border-top: 1px solid #ccc; padding-top: 1rem; }
                 a { color: var(--primary); text-decoration: none; }
                 a:hover { text-decoration: underline; }
-                a:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+                a:focus-visible, #theme-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
             </style>
         </head>
         <body>
             <a class="skip-link" href="#main-content">Skip to content</a>
             <main id="main-content">
+                <button id="theme-toggle" aria-label="Toggle dark mode" style="float: right; padding: 0.5rem; cursor: pointer; border: 1px solid var(--primary); border-radius: 4px; background: transparent; color: var(--primary); font-size: 1.25rem;">
+                    🌙
+                </button>
                 <h1>Cipher Tube Assembly</h1>
                 <p>Welcome to the performance-optimized session management service.</p>
                 <p>
@@ -138,6 +155,31 @@ app.get('/', (req: Request, res: Response) => {
                     <a href="/health">Health Check</a>
                 </nav>
             </footer>
+            <script>
+                const themeToggle = document.getElementById('theme-toggle');
+                const html = document.documentElement;
+
+                const updateButton = (theme) => {
+                    themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+                    themeToggle.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+                };
+
+                // Initialize button state
+                const currentTheme = html.getAttribute('data-theme') || 'light';
+                updateButton(currentTheme);
+
+                themeToggle.addEventListener('click', () => {
+                    const isDark = html.getAttribute('data-theme') === 'dark';
+                    const newTheme = isDark ? 'light' : 'dark';
+                    if (newTheme === 'dark') {
+                        html.setAttribute('data-theme', 'dark');
+                    } else {
+                        html.removeAttribute('data-theme');
+                    }
+                    localStorage.setItem('theme', newTheme);
+                    updateButton(newTheme);
+                });
+            </script>
         </body>
         </html>
     `);
