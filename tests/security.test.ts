@@ -91,4 +91,56 @@ describe('Security Validation', () => {
       );
     });
   });
+
+  describe('Decryption Fail-Secure', () => {
+    const userId = 'sentinel-user';
+    const sessionId = '550e8400-e29b-41d4-a716-446655440000';
+    const masterSeed = '0'.repeat(64);
+
+    beforeEach(() => {
+      redisMock.get.mockResolvedValue(userId);
+    });
+
+    it('should return 400 for too short ciphertext', async () => {
+      const response = await request(app)
+        .post(`/mcp/${sessionId}/decrypt`)
+        .set('x-user-id', userId)
+        .send({
+          ciphertext: '00112233',
+          masterSeed,
+          tubes: []
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Invalid ciphertext');
+    });
+
+    it('should return 400 for invalid hex in ciphertext', async () => {
+      const response = await request(app)
+        .post(`/mcp/${sessionId}/decrypt`)
+        .set('x-user-id', userId)
+        .send({
+          ciphertext: 'not-hex-at-all',
+          masterSeed,
+          tubes: []
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Invalid ciphertext');
+    });
+
+    it('should return 400 for missing tube fields', async () => {
+      const response = await request(app)
+        .post(`/mcp/${sessionId}/decrypt`)
+        .set('x-user-id', userId)
+        .send({
+          ciphertext: '0'.repeat(800),
+          masterSeed,
+          tubes: [{ layer: 24, type: 'aes-256-gcm' }]
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Invalid tube metadata');
+    });
+  });
 });
