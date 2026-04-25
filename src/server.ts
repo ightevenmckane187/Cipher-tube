@@ -68,11 +68,22 @@ app.get('/', (req: Request, res: Response) => {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <meta name="description" content="Cipher Tube Assembly - Optimized session management service.">
             <title>Cipher Tube Assembly</title>
+            <script>
+                (function() {
+                    const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                    document.documentElement.setAttribute('data-theme', theme);
+                })();
+            </script>
             <style>
                 :root {
-                    color-scheme: light dark;
                     --primary: #007bff;
                     --success: #4cd137;
+                    --bg-color: #ffffff;
+                    --text-color: #212529;
+                }
+                [data-theme='dark'] {
+                    --bg-color: #121212;
+                    --text-color: #e0e0e0;
                 }
                 body {
                     font-family: system-ui, -apple-system, sans-serif;
@@ -80,12 +91,9 @@ app.get('/', (req: Request, res: Response) => {
                     max-width: 800px;
                     margin: 2rem auto;
                     padding: 0 1rem;
-                    background-color: canvas;
-                    color: canvastext;
+                    background-color: var(--bg-color);
+                    color: var(--text-color);
                     transition: background-color 0.3s, color 0.3s;
-                }
-                @media (prefers-color-scheme: dark) {
-                    body { background-color: #121212; color: #e0e0e0; }
                 }
                 h1 { color: var(--primary); }
                 .skip-link {
@@ -124,7 +132,12 @@ app.get('/', (req: Request, res: Response) => {
         <body>
             <a class="skip-link" href="#main-content">Skip to content</a>
             <main id="main-content">
-                <h1>Cipher Tube Assembly</h1>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h1>Cipher Tube Assembly</h1>
+                    <button id="theme-toggle" aria-label="Toggle dark mode" style="background: none; border: 1px solid var(--primary); color: var(--primary); padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-size: 1rem;">
+                        🌓 Theme
+                    </button>
+                </div>
                 <p>Welcome to the performance-optimized session management service.</p>
                 <p>
                     <span class="status-dot" aria-hidden="true"></span>
@@ -138,6 +151,15 @@ app.get('/', (req: Request, res: Response) => {
                     <a href="/health">Health Check</a>
                 </nav>
             </footer>
+            <script>
+                const toggle = document.getElementById('theme-toggle');
+                toggle.addEventListener('click', () => {
+                    const currentTheme = document.documentElement.getAttribute('data-theme');
+                    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                    document.documentElement.setAttribute('data-theme', newTheme);
+                    localStorage.setItem('theme', newTheme);
+                });
+            </script>
         </body>
         </html>
     `);
