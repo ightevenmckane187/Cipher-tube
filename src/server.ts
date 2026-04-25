@@ -44,7 +44,16 @@ const sessionLimiter = rateLimit({
 });
 
 // Security Enhancements
-app.use(helmet()); // Sets various security-related HTTP headers
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+            "img-src": ["'self'", "data:", "img.shields.io"],
+            "script-src": ["'self'", "'unsafe-inline'"], // Allow theme toggle script
+        },
+    },
+    referrerPolicy: { policy: 'same-origin' },
+})); // Sets various security-related HTTP headers
 app.use(apiLimiter); // Sentinel: Apply global rate limiting
 app.disable('x-powered-by'); // Further ensures the header is removed
 
@@ -304,10 +313,25 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
         // Sentinel: Log only message to avoid leaking sensitive internal state
         console.error('Decryption failed:', err?.message || 'Unknown error');
 
-        // Check if it's an integrity failure or decryption failure
-        if (err.message?.includes('Integrity check failed') || err.message?.includes('bad decrypt') || err.message?.includes('Wrong tag') || err.message?.includes('Unsupported state')) {
-             // Return 400 for cryptographic failures, but don't leak details
-             return res.status(400).json({ error: err.message?.includes('Integrity check failed') ? err.message : 'Decryption failed' });
+        // Sentinel: Map cryptographic and validation errors to 400 Bad Request
+        const errorMessage = err.message || '';
+        const isClientError =
+            errorMessage.includes('Invalid ciphertext') ||
+            errorMessage.includes('Invalid tube metadata') ||
+            errorMessage.includes('Missing encryption tube') ||
+            errorMessage.includes('Integrity check failed') ||
+            errorMessage.includes('bad decrypt') ||
+            errorMessage.includes('Wrong tag') ||
+            errorMessage.includes('Unsupported state') ||
+            errorMessage.includes('first argument must be of type string') ||
+            errorMessage.includes('Invalid tag length');
+
+        if (isClientError) {
+             // Return 400 for cryptographic or validation failures, but don't leak details unless it's a specific validation error
+             const publicMessage = (errorMessage.includes('Invalid ciphertext') || errorMessage.includes('Invalid tube metadata') || errorMessage.includes('Integrity check failed'))
+                ? errorMessage
+                : 'Decryption failed';
+             return res.status(400).json({ error: publicMessage });
         }
 
         res.status(500).json({ error: 'Internal server error' });

@@ -12,3 +12,8 @@
 **Vulnerability:** Information leakage or service degradation via unhandled cryptographic exceptions.
 **Learning:** Node.js `crypto` can throw specific errors (e.g., "Unsupported state") during decryption of tampered data that might escape generic `bad decrypt` checks, potentially leading to 500 errors and leaking internal stack traces if not caught.
 **Prevention:** Explicitly catch and map cryptographic errors to 400 Bad Request with generic "Decryption failed" messages to ensure the system fails securely without exposing implementation details.
+
+## 2025-05-20 - Defense-in-Depth for Multi-Layer Decryption
+**Vulnerability:** Service instability (500 errors) via malformed "onion" encryption payloads.
+**Learning:** Even with generic crypto error catching, missing structural validation (e.g., minimum length for N-layers, hex format) can trigger unhandled edge cases in buffer slicing or internal library calls before cryptographic verification occurs.
+**Prevention:** Implement structural sanity checks (format, minimum length, metadata presence) at the start of the decryption pipeline to reject invalid payloads early and prevent 400-level client errors from escalating to 500-level server errors.
