@@ -27,17 +27,18 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
   const hashChain: string[] = [];
 
   // === 12 Hash-Lock Tubes (Integrity) ===
+  // Bolt Optimization: Pre-compute hash once for all integrity tubes
+  const integrityHash = crypto.hash('sha512', current, 'hex');
+
   for (let i = 0; i < 12; i++) {
     const salt = crypto.randomBytes(16);
-    const hash = crypto.createHash('sha512').update(current).digest('hex');
-
-    hashChain.push(hash);
+    hashChain.push(integrityHash);
 
     tubes.push({
       layer: i,
       type: 'hash-lock',
       salt: salt.toString('hex'),   // stored but not used for hashing in this design
-      hash: hash
+      hash: integrityHash
     });
 
     audit.push(`Tube ${i}: SHA-512 hash lock computed for integrity`);
@@ -87,12 +88,14 @@ export function decryptCipherTube(
   masterSeed: Buffer,
   tubes: any[]
 ) {
+  // Bolt Optimization: Index tubes by layer for O(1) lookup
+  const tubeMap = new Map(tubes.map(t => [t.layer, t]));
   let current = Buffer.from(ciphertextHex, 'hex');
   const audit: string[] = [];
 
   // === Decrypt 13 encryption layers in reverse ===
   for (let j = 12; j >= 0; j--) {
-    const tube = tubes.find((t: any) => t.layer === 12 + j);
+    const tube = tubeMap.get(12 + j);
     if (!tube) throw new Error(`Missing encryption tube for layer ${12 + j}`);
 
     const iv = current.subarray(0, 12);
@@ -110,14 +113,15 @@ export function decryptCipherTube(
   }
 
   // === Verify 12 hash-lock tubes in reverse ===
+  // Bolt Optimization: Compute hash once for all integrity checks
+  const computedHash = crypto.hash('sha512', current, 'hex');
+  const computedBuffer = Buffer.from(computedHash, 'hex');
+
   for (let i = 11; i >= 0; i--) {
-    const tube = tubes.find((t: any) => t.layer === i);
+    const tube = tubeMap.get(i);
     if (!tube) throw new Error(`Missing hash-lock tube ${i}`);
 
-    const computedHash = crypto.createHash('sha512').update(current).digest('hex');
-
     // Sentinel: Use timingSafeEqual to prevent potential timing attacks on integrity checks
-    const computedBuffer = Buffer.from(computedHash, 'hex');
     const expectedBuffer = Buffer.from(tube.hash, 'hex');
 
     if (computedBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(computedBuffer, expectedBuffer)) {
