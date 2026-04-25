@@ -17,3 +17,8 @@
 **Vulnerability:** Service instability (500 errors) via malformed "onion" encryption payloads.
 **Learning:** Even with generic crypto error catching, missing structural validation (e.g., minimum length for N-layers, hex format) can trigger unhandled edge cases in buffer slicing or internal library calls before cryptographic verification occurs.
 **Prevention:** Implement structural sanity checks (format, minimum length, metadata presence) at the start of the decryption pipeline to reject invalid payloads early and prevent 400-level client errors from escalating to 500-level server errors.
+
+## 2025-05-25 - Structural Validation for Input Arrays
+**Vulnerability:** Service instability (500 errors) via malformed array elements in complex JSON inputs.
+**Learning:** Even if a request body is parsed as an array, individual elements can be `null` or unexpected types. Calling methods or accessing properties on these elements (e.g., in `.find()` or `.some()`) can trigger unhandled `TypeError` exceptions.
+**Prevention:** Always perform structural validation on array elements before processing them, especially when they come from untrusted user input, to ensure the application fails gracefully with a 400 error rather than crashing or leaking state with a 500 error.

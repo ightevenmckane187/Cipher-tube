@@ -94,6 +94,11 @@ export function decryptCipherTube(
 
   let current = Buffer.from(ciphertextHex, 'hex');
 
+  // Sentinel: Structural validation of the tubes array
+  if (tubes.some(tube => tube === null || typeof tube !== 'object')) {
+    throw new Error('Invalid tube metadata: All tubes must be non-null objects');
+  }
+
   // Sentinel: Basic length check. 13 layers * (12 IV + 16 TAG) = 364 bytes min
   if (current.length < 364) {
     throw new Error('Invalid ciphertext: Too short for 13 encryption layers');
