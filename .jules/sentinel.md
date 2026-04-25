@@ -12,3 +12,8 @@
 **Vulnerability:** Information leakage or service degradation via unhandled cryptographic exceptions.
 **Learning:** Node.js `crypto` can throw specific errors (e.g., "Unsupported state") during decryption of tampered data that might escape generic `bad decrypt` checks, potentially leading to 500 errors and leaking internal stack traces if not caught.
 **Prevention:** Explicitly catch and map cryptographic errors to 400 Bad Request with generic "Decryption failed" messages to ensure the system fails securely without exposing implementation details.
+
+## 2025-05-16 - Cryptographic Input Pre-validation
+**Vulnerability:** Denial of Service or internal error leakage (500 errors) via malformed cryptographic inputs.
+**Learning:** Node.js `crypto` methods like `setAuthTag` or `subarray` can throw `RangeError` or internal `Error` (e.g., "Invalid authentication tag length") if inputs are malformed or too short, often bypassing generic `catch` blocks that only look for specific strings like "bad decrypt".
+**Prevention:** Always pre-validate input format (e.g., hex regex) and minimum buffer lengths (e.g., 364 bytes for 13 layers of overhead) before invoking cryptographic operations to ensure the application fails gracefully with 400 Bad Request.

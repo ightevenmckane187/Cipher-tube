@@ -304,10 +304,26 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
         // Sentinel: Log only message to avoid leaking sensitive internal state
         console.error('Decryption failed:', err?.message || 'Unknown error');
 
-        // Check if it's an integrity failure or decryption failure
-        if (err.message?.includes('Integrity check failed') || err.message?.includes('bad decrypt') || err.message?.includes('Wrong tag') || err.message?.includes('Unsupported state')) {
-             // Return 400 for cryptographic failures, but don't leak details
-             return res.status(400).json({ error: err.message?.includes('Integrity check failed') ? err.message : 'Decryption failed' });
+        const errorMessage = err?.message || '';
+        // Check if it's an integrity failure, decryption failure, or input validation failure
+        if (
+            errorMessage.includes('Integrity check failed') ||
+            errorMessage.includes('bad decrypt') ||
+            errorMessage.includes('Wrong tag') ||
+            errorMessage.includes('Unsupported state') ||
+            errorMessage.includes('too short') ||
+            errorMessage.includes('Invalid authentication tag length') ||
+            errorMessage.includes('Invalid IV length') ||
+            errorMessage.includes('Invalid ciphertext format') ||
+            errorMessage.includes('missing required layers')
+        ) {
+             // Return 400 for cryptographic/input failures, but don't leak details for generic crypto errors
+             const isIntegrityError = errorMessage.includes('Integrity check failed');
+             const isHardeningError = errorMessage.includes('too short') || errorMessage.includes('Invalid ciphertext format') || errorMessage.includes('missing required layers');
+
+             return res.status(400).json({
+                error: (isIntegrityError || isHardeningError) ? errorMessage : 'Decryption failed'
+             });
         }
 
         res.status(500).json({ error: 'Internal server error' });

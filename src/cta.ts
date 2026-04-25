@@ -87,7 +87,22 @@ export function decryptCipherTube(
   masterSeed: Buffer,
   tubes: any[]
 ) {
+  // Sentinel: Basic validation for tubes and ciphertext length
+  if (!/^[0-9a-f]+$/i.test(ciphertextHex)) {
+    throw new Error('Invalid ciphertext format: must be hex');
+  }
+
   let current = Buffer.from(ciphertextHex, 'hex');
+
+  // 13 layers * (12 bytes IV + 16 bytes Tag) = 364 bytes minimum overhead
+  if (current.length < 364) {
+    throw new Error('Ciphertext is too short for 13 layers of assembly');
+  }
+
+  if (tubes.length < 25) {
+    throw new Error('Invalid tube assembly: missing required layers');
+  }
+
   const audit: string[] = [];
 
   // === Decrypt 13 encryption layers in reverse ===
