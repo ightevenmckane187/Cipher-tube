@@ -1,5 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
-import { createClient } from 'redis';
+import { createClient, RedisClientType } from 'redis';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
@@ -9,7 +9,7 @@ import { buildCipherTube, decryptCipherTube } from './cta';
 
 dotenv.config();
 
-const app = express();
+const app: express.Application = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
@@ -29,11 +29,6 @@ const apiLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
 });
-
-// x-user-id validation (type and length)
-const isValidUserId = (userId: any): userId is string => {
-    return typeof userId === 'string' && userId.trim().length > 0 && userId.length <= 128;
-};
 
 // Rate limiter for session-related operations
 const sessionLimiter = rateLimit({
@@ -57,11 +52,9 @@ app.use(helmet({
 app.use(apiLimiter); // Sentinel: Apply global rate limiting
 app.disable('x-powered-by'); // Further ensures the header is removed
 
-export const redisClient = createClient({
+export const redisClient: RedisClientType = createClient({
     url: process.env.REDIS_URL || 'redis://localhost:6379'
 });
-
-const SESSION_TTL = 86400; // 24 hours
 
 // Use a mock for testing as per memory instructions
 if (process.env.NODE_ENV !== 'test') {

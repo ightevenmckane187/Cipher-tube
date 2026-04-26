@@ -99,17 +99,43 @@ export function decryptCipherTube(
     throw new Error('Invalid ciphertext: Too short for 13 encryption layers');
   }
 
+  // Sentinel: Pre-process and validate tubes for security and performance
+  if (!Array.isArray(tubes)) {
+    throw new Error('Invalid tube metadata: Expected an array');
+  }
+
+  const tubeMap = new Map<number, any>();
+  for (const tube of tubes) {
+    if (tube === null || typeof tube !== 'object') {
+      throw new Error('Invalid tube metadata: Tube entries must be non-null objects');
+    }
+    if (typeof tube.layer === 'number') {
+      tubeMap.set(tube.layer, tube);
+    }
+  }
+
+  // Fail-fast: Validate presence of all 25 layers (12 hash-lock + 13 encryption)
+  for (let i = 0; i < 25; i++) {
+    const tube = tubeMap.get(i);
+    if (!tube) {
+      throw new Error(`Invalid tube metadata: Missing tube for layer ${i}`);
+    }
+    if (i < 12) {
+      if (!tube.hash) {
+        throw new Error(`Invalid tube metadata for hash-lock layer ${i}: Missing hash`);
+      }
+    } else {
+      if (!tube.salt || !tube.iv || !tube.tag) {
+        throw new Error(`Invalid tube metadata for encryption layer ${i}: Missing salt, iv, or tag`);
+      }
+    }
+  }
+
   const audit: string[] = [];
 
   // === Decrypt 13 encryption layers in reverse ===
   for (let j = 12; j >= 0; j--) {
-    const tube = tubes.find((t: any) => t.layer === 12 + j);
-    if (!tube) throw new Error(`Missing encryption tube for layer ${12 + j}`);
-
-    // Sentinel: Validate tube fields
-    if (!tube.salt || !tube.iv || !tube.tag) {
-      throw new Error(`Invalid tube metadata for layer ${12 + j}: Missing salt, iv, or tag`);
-    }
+    const tube = tubeMap.get(12 + j);
 
     const iv = current.subarray(0, 12);
     const tag = current.subarray(12, 28);
@@ -127,8 +153,7 @@ export function decryptCipherTube(
 
   // === Verify 12 hash-lock tubes in reverse ===
   for (let i = 11; i >= 0; i--) {
-    const tube = tubes.find((t: any) => t.layer === i);
-    if (!tube) throw new Error(`Missing hash-lock tube ${i}`);
+    const tube = tubeMap.get(i);
 
     const computedHash = crypto.createHash('sha512').update(current).digest('hex');
 
