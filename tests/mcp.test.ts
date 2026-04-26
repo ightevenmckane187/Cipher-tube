@@ -98,7 +98,7 @@ describe('MCP Session Management', () => {
       expect(response.status).toBe(400);
     });
 
-    it('should use in-memory cache for subsequent requests (Bolt Optimization)', async () => {
+    it('should use in-memory cache for subsequent requests (Bolt ⚡ Optimization)', async () => {
       const sessionId = '550e8400-e29b-41d4-a716-446655440004';
       redisMock.get.mockResolvedValueOnce('user456');
 
@@ -118,7 +118,7 @@ describe('MCP Session Management', () => {
       expect(redisMock.get).toHaveBeenCalledTimes(1);
     });
 
-    it('should pre-warm the cache during session creation (Bolt Optimization)', async () => {
+    it('should pre-warm the cache during session creation (Bolt ⚡ Optimization)', async () => {
       // Create session
       const createResponse = await request(app)
         .post('/mcp')
@@ -145,8 +145,8 @@ describe('MCP Session Management', () => {
       const response = await request(app).get('/');
       expect(response.status).toBe(200);
       expect(response.text).toContain('Cipher Tube Assembly');
-      expect(response.text).toContain('<main>');
-      expect(response.text).toContain('<footer>');
+      expect(response.text).toContain('main id="main-content"');
+      expect(response.text).toContain('footer');
       expect(response.text).toContain('Quick Start');
       expect(response.text).toContain('Health Check');
     });

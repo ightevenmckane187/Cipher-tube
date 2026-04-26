@@ -1,3 +1,13 @@
+import { createClient } from "redis";
+jest.mock("redis", () => ({
+  createClient: jest.fn(() => ({
+    on: jest.fn(),
+    connect: jest.fn().mockResolvedValue(null),
+    set: jest.fn().mockResolvedValue("OK"),
+    get: jest.fn(),
+    quit: jest.fn().mockResolvedValue("OK")
+  }))
+}));
 import request from 'supertest';
 import { app } from '../src/server';
 

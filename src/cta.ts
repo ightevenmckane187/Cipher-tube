@@ -90,9 +90,13 @@ export function decryptCipherTube(
   let current = Buffer.from(ciphertextHex, 'hex');
   const audit: string[] = [];
 
+  // Optimization: Pre-index tubes by layer for O(1) lookup (Bolt ⚡ Optimization)
+  // This reduces complexity from O(N^2) to O(N) for large assemblies.
+  const tubeMap = new Map(tubes.map(t => [t.layer, t]));
+
   // === Decrypt 13 encryption layers in reverse ===
   for (let j = 12; j >= 0; j--) {
-    const tube = tubes.find((t: any) => t.layer === 12 + j);
+    const tube = tubeMap.get(12 + j);
     if (!tube) throw new Error(`Missing encryption tube for layer ${12 + j}`);
 
     const iv = current.subarray(0, 12);
@@ -111,7 +115,7 @@ export function decryptCipherTube(
 
   // === Verify 12 hash-lock tubes in reverse ===
   for (let i = 11; i >= 0; i--) {
-    const tube = tubes.find((t: any) => t.layer === i);
+    const tube = tubeMap.get(i);
     if (!tube) throw new Error(`Missing hash-lock tube ${i}`);
 
     const computedHash = crypto.createHash('sha512').update(current).digest('hex');

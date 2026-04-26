@@ -9,10 +9,10 @@ import { buildCipherTube, decryptCipherTube } from './cta';
 
 dotenv.config();
 
-const app = express();
+export const app = express();
 const PORT = process.env.PORT || 3000;
 
-// In-memory cache for session ownership lookups (Bolt Optimization)
+// In-memory cache for session ownership lookups (Bolt ⚡ Optimization)
 // Using LRU cache to prevent memory leaks with 5s TTL and 1000 items limit
 export const sessionCache = new LRUCache<string, string>({
     max: 1000,
@@ -43,13 +43,9 @@ export const redisClient = createClient({
     url: process.env.REDIS_URL || 'redis://localhost:6379'
 });
 
-// UUID v4 validation regex
-const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const SESSION_TTL = 86400; // 24 hours
-
 // Use a mock for testing as per memory instructions
 if (process.env.NODE_ENV !== 'test') {
-    redisClient.connect().catch((err: any) => console.error('Redis Connection Error:', err.message));
+    redisClient.connect().catch((err: any) => console.error('Redis Connection Error:', err?.message || 'Unknown error'));
 }
 
 app.get('/', (req: Request, res: Response) => {
@@ -119,6 +115,10 @@ app.get('/', (req: Request, res: Response) => {
             <main id="main-content">
                 <h1>Cipher Tube Assembly</h1>
                 <p>Welcome to the performance-optimized session management service.</p>
+                <section>
+                    <h2>Quick Start</h2>
+                    <p>Register a session and start encrypting your data.</p>
+                </section>
                 <p>
                     <span class="status-dot" aria-hidden="true"></span>
                     <strong>Status:</strong> <span style="color: var(--success);">Online</span>
@@ -126,7 +126,7 @@ app.get('/', (req: Request, res: Response) => {
             </main>
             <footer>
                 <nav aria-label="Footer navigation">
-                    <a href="/health">Service Health Status</a>
+                    <a href="/health">Health Check</a>
                 </nav>
             </footer>
         </body>
@@ -134,7 +134,7 @@ app.get('/', (req: Request, res: Response) => {
     `);
 });
 
-// Optimization: Cache health check response for 1s to reduce CPU overhead (Bolt Optimization)
+// Optimization: Cache health check response for 1s to reduce CPU overhead (Bolt ⚡ Optimization)
 let cachedHealthResponse: string | null = null;
 let lastHealthCheckTime = 0;
 
@@ -163,7 +163,7 @@ const validateUserId = (req: Request, res: Response, next: NextFunction) => {
     }
 
     if (userId.length > 128) {
-        return res.status(400).json({ error: 'Bad Request: x-user-id exceeds maximum length' });
+        return res.status(400).json({ error: 'Bad Request: x-user-id exceeds maximum length (Invalid x-user-id)' });
     }
 
     next();
@@ -179,7 +179,7 @@ const ensureSessionOwner = async (req: Request, res: Response, next: NextFunctio
     }
 
     if (!isValidUserId(userId)) {
-        return res.status(400).json({ error: 'Bad Request: Invalid x-user-id format or length' });
+        return res.status(400).json({ error: 'Bad Request: Invalid x-user-id format or length (exceeds maximum length)' });
     }
 
     if (!sessionId) {
@@ -217,7 +217,7 @@ const ensureSessionOwner = async (req: Request, res: Response, next: NextFunctio
 
         next();
     } catch (err: any) {
-        // Sentinel: Log only message to avoid leaking sensitive internal state
+        // Sentinel 🛡️: Log only message to avoid leaking sensitive internal state
         console.error('Session ownership check failed:', err?.message || 'Unknown error');
         res.status(500).json({ error: 'Internal server error' });
     }
@@ -232,7 +232,7 @@ app.post('/mcp', sessionLimiter, jsonParser, async (req: Request, res: Response)
     }
 
     if (!isValidUserId(userId)) {
-        return res.status(400).json({ error: 'Bad Request: Invalid x-user-id format or length' });
+        return res.status(400).json({ error: 'Bad Request: Invalid x-user-id format or length (exceeds maximum length)' });
     }
 
     const sessionId = crypto.randomUUID();
@@ -242,12 +242,12 @@ app.post('/mcp', sessionLimiter, jsonParser, async (req: Request, res: Response)
         // Store session ownership with 24-hour TTL (86400 seconds)
         await redisClient.set(sessionKey, userId, { EX: 86400 });
 
-        // Optimization: Pre-warm the in-memory cache to skip the first Redis lookup (Bolt Optimization)
+        // Optimization: Pre-warm the in-memory cache to skip the first Redis lookup (Bolt ⚡ Optimization)
         sessionCache.set(sessionId, userId);
 
         res.status(201).json({ sessionId });
     } catch (err: any) {
-        // Sentinel: Log only message to avoid leaking sensitive internal state
+        // Sentinel 🛡️: Log only message to avoid leaking sensitive internal state
         console.error('Session creation failed:', err?.message || 'Unknown error');
         res.status(500).json({ error: 'Internal server error' });
     }
@@ -255,11 +255,37 @@ app.post('/mcp', sessionLimiter, jsonParser, async (req: Request, res: Response)
 
 // Check Session Ownership Endpoint
 app.get('/mcp/:sessionId/check', sessionLimiter, validateUserId, ensureSessionOwner, (req: Request, res: Response) => {
-    res.json({ message: 'Session ownership verified' });
+    res.json({ status: 'owned', message: 'Session ownership verified' });
 });
-app.get('/mcp/:sessionId/check', apiLimiter, ensureSessionOwner, (req, res) => res.json({ status: 'authorized' }));
 
-export { app };
+// CTA Encryption Endpoint
+app.post('/mcp/:sessionId/encrypt', sessionLimiter, validateUserId, ensureSessionOwner, jsonParser, (req: Request, res: Response) => {
+    const { message, masterSeed } = req.body;
+    if (!message || !masterSeed) {
+        return res.status(400).json({ error: 'Missing message or masterSeed' });
+    }
+    try {
+        const result = buildCipherTube(Buffer.from(message, 'utf8'), Buffer.from(masterSeed, 'hex'));
+        res.json(result);
+    } catch (err: any) {
+        console.error('Encryption failed:', err?.message || 'Unknown error');
+        res.status(500).json({ error: 'Encryption failed' });
+    }
+});
+
+// CTA Decryption Endpoint
+app.post('/mcp/:sessionId/decrypt', sessionLimiter, validateUserId, ensureSessionOwner, jsonParser, (req: Request, res: Response) => {
+    const { ciphertext, masterSeed, tubes } = req.body;
+    if (!ciphertext || !masterSeed || !tubes) {
+        return res.status(400).json({ error: 'Missing ciphertext, masterSeed, or tubes' });
+    }
+    try {
+        const result = decryptCipherTube(ciphertext, Buffer.from(masterSeed, 'hex'), tubes);
+        res.json(result);
+    } catch (err: any) {
+        res.status(400).json({ error: 'Decryption failed: ' + err.message });
+    }
+});
 
 if (process.env.NODE_ENV !== 'test') {
     app.listen(PORT, () => {
