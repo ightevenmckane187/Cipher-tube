@@ -17,3 +17,8 @@
 **Vulnerability:** Service instability (500 errors) via malformed "onion" encryption payloads.
 **Learning:** Even with generic crypto error catching, missing structural validation (e.g., minimum length for N-layers, hex format) can trigger unhandled edge cases in buffer slicing or internal library calls before cryptographic verification occurs.
 **Prevention:** Implement structural sanity checks (format, minimum length, metadata presence) at the start of the decryption pipeline to reject invalid payloads early and prevent 400-level client errors from escalating to 500-level server errors.
+
+## 2025-05-25 - Structural Validation of Cryptographic Metadata
+**Vulnerability:** Denial of Service (DoS) and potential process crash via malformed JSON arrays in the `tubes` parameter.
+**Learning:** Even if cryptographic operations are wrapped in try-catch blocks, operations like `Array.prototype.find()` on arrays containing `null` or non-object entries can throw unhandled `TypeError`s (e.g., "Cannot read properties of null") before the cryptographic logic is even reached.
+**Prevention:** Implement strict structural validation at the entry point of complex cryptographic functions. Verify that the input is an array, entries are non-null objects, and all required metadata fields are present and valid before attempting to use them.
