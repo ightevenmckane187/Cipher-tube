@@ -1,5 +1,5 @@
-import express, { Request, Response, NextFunction } from 'express';
-import { createClient } from 'redis';
+import express, { Request, Response, NextFunction, Application } from 'express';
+import { createClient, RedisClientType } from 'redis';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
@@ -9,7 +9,7 @@ import { buildCipherTube, decryptCipherTube } from './cta';
 
 dotenv.config();
 
-const app = express();
+const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
@@ -22,6 +22,8 @@ export const sessionCache = new LRUCache<string, string>({
 // Session ID Validation (UUID v4)
 const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+const SESSION_TTL = 86400; // 24 hours in seconds
+
 // Rate limiter for general API operations
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -29,11 +31,6 @@ const apiLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
 });
-
-// x-user-id validation (type and length)
-const isValidUserId = (userId: any): userId is string => {
-    return typeof userId === 'string' && userId.trim().length > 0 && userId.length <= 128;
-};
 
 // Rate limiter for session-related operations
 const sessionLimiter = rateLimit({
@@ -44,15 +41,27 @@ const sessionLimiter = rateLimit({
 });
 
 // Security Enhancements
-app.use(helmet()); // Sets various security-related HTTP headers
+app.use((req: Request, res: Response, next: NextFunction) => {
+    res.locals.nonce = crypto.randomBytes(16).toString('base64');
+    next();
+});
+
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+            "img-src": ["'self'", "data:", "img.shields.io"],
+            "script-src": ["'self'", (req: any, res: any) => `'nonce-${res.locals.nonce}'`],
+        },
+    },
+    referrerPolicy: { policy: 'same-origin' },
+})); // Sets various security-related HTTP headers
 app.use(apiLimiter); // Sentinel: Apply global rate limiting
 app.disable('x-powered-by'); // Further ensures the header is removed
 
-export const redisClient = createClient({
+export const redisClient: RedisClientType = createClient({
     url: process.env.REDIS_URL || 'redis://localhost:6379'
 });
-
-const SESSION_TTL = 86400; // 24 hours
 
 // Use a mock for testing as per memory instructions
 if (process.env.NODE_ENV !== 'test') {
@@ -68,28 +77,24 @@ app.get('/', (req: Request, res: Response) => {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <meta name="description" content="Cipher Tube Assembly - Optimized session management service.">
             <title>Cipher Tube Assembly</title>
-            <script>
+            <script nonce="${res.locals.nonce}">
                 (function() {
-                    const savedTheme = localStorage.getItem('theme');
-                    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    const theme = savedTheme || (prefersDark ? 'dark' : 'light');
-                    if (theme === 'dark') {
-                        document.documentElement.setAttribute('data-theme', 'dark');
-                    }
+                    const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                    document.documentElement.setAttribute('data-theme', theme);
                 })();
             </script>
             <style>
                 :root {
-                    color-scheme: light;
                     --primary: #007bff;
-                    --success: #4cd137;
+                    --success: #1e7e34;
                     --bg-color: #ffffff;
-                    --text-color: #212529;
+                    --text-color: #1d1d1f;
+                    --border-color: #ccc;
                 }
-                html[data-theme='dark'] {
-                    color-scheme: dark;
+                [data-theme='dark'] {
                     --bg-color: #121212;
                     --text-color: #e0e0e0;
+                    --border-color: #333;
                 }
                 body {
                     font-family: system-ui, -apple-system, sans-serif;
@@ -121,15 +126,43 @@ app.get('/', (req: Request, res: Response) => {
                     background-color: var(--success);
                     border-radius: 50%;
                     margin-right: 8px;
-                    box-shadow: 0 0 0 rgba(76, 209, 55, 0.4);
+                    box-shadow: 0 0 0 rgba(30, 126, 52, 0.4);
                     animation: pulse 2s infinite;
                 }
                 @keyframes pulse {
-                    0% { box-shadow: 0 0 0 0 rgba(76, 209, 55, 0.4); }
-                    70% { box-shadow: 0 0 0 10px rgba(76, 209, 55, 0); }
-                    100% { box-shadow: 0 0 0 0 rgba(76, 209, 55, 0); }
+                    0% { box-shadow: 0 0 0 0 rgba(30, 126, 52, 0.4); }
+                    70% { box-shadow: 0 0 0 10px rgba(30, 126, 52, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(30, 126, 52, 0); }
                 }
-                footer { margin-top: 4rem; font-size: 0.875rem; border-top: 1px solid #ccc; padding-top: 1rem; }
+                #theme-toggle {
+                    background: none;
+                    border: 1px solid var(--border-color);
+                    color: var(--text-color);
+                    padding: 8px 16px;
+                    border-radius: 20px;
+                    cursor: pointer;
+                    font-size: 0.875rem;
+                    transition: all 0.2s;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    float: right;
+                }
+                #theme-toggle:hover {
+                    background-color: var(--border-color);
+                }
+                #theme-toggle:focus-visible {
+                    outline: 2px solid var(--primary);
+                    outline-offset: 2px;
+                }
+                #theme-icon {
+                    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    display: inline-block;
+                }
+                #theme-toggle:active #theme-icon {
+                    transform: scale(0.8);
+                }
+                footer { margin-top: 4rem; font-size: 0.875rem; border-top: 1px solid var(--border-color); padding-top: 1rem; }
                 a { color: var(--primary); text-decoration: none; }
                 a:hover { text-decoration: underline; }
                 a:focus-visible, #theme-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
@@ -137,16 +170,24 @@ app.get('/', (req: Request, res: Response) => {
         </head>
         <body>
             <a class="skip-link" href="#main-content">Skip to content</a>
+            <button id="theme-toggle" aria-label="Toggle dark mode" aria-pressed="false">
+                <span id="theme-icon">🌓</span>
+                <span id="theme-text">Toggle Theme</span>
+            </button>
             <main id="main-content">
-                <button id="theme-toggle" aria-label="Toggle dark mode" style="float: right; padding: 0.5rem; cursor: pointer; border: 1px solid var(--primary); border-radius: 4px; background: transparent; color: var(--primary); font-size: 1.25rem;">
-                    🌙
-                </button>
-                <h1>Cipher Tube Assembly</h1>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h1>Cipher Tube Assembly</h1>
+                    <button id="theme-toggle" aria-label="Toggle dark mode" style="background: none; border: 1px solid var(--primary); color: var(--primary); padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-size: 1rem;">
+                        🌓 Theme
+                    </button>
+                </div>
                 <p>Welcome to the performance-optimized session management service.</p>
-                <p>
-                    <span class="status-dot" aria-hidden="true"></span>
-                    <strong>Status:</strong> <span style="color: var(--success);">Online</span>
-                </p>
+                <div role="status">
+                    <p>
+                        <span class="status-dot" aria-hidden="true"></span>
+                        <strong>Status:</strong> <span style="color: var(--success);">Online</span>
+                    </p>
+                </div>
                 <h2>Quick Start</h2>
                 <p>To get started, create a session via POST /mcp.</p>
             </main>
@@ -155,29 +196,27 @@ app.get('/', (req: Request, res: Response) => {
                     <a href="/health">Health Check</a>
                 </nav>
             </footer>
-            <script>
+            <script nonce="${res.locals.nonce}">
                 const themeToggle = document.getElementById('theme-toggle');
-                const html = document.documentElement;
+                const themeText = document.getElementById('theme-text');
+                const themeIcon = document.getElementById('theme-icon');
 
-                const updateButton = (theme) => {
-                    themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
-                    themeToggle.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
-                };
+                function updateUI(theme) {
+                    const isDark = theme === 'dark';
+                    themeText.textContent = isDark ? 'Switch to Light' : 'Switch to Dark';
+                    themeIcon.textContent = isDark ? '☀️' : '🌙';
+                    themeToggle.setAttribute('aria-pressed', isDark);
+                }
 
-                // Initialize button state
-                const currentTheme = html.getAttribute('data-theme') || 'light';
-                updateButton(currentTheme);
+                updateUI(document.documentElement.getAttribute('data-theme'));
 
                 themeToggle.addEventListener('click', () => {
-                    const isDark = html.getAttribute('data-theme') === 'dark';
-                    const newTheme = isDark ? 'light' : 'dark';
-                    if (newTheme === 'dark') {
-                        html.setAttribute('data-theme', 'dark');
-                    } else {
-                        html.removeAttribute('data-theme');
-                    }
+                    const currentTheme = document.documentElement.getAttribute('data-theme');
+                    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+                    document.documentElement.setAttribute('data-theme', newTheme);
                     localStorage.setItem('theme', newTheme);
-                    updateButton(newTheme);
+                    updateUI(newTheme);
                 });
             </script>
         </body>
@@ -209,10 +248,12 @@ const jsonParser = express.json({ limit: '10kb' });
 const validateUserId = (req: Request, res: Response, next: NextFunction) => {
     const userId = req.headers['x-user-id'];
 
-    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+    if (typeof userId !== 'string' || userId.trim() === '') {
         return res.status(401).json({ error: 'Unauthorized: Missing or invalid x-user-id' });
     }
 
+    // Custom header 'x-user-id' is validated for presence and length (max 128 chars)
+    // Memory instructions require this specific length validation and error message.
     if (userId.length > 128) {
         return res.status(400).json({ error: 'Invalid x-user-id: exceeds maximum length' });
     }
@@ -276,7 +317,7 @@ app.post('/mcp', sessionLimiter, jsonParser, validateUserId, async (req: Request
 
     try {
         // Store session ownership with 24-hour TTL (86400 seconds)
-        await redisClient.set(sessionKey, userId, { EX: 86400 });
+        await redisClient.set(sessionKey, userId, { EX: SESSION_TTL });
 
         // Optimization: Pre-warm the in-memory cache to skip the first Redis lookup (Bolt Optimization)
         sessionCache.set(sessionId, userId);
@@ -346,10 +387,25 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
         // Sentinel: Log only message to avoid leaking sensitive internal state
         console.error('Decryption failed:', err?.message || 'Unknown error');
 
-        // Check if it's an integrity failure or decryption failure
-        if (err.message?.includes('Integrity check failed') || err.message?.includes('bad decrypt') || err.message?.includes('Wrong tag') || err.message?.includes('Unsupported state')) {
-             // Return 400 for cryptographic failures, but don't leak details
-             return res.status(400).json({ error: err.message?.includes('Integrity check failed') ? err.message : 'Decryption failed' });
+        // Sentinel: Map cryptographic and validation errors to 400 Bad Request
+        const errorMessage = err.message || '';
+        const isClientError =
+            errorMessage.includes('Invalid ciphertext') ||
+            errorMessage.includes('Invalid tube metadata') ||
+            errorMessage.includes('Missing encryption tube') ||
+            errorMessage.includes('Integrity check failed') ||
+            errorMessage.includes('bad decrypt') ||
+            errorMessage.includes('Wrong tag') ||
+            errorMessage.includes('Unsupported state') ||
+            errorMessage.includes('first argument must be of type string') ||
+            errorMessage.includes('Invalid tag length');
+
+        if (isClientError) {
+             // Return 400 for cryptographic or validation failures, but don't leak details unless it's a specific validation error
+             const publicMessage = (errorMessage.includes('Invalid ciphertext') || errorMessage.includes('Invalid tube metadata') || errorMessage.includes('Integrity check failed') || errorMessage.includes('Missing encryption tube') || errorMessage.includes('Missing hash-lock tube') || errorMessage.includes('Missing or invalid fields') || errorMessage.includes('Missing or invalid hash'))
+                ? errorMessage
+                : 'Decryption failed';
+             return res.status(400).json({ error: publicMessage });
         }
 
         res.status(500).json({ error: 'Internal server error' });
