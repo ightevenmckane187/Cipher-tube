@@ -1,0 +1,90 @@
+name: "Governance · Commit & CLA Verification"
+
+on:
+  pull_request:
+    branches: [main, "release/"]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: governance-commits-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  signed-commits:
+    name: "Verify Signed Commits"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check signatures
+        run: |
+          TOTAL=0; UNSIGNED=0
+          while IFS=' ' read -r hash status; do
+            TOTAL=$((TOTAL + 1))
+            case "$status" in
+              G|U|E|X|Y|R) ;;
+              *) UNSIGNED=$((UNSIGNED + 1)) ;;
+            esac
+          done < <(git log origin/main..HEAD --format='%H %G?')
+          if [ "$UNSIGNED" -gt 0 ]; then
+            echo "::error::$UNSIGNED of $TOTAL commits unsigned"
+            exit 1
+          fi
+          echo "✅ All $TOTAL commits signed"
+      - name: Verify conventional commits
+        run: |
+          PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9_-]+\))?: .{1,100}$'
+          VIOLATIONS=0
+          while IFS= read -r msg; do
+            if ! echo "$msg" | grep -qE "$PATTERN"; then
+              echo "  ❌ $msg"; VIOLATIONS=$((VIOLATIONS + 1))
+            fi
+          done < <(git log origin/main..HEAD --format='%s')
+          if [ "$VIOLATIONS" -gt 0 ]; then
+            echo "::error::$VIOLATIONS invalid commit message(s)"; exit 1
+          fi
+
+  cla-check:
+    name: "CLA Verification"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: contributor-assistant/github-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PERSONAL_ACCESS_TOKEN: ${{ secrets.CLA_TOKEN }}
+        with:
+          path-to-signatures: governance/cla-signatures.json
+          path-to-document: governance/CLA.md
+          branch: main
+          allowlist: bot,dependabot,renovate*
+
+  audit-integrity:
+    name: "Hash-Chain Audit Integrity"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify hash chain
+        run: |
+          python3 << 'EOF'
+          import json, hashlib, sys, os
+          if not os.path.exists('sentinel/audit/chain.json'):
+              print("No audit chain found - skipping"); sys.exit(0)
+          with open('sentinel/audit/chain.json') as f: chain = json.load(f)
+          entries, errors = chain.get('entries', []), []
+          prev = chain.get('genesis_hash', '0' * 64)
+          for i, e in enumerate(entries):
+              if e.get('prev_hash') != prev:
+                  errors.append(f"Entry {i}: prev_hash mismatch")
+              payload = json.dumps(e.get('payload', {}), sort_keys=True)
+              computed = hashlib.sha256(f"{prev}{payload}".encode()).hexdigest()
+              if computed != e.get('hash'):
+                  errors.append(f"Entry {i}: hash mismatch")
+              prev = e.get('hash')
+          if errors: [print(f"  - {e}") for e in errors]; sys.exit(1)
+          print(f"✅ Chain verified ({len(entries)} entries)")
+          EOF
