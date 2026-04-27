@@ -101,14 +101,14 @@ export function decryptCipherTube(
 
   const audit: string[] = [];
 
-  // === Decrypt 13 encryption layers in reverse ===
-  for (let j = 12; j >= 0; j--) {
-    const tube = tubes.find((t: any) => t.layer === 12 + j);
-    if (!tube) throw new Error(`Missing encryption tube for layer ${12 + j}`);
+  // === Decrypt 13 encryption layers in reverse (Layers 24 down to 12) ===
+  for (let layer = 24; layer >= 12; layer--) {
+    const tube = tubes.find((t: any) => t && typeof t === 'object' && t.layer === layer);
+    if (!tube) throw new Error(`Missing encryption tube for layer ${layer}`);
 
-    // Sentinel: Validate tube fields
-    if (!tube.salt || !tube.iv || !tube.tag) {
-      throw new Error(`Invalid tube metadata for layer ${12 + j}: Missing salt, iv, or tag`);
+    // Sentinel: Strict validation of encryption tube metadata
+    if (typeof tube.salt !== 'string' || typeof tube.iv !== 'string' || typeof tube.tag !== 'string' || tube.type !== 'aes-256-gcm') {
+      throw new Error(`Invalid tube metadata for layer ${layer}: Missing or invalid fields`);
     }
 
     const iv = current.subarray(0, 12);
@@ -116,6 +116,7 @@ export function decryptCipherTube(
     const encryptedData = current.subarray(28);
 
     const salt = Buffer.from(tube.salt, 'hex');
+    const j = layer - 12; // Derived index for key derivation info
     const key = deriveKey(masterSeed, salt, `enc-${j}`);
 
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
@@ -125,10 +126,15 @@ export function decryptCipherTube(
     audit.push(`Decrypted AES-256-GCM layer ${j}`);
   }
 
-  // === Verify 12 hash-lock tubes in reverse ===
-  for (let i = 11; i >= 0; i--) {
-    const tube = tubes.find((t: any) => t.layer === i);
-    if (!tube) throw new Error(`Missing hash-lock tube ${i}`);
+  // === Verify 12 hash-lock tubes in reverse (Layers 11 down to 0) ===
+  for (let layer = 11; layer >= 0; layer--) {
+    const tube = tubes.find((t: any) => t && typeof t === 'object' && t.layer === layer);
+    if (!tube) throw new Error(`Missing hash-lock tube for layer ${layer}`);
+
+    // Sentinel: Strict validation of hash-lock tube metadata
+    if (typeof tube.hash !== 'string' || typeof tube.salt !== 'string' || tube.type !== 'hash-lock') {
+      throw new Error(`Invalid tube metadata for layer ${layer}: Missing or invalid hash, salt, or type`);
+    }
 
     const computedHash = crypto.createHash('sha512').update(current).digest('hex');
 
@@ -137,10 +143,10 @@ export function decryptCipherTube(
     const expectedBuffer = Buffer.from(tube.hash, 'hex');
 
     if (computedBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(computedBuffer, expectedBuffer)) {
-      throw new Error(`Integrity check failed: Hash-lock tube ${i} mismatch`);
+      throw new Error(`Integrity check failed: Hash-lock tube ${layer} mismatch`);
     }
 
-    audit.push(`Verified hash-lock tube ${i}`);
+    audit.push(`Verified hash-lock tube ${layer}`);
   }
 
   return {

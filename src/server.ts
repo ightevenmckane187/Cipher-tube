@@ -30,11 +30,6 @@ const apiLimiter = rateLimit({
     legacyHeaders: false,
 });
 
-// x-user-id validation (type and length)
-const isValidUserId = (userId: any): userId is string => {
-    return typeof userId === 'string' && userId.trim().length > 0 && userId.length <= 128;
-};
-
 // Rate limiter for session-related operations
 const sessionLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -60,8 +55,6 @@ app.disable('x-powered-by'); // Further ensures the header is removed
 export const redisClient = createClient({
     url: process.env.REDIS_URL || 'redis://localhost:6379'
 });
-
-const SESSION_TTL = 86400; // 24 hours
 
 // Use a mock for testing as per memory instructions
 if (process.env.NODE_ENV !== 'test') {
@@ -328,7 +321,7 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
 
         if (isClientError) {
              // Return 400 for cryptographic or validation failures, but don't leak details unless it's a specific validation error
-             const publicMessage = (errorMessage.includes('Invalid ciphertext') || errorMessage.includes('Invalid tube metadata') || errorMessage.includes('Integrity check failed'))
+             const publicMessage = (errorMessage.includes('Invalid ciphertext') || errorMessage.includes('Invalid tube metadata') || errorMessage.includes('Integrity check failed') || errorMessage.includes('Missing encryption tube') || errorMessage.includes('Missing hash-lock tube') || errorMessage.includes('Missing or invalid fields') || errorMessage.includes('Missing or invalid hash'))
                 ? errorMessage
                 : 'Decryption failed';
              return res.status(400).json({ error: publicMessage });

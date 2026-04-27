@@ -17,3 +17,8 @@
 **Vulnerability:** Service instability (500 errors) via malformed "onion" encryption payloads.
 **Learning:** Even with generic crypto error catching, missing structural validation (e.g., minimum length for N-layers, hex format) can trigger unhandled edge cases in buffer slicing or internal library calls before cryptographic verification occurs.
 **Prevention:** Implement structural sanity checks (format, minimum length, metadata presence) at the start of the decryption pipeline to reject invalid payloads early and prevent 400-level client errors from escalating to 500-level server errors.
+
+## 2026-04-27 - Missing hash validation & layer mismatch
+**Vulnerability:** CTA tube metadata allowed malformed hash fields and used inconsistent layer indexing (12 + j), creating ambiguity in decryption order.
+**Learning:** The CTA pipeline relies on strict structural guarantees; even one missing field or misaligned layer index can destabilize multi-layer decryption.
+**Prevention:** Always validate all required tube fields (salt, iv, tag, hash) and use explicit, predictable layer numbering (24-12 and 11-0) to avoid ambiguity.
