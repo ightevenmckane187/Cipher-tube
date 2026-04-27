@@ -175,7 +175,12 @@ app.get('/', (req: Request, res: Response) => {
                 <span id="theme-text">Toggle Theme</span>
             </button>
             <main id="main-content">
-                <h1>Cipher Tube Assembly</h1>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h1>Cipher Tube Assembly</h1>
+                    <button id="theme-toggle" aria-label="Toggle dark mode" style="background: none; border: 1px solid var(--primary); color: var(--primary); padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-size: 1rem;">
+                        🌓 Theme
+                    </button>
+                </div>
                 <p>Welcome to the performance-optimized session management service.</p>
                 <div role="status">
                     <p>
