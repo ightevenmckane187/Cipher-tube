@@ -9,6 +9,5 @@
     "sourceMap": true,
     "esModuleInterop": true,
     "skipLibCheck": true
-  },
-  "exclude": ["tests", "node_modules"]
+  }
 }
