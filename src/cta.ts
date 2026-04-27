@@ -116,7 +116,6 @@ export function decryptCipherTube(
     const encryptedData = current.subarray(28);
 
     const salt = Buffer.from(tube.salt, 'hex');
-    const j = layer - 12; // Derived index for key derivation info
     const key = deriveKey(masterSeed, salt, `enc-${j}`);
 
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
@@ -142,10 +141,10 @@ export function decryptCipherTube(
     const expectedBuffer = Buffer.from(tube.hash, 'hex');
 
     if (computedBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(computedBuffer, expectedBuffer)) {
-      throw new Error(`Integrity check failed: Hash-lock tube ${layer} mismatch`);
+      throw new Error(`Integrity check failed: Hash-lock tube ${i} mismatch`);
     }
 
-    audit.push(`Verified hash-lock tube ${layer}`);
+    audit.push(`Verified hash-lock tube ${i}`);
   }
 
   return {

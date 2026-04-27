@@ -41,12 +41,17 @@ const sessionLimiter = rateLimit({
 });
 
 // Security Enhancements
+app.use((req: Request, res: Response, next: NextFunction) => {
+    res.locals.nonce = crypto.randomBytes(16).toString('base64');
+    next();
+});
+
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             ...helmet.contentSecurityPolicy.getDefaultDirectives(),
             "img-src": ["'self'", "data:", "img.shields.io"],
-            "script-src": ["'self'"],
+            "script-src": ["'self'", (req: any, res: any) => `'nonce-${res.locals.nonce}'`],
         },
     },
     referrerPolicy: { policy: 'same-origin' },
@@ -72,7 +77,7 @@ app.get('/', (req: Request, res: Response) => {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <meta name="description" content="Cipher Tube Assembly - Optimized session management service.">
             <title>Cipher Tube Assembly</title>
-            <script>
+            <script nonce="${res.locals.nonce}">
                 (function() {
                     const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
                     document.documentElement.setAttribute('data-theme', theme);
@@ -81,7 +86,7 @@ app.get('/', (req: Request, res: Response) => {
             <style>
                 :root {
                     --primary: #007bff;
-                    --success: #4cd137;
+                    --success: #1e7e34;
                     --bg-color: #ffffff;
                     --text-color: #1d1d1f;
                     --border-color: #ccc;
@@ -121,13 +126,13 @@ app.get('/', (req: Request, res: Response) => {
                     background-color: var(--success);
                     border-radius: 50%;
                     margin-right: 8px;
-                    box-shadow: 0 0 0 rgba(76, 209, 55, 0.4);
+                    box-shadow: 0 0 0 rgba(30, 126, 52, 0.4);
                     animation: pulse 2s infinite;
                 }
                 @keyframes pulse {
-                    0% { box-shadow: 0 0 0 0 rgba(76, 209, 55, 0.4); }
-                    70% { box-shadow: 0 0 0 10px rgba(76, 209, 55, 0); }
-                    100% { box-shadow: 0 0 0 0 rgba(76, 209, 55, 0); }
+                    0% { box-shadow: 0 0 0 0 rgba(30, 126, 52, 0.4); }
+                    70% { box-shadow: 0 0 0 10px rgba(30, 126, 52, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(30, 126, 52, 0); }
                 }
                 #theme-toggle {
                     background: none;
@@ -150,6 +155,13 @@ app.get('/', (req: Request, res: Response) => {
                     outline: 2px solid var(--primary);
                     outline-offset: 2px;
                 }
+                #theme-icon {
+                    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    display: inline-block;
+                }
+                #theme-toggle:active #theme-icon {
+                    transform: scale(0.8);
+                }
                 footer { margin-top: 4rem; font-size: 0.875rem; border-top: 1px solid var(--border-color); padding-top: 1rem; }
                 a { color: var(--primary); text-decoration: none; }
                 a:hover { text-decoration: underline; }
@@ -158,7 +170,7 @@ app.get('/', (req: Request, res: Response) => {
         </head>
         <body>
             <a class="skip-link" href="#main-content">Skip to content</a>
-            <button id="theme-toggle" aria-label="Toggle dark mode">
+            <button id="theme-toggle" aria-label="Toggle dark mode" aria-pressed="false">
                 <span id="theme-icon">🌓</span>
                 <span id="theme-text">Toggle Theme</span>
             </button>
@@ -179,15 +191,19 @@ app.get('/', (req: Request, res: Response) => {
                     <a href="/health">Health Check</a>
                 </nav>
             </footer>
-            <script>
+            <script nonce="${res.locals.nonce}">
                 const themeToggle = document.getElementById('theme-toggle');
                 const themeText = document.getElementById('theme-text');
+                const themeIcon = document.getElementById('theme-icon');
 
-                function updateToggleText(theme) {
-                    themeText.textContent = theme === 'dark' ? 'Switch to Light' : 'Switch to Dark';
+                function updateUI(theme) {
+                    const isDark = theme === 'dark';
+                    themeText.textContent = isDark ? 'Switch to Light' : 'Switch to Dark';
+                    themeIcon.textContent = isDark ? '☀️' : '🌙';
+                    themeToggle.setAttribute('aria-pressed', isDark);
                 }
 
-                updateToggleText(document.documentElement.getAttribute('data-theme'));
+                updateUI(document.documentElement.getAttribute('data-theme'));
 
                 themeToggle.addEventListener('click', () => {
                     const currentTheme = document.documentElement.getAttribute('data-theme');
@@ -195,7 +211,7 @@ app.get('/', (req: Request, res: Response) => {
 
                     document.documentElement.setAttribute('data-theme', newTheme);
                     localStorage.setItem('theme', newTheme);
-                    updateToggleText(newTheme);
+                    updateUI(newTheme);
                 });
             </script>
         </body>
