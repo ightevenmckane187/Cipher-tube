@@ -102,6 +102,9 @@ export function decryptCipherTube(
 
   const audit: string[] = [];
 
+  // Bolt Optimization: Index tubes by layer for O(1) lookup
+  const tubeMap = new Map<number, any>(tubes.map(t => [t.layer, t]));
+
   // === Decrypt 13 encryption layers in reverse ===
   for (let j = 12; j >= 0; j--) {
     const tube = tubes.find((t: any) => t && typeof t === 'object' && t.layer === 12 + j);
