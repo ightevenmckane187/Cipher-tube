@@ -393,6 +393,7 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
             errorMessage.includes('Invalid ciphertext') ||
             errorMessage.includes('Invalid tube metadata') ||
             errorMessage.includes('Missing encryption tube') ||
+            errorMessage.includes('Missing hash-lock tube') ||
             errorMessage.includes('Integrity check failed') ||
             errorMessage.includes('bad decrypt') ||
             errorMessage.includes('Wrong tag') ||
