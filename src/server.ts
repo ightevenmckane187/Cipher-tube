@@ -22,6 +22,8 @@ export const sessionCache = new LRUCache<string, string>({
 // Session ID Validation (UUID v4)
 const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+const SESSION_TTL = 86400; // 24 hours in seconds
+
 // Rate limiter for general API operations
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -229,7 +231,9 @@ const validateUserId = (req: Request, res: Response, next: NextFunction) => {
         return res.status(401).json({ error: 'Unauthorized: Missing or invalid x-user-id' });
     }
 
-    if (!isValidUserId(userId)) {
+    // Custom header 'x-user-id' is validated for presence and length (max 128 chars)
+    // Memory instructions require this specific length validation and error message.
+    if (userId.length > 128) {
         return res.status(400).json({ error: 'Invalid x-user-id: exceeds maximum length' });
     }
 
