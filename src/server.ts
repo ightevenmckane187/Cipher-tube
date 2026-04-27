@@ -165,7 +165,7 @@ app.get('/', (req: Request, res: Response) => {
                 footer { margin-top: 4rem; font-size: 0.875rem; border-top: 1px solid var(--border-color); padding-top: 1rem; }
                 a { color: var(--primary); text-decoration: none; }
                 a:hover { text-decoration: underline; }
-                a:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+                a:focus-visible, #theme-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
             </style>
         </head>
         <body>
