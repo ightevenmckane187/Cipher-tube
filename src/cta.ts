@@ -103,11 +103,11 @@ export function decryptCipherTube(
 
   // === Decrypt 13 encryption layers in reverse ===
   for (let j = 12; j >= 0; j--) {
-    const tube = tubes.find((t: any) => t.layer === 12 + j);
+    const tube = tubes.find((t: any) => t && typeof t === 'object' && t.layer === 12 + j);
     if (!tube) throw new Error(`Missing encryption tube for layer ${12 + j}`);
 
     // Sentinel: Validate tube fields
-    if (!tube.salt || !tube.iv || !tube.tag) {
+    if (typeof tube.salt !== 'string' || typeof tube.iv !== 'string' || typeof tube.tag !== 'string') {
       throw new Error(`Invalid tube metadata for layer ${12 + j}: Missing salt, iv, or tag`);
     }
 
@@ -116,6 +116,7 @@ export function decryptCipherTube(
     const encryptedData = current.subarray(28);
 
     const salt = Buffer.from(tube.salt, 'hex');
+    const j = layer - 12; // Derived index for key derivation info
     const key = deriveKey(masterSeed, salt, `enc-${j}`);
 
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
@@ -127,8 +128,12 @@ export function decryptCipherTube(
 
   // === Verify 12 hash-lock tubes in reverse ===
   for (let i = 11; i >= 0; i--) {
-    const tube = tubes.find((t: any) => t.layer === i);
+    const tube = tubes.find((t: any) => t && typeof t === 'object' && t.layer === i);
     if (!tube) throw new Error(`Missing hash-lock tube ${i}`);
+
+    if (typeof tube.hash !== 'string') {
+      throw new Error(`Invalid tube metadata for hash-lock ${i}: Missing hash`);
+    }
 
     const computedHash = crypto.createHash('sha512').update(current).digest('hex');
 
@@ -137,10 +142,10 @@ export function decryptCipherTube(
     const expectedBuffer = Buffer.from(tube.hash, 'hex');
 
     if (computedBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(computedBuffer, expectedBuffer)) {
-      throw new Error(`Integrity check failed: Hash-lock tube ${i} mismatch`);
+      throw new Error(`Integrity check failed: Hash-lock tube ${layer} mismatch`);
     }
 
-    audit.push(`Verified hash-lock tube ${i}`);
+    audit.push(`Verified hash-lock tube ${layer}`);
   }
 
   return {
