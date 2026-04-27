@@ -91,4 +91,102 @@ describe('Security Validation', () => {
       );
     });
   });
+
+  describe('Decryption Fail-Secure', () => {
+    const userId = 'sentinel-user';
+    const sessionId = '550e8400-e29b-41d4-a716-446655440000';
+    const masterSeed = '0'.repeat(64);
+
+    beforeEach(() => {
+      redisMock.get.mockResolvedValue(userId);
+    });
+
+    it('should return 400 for too short ciphertext', async () => {
+      const response = await request(app)
+        .post(`/mcp/${sessionId}/decrypt`)
+        .set('x-user-id', userId)
+        .send({
+          ciphertext: '00112233',
+          masterSeed,
+          tubes: Array(25).fill(null).map((_, i) => ({ layer: i, type: i >= 12 ? 'aes-256-gcm' : 'hash-lock', salt: '0', iv: '0', tag: '0', hash: '0' }))
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Invalid ciphertext');
+    });
+
+    it('should return 400 for invalid hex in ciphertext', async () => {
+      const response = await request(app)
+        .post(`/mcp/${sessionId}/decrypt`)
+        .set('x-user-id', userId)
+        .send({
+          ciphertext: 'not-hex-at-all',
+          masterSeed,
+          tubes: Array(25).fill(null).map((_, i) => ({ layer: i, type: i >= 12 ? 'aes-256-gcm' : 'hash-lock', salt: '0', iv: '0', tag: '0', hash: '0' }))
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Invalid ciphertext');
+    });
+
+    it('should return 400 for missing tube fields', async () => {
+      const response = await request(app)
+        .post(`/mcp/${sessionId}/decrypt`)
+        .set('x-user-id', userId)
+        .send({
+          ciphertext: '0'.repeat(800),
+          masterSeed,
+          tubes: [{ layer: 24, salt: 123, iv: 'iv', tag: 'tag', type: 'aes-256-gcm' }]
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Invalid tube metadata');
+    });
+
+    it('should return 400 for malformed tubes array (null element)', async () => {
+        const response = await request(app)
+          .post(`/mcp/${sessionId}/decrypt`)
+          .set('x-user-id', userId)
+          .send({
+            ciphertext: '0'.repeat(800),
+            masterSeed,
+            tubes: [null]
+          });
+
+        expect(response.status).toBe(400);
+        expect(response.body.error).toContain('Missing encryption tube');
+      });
+
+    it('should return 400 for missing or invalid fields in encryption tube', async () => {
+        const response = await request(app)
+          .post(`/mcp/${sessionId}/decrypt`)
+          .set('x-user-id', userId)
+          .send({
+            ciphertext: '0'.repeat(800),
+            masterSeed,
+            tubes: [
+              { layer: 24, type: 'aes-256-gcm' } // missing salt, iv, tag
+            ]
+          });
+
+        expect(response.status).toBe(400);
+        expect(response.body.error).toContain('Invalid tube metadata');
+    });
+
+    it('should return 400 for invalid layer indexing', async () => {
+        const response = await request(app)
+          .post(`/mcp/${sessionId}/decrypt`)
+          .set('x-user-id', userId)
+          .send({
+            ciphertext: '0'.repeat(800),
+            masterSeed,
+            tubes: [
+              { layer: 99, salt: 'salt', iv: 'iv', tag: 'tag', type: 'aes-256-gcm' }
+            ]
+          });
+
+        expect(response.status).toBe(400);
+        expect(response.body.error).toContain('Missing encryption tube');
+    });
+  });
 });
