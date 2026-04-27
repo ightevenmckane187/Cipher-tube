@@ -13,7 +13,12 @@
 **Learning:** Node.js `crypto` can throw specific errors (e.g., "Unsupported state") during decryption of tampered data that might escape generic `bad decrypt` checks, potentially leading to 500 errors and leaking internal stack traces if not caught.
 **Prevention:** Explicitly catch and map cryptographic errors to 400 Bad Request with generic "Decryption failed" messages to ensure the system fails securely without exposing implementation details.
 
-## 2025-05-16 - Cryptographic Input Pre-validation
-**Vulnerability:** Denial of Service or internal error leakage (500 errors) via malformed cryptographic inputs.
-**Learning:** Node.js `crypto` methods like `setAuthTag` or `subarray` can throw `RangeError` or internal `Error` (e.g., "Invalid authentication tag length") if inputs are malformed or too short, often bypassing generic `catch` blocks that only look for specific strings like "bad decrypt".
-**Prevention:** Always pre-validate input format (e.g., hex regex) and minimum buffer lengths (e.g., 364 bytes for 13 layers of overhead) before invoking cryptographic operations to ensure the application fails gracefully with 400 Bad Request.
+## 2025-05-20 - Defense-in-Depth for Multi-Layer Decryption
+**Vulnerability:** Service instability (500 errors) via malformed "onion" encryption payloads.
+**Learning:** Even with generic crypto error catching, missing structural validation (e.g., minimum length for N-layers, hex format) can trigger unhandled edge cases in buffer slicing or internal library calls before cryptographic verification occurs.
+**Prevention:** Implement structural sanity checks (format, minimum length, metadata presence) at the start of the decryption pipeline to reject invalid payloads early and prevent 400-level client errors from escalating to 500-level server errors.
+
+## 2026-04-20 - Structural Validation of Metadata Arrays
+**Vulnerability:** 500 Internal Server Error (DoS) via malformed metadata elements in arrays.
+**Learning:** Functions iterating over complex metadata arrays (like `tubes`) are vulnerable to `TypeError` if array elements are `null` or have unexpected types, even if the array itself is present.
+**Prevention:** Explicitly validate each element's existence and type within `find` or loop callbacks before accessing properties to ensure total robustness against malformed JSON payloads.
