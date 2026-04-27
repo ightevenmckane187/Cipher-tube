@@ -18,7 +18,7 @@
 **Learning:** Even with generic crypto error catching, missing structural validation (e.g., minimum length for N-layers, hex format) can trigger unhandled edge cases in buffer slicing or internal library calls before cryptographic verification occurs.
 **Prevention:** Implement structural sanity checks (format, minimum length, metadata presence) at the start of the decryption pipeline to reject invalid payloads early and prevent 400-level client errors from escalating to 500-level server errors.
 
-## 2026-04-27 - Missing hash validation & layer mismatch
-**Vulnerability:** CTA tube metadata allowed malformed hash fields and used inconsistent layer indexing (12 + j), creating ambiguity in decryption order.
-**Learning:** The CTA pipeline relies on strict structural guarantees; even one missing field or misaligned layer index can destabilize multi-layer decryption.
-**Prevention:** Always validate all required tube fields (salt, iv, tag, hash) and use explicit, predictable layer numbering (24-12 and 11-0) to avoid ambiguity.
+## 2026-04-20 - Structural Validation of Metadata Arrays
+**Vulnerability:** 500 Internal Server Error (DoS) via malformed metadata elements in arrays.
+**Learning:** Functions iterating over complex metadata arrays (like `tubes`) are vulnerable to `TypeError` if array elements are `null` or have unexpected types, even if the array itself is present.
+**Prevention:** Explicitly validate each element's existence and type within `find` or loop callbacks before accessing properties to ensure total robustness against malformed JSON payloads.
