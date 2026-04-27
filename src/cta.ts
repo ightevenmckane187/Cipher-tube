@@ -88,15 +88,29 @@ export function decryptCipherTube(
   masterSeed: Buffer,
   tubes: any[]
 ) {
-  // Bolt Optimization: Index tubes by layer for O(1) lookup
-  const tubeMap = new Map(tubes.map(t => [t.layer, t]));
+  // Sentinel: Validate hex input
+  if (!/^[0-9a-f]*$/i.test(ciphertextHex)) {
+    throw new Error('Invalid ciphertext: Not a valid hex string');
+  }
+
   let current = Buffer.from(ciphertextHex, 'hex');
+
+  // Sentinel: Basic length check. 13 layers * (12 IV + 16 TAG) = 364 bytes min
+  if (current.length < 364) {
+    throw new Error('Invalid ciphertext: Too short for 13 encryption layers');
+  }
+
   const audit: string[] = [];
 
   // === Decrypt 13 encryption layers in reverse ===
   for (let j = 12; j >= 0; j--) {
-    const tube = tubeMap.get(12 + j);
+    const tube = tubes.find((t: any) => t && typeof t === 'object' && t.layer === 12 + j);
     if (!tube) throw new Error(`Missing encryption tube for layer ${12 + j}`);
+
+    // Sentinel: Validate tube fields
+    if (typeof tube.salt !== 'string' || typeof tube.iv !== 'string' || typeof tube.tag !== 'string') {
+      throw new Error(`Invalid tube metadata for layer ${12 + j}: Missing salt, iv, or tag`);
+    }
 
     const iv = current.subarray(0, 12);
     const tag = current.subarray(12, 28);
@@ -118,8 +132,14 @@ export function decryptCipherTube(
   const computedBuffer = Buffer.from(computedHash, 'hex');
 
   for (let i = 11; i >= 0; i--) {
-    const tube = tubeMap.get(i);
+    const tube = tubes.find((t: any) => t && typeof t === 'object' && t.layer === i);
     if (!tube) throw new Error(`Missing hash-lock tube ${i}`);
+
+    if (typeof tube.hash !== 'string') {
+      throw new Error(`Invalid tube metadata for hash-lock ${i}: Missing hash`);
+    }
+
+    const computedHash = crypto.createHash('sha512').update(current).digest('hex');
 
     // Sentinel: Use timingSafeEqual to prevent potential timing attacks on integrity checks
     const expectedBuffer = Buffer.from(tube.hash, 'hex');
