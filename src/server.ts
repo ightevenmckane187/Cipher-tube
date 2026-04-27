@@ -70,11 +70,24 @@ app.get('/', (req: Request, res: Response) => {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <meta name="description" content="Cipher Tube Assembly - Optimized session management service.">
             <title>Cipher Tube Assembly</title>
+            <script>
+                (function() {
+                    const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                    document.documentElement.setAttribute('data-theme', theme);
+                })();
+            </script>
             <style>
                 :root {
-                    color-scheme: light dark;
                     --primary: #007bff;
                     --success: #4cd137;
+                    --bg-color: #ffffff;
+                    --text-color: #1d1d1f;
+                    --border-color: #ccc;
+                }
+                [data-theme='dark'] {
+                    --bg-color: #121212;
+                    --text-color: #e0e0e0;
+                    --border-color: #333;
                 }
                 body {
                     font-family: system-ui, -apple-system, sans-serif;
@@ -82,12 +95,9 @@ app.get('/', (req: Request, res: Response) => {
                     max-width: 800px;
                     margin: 2rem auto;
                     padding: 0 1rem;
-                    background-color: canvas;
-                    color: canvastext;
+                    background-color: var(--bg-color);
+                    color: var(--text-color);
                     transition: background-color 0.3s, color 0.3s;
-                }
-                @media (prefers-color-scheme: dark) {
-                    body { background-color: #121212; color: #e0e0e0; }
                 }
                 h1 { color: var(--primary); }
                 .skip-link {
@@ -117,7 +127,28 @@ app.get('/', (req: Request, res: Response) => {
                     70% { box-shadow: 0 0 0 10px rgba(76, 209, 55, 0); }
                     100% { box-shadow: 0 0 0 0 rgba(76, 209, 55, 0); }
                 }
-                footer { margin-top: 4rem; font-size: 0.875rem; border-top: 1px solid #ccc; padding-top: 1rem; }
+                #theme-toggle {
+                    background: none;
+                    border: 1px solid var(--border-color);
+                    color: var(--text-color);
+                    padding: 8px 16px;
+                    border-radius: 20px;
+                    cursor: pointer;
+                    font-size: 0.875rem;
+                    transition: all 0.2s;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    float: right;
+                }
+                #theme-toggle:hover {
+                    background-color: var(--border-color);
+                }
+                #theme-toggle:focus-visible {
+                    outline: 2px solid var(--primary);
+                    outline-offset: 2px;
+                }
+                footer { margin-top: 4rem; font-size: 0.875rem; border-top: 1px solid var(--border-color); padding-top: 1rem; }
                 a { color: var(--primary); text-decoration: none; }
                 a:hover { text-decoration: underline; }
                 a:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
@@ -125,13 +156,19 @@ app.get('/', (req: Request, res: Response) => {
         </head>
         <body>
             <a class="skip-link" href="#main-content">Skip to content</a>
+            <button id="theme-toggle" aria-label="Toggle dark mode">
+                <span id="theme-icon">🌓</span>
+                <span id="theme-text">Toggle Theme</span>
+            </button>
             <main id="main-content">
                 <h1>Cipher Tube Assembly</h1>
                 <p>Welcome to the performance-optimized session management service.</p>
-                <p>
-                    <span class="status-dot" aria-hidden="true"></span>
-                    <strong>Status:</strong> <span style="color: var(--success);">Online</span>
-                </p>
+                <div role="status">
+                    <p>
+                        <span class="status-dot" aria-hidden="true"></span>
+                        <strong>Status:</strong> <span style="color: var(--success);">Online</span>
+                    </p>
+                </div>
                 <h2>Quick Start</h2>
                 <p>To get started, create a session via POST /mcp.</p>
             </main>
@@ -140,6 +177,25 @@ app.get('/', (req: Request, res: Response) => {
                     <a href="/health">Health Check</a>
                 </nav>
             </footer>
+            <script>
+                const themeToggle = document.getElementById('theme-toggle');
+                const themeText = document.getElementById('theme-text');
+
+                function updateToggleText(theme) {
+                    themeText.textContent = theme === 'dark' ? 'Switch to Light' : 'Switch to Dark';
+                }
+
+                updateToggleText(document.documentElement.getAttribute('data-theme'));
+
+                themeToggle.addEventListener('click', () => {
+                    const currentTheme = document.documentElement.getAttribute('data-theme');
+                    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+                    document.documentElement.setAttribute('data-theme', newTheme);
+                    localStorage.setItem('theme', newTheme);
+                    updateToggleText(newTheme);
+                });
+            </script>
         </body>
         </html>
     `);
@@ -169,11 +225,11 @@ const jsonParser = express.json({ limit: '10kb' });
 const validateUserId = (req: Request, res: Response, next: NextFunction) => {
     const userId = req.headers['x-user-id'];
 
-    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+    if (typeof userId !== 'string' || userId.trim() === '') {
         return res.status(401).json({ error: 'Unauthorized: Missing or invalid x-user-id' });
     }
 
-    if (userId.length > 128) {
+    if (!isValidUserId(userId)) {
         return res.status(400).json({ error: 'Invalid x-user-id: exceeds maximum length' });
     }
 
@@ -236,7 +292,7 @@ app.post('/mcp', sessionLimiter, jsonParser, validateUserId, async (req: Request
 
     try {
         // Store session ownership with 24-hour TTL (86400 seconds)
-        await redisClient.set(sessionKey, userId, { EX: 86400 });
+        await redisClient.set(sessionKey, userId, { EX: SESSION_TTL });
 
         // Optimization: Pre-warm the in-memory cache to skip the first Redis lookup (Bolt Optimization)
         sessionCache.set(sessionId, userId);
