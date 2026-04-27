@@ -103,11 +103,14 @@ export function decryptCipherTube(
   const audit: string[] = [];
 
   // Bolt Optimization: Index tubes by layer for O(1) lookup
-  const tubeMap = new Map<number, any>(tubes.map(t => [t.layer, t]));
+  // Robustness fix: Filter out null/invalid elements to prevent 500 errors
+  const tubeMap = new Map<number, any>(
+    tubes.filter(t => t && typeof t === 'object').map(t => [t.layer, t])
+  );
 
   // === Decrypt 13 encryption layers in reverse ===
   for (let j = 12; j >= 0; j--) {
-    const tube = tubes.find((t: any) => t && typeof t === 'object' && t.layer === 12 + j);
+    const tube = tubeMap.get(12 + j);
     if (!tube) throw new Error(`Missing encryption tube for layer ${12 + j}`);
 
     // Sentinel: Validate tube fields
@@ -135,14 +138,15 @@ export function decryptCipherTube(
   const computedBuffer = Buffer.from(computedHash, 'hex');
 
   for (let i = 11; i >= 0; i--) {
-    const tube = tubes.find((t: any) => t && typeof t === 'object' && t.layer === i);
+    const tube = tubeMap.get(i);
     if (!tube) throw new Error(`Missing hash-lock tube ${i}`);
 
     if (typeof tube.hash !== 'string') {
       throw new Error(`Invalid tube metadata for hash-lock ${i}: Missing hash`);
     }
 
-    const computedHash = crypto.createHash('sha512').update(current).digest('hex');
+    // Bolt Optimization: Redundant hash calculation removed.
+    // Using pre-computed computedBuffer from outside the loop.
 
     // Sentinel: Use timingSafeEqual to prevent potential timing attacks on integrity checks
     const expectedBuffer = Buffer.from(tube.hash, 'hex');
