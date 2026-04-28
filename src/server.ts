@@ -40,6 +40,8 @@ const sessionLimiter = rateLimit({
     legacyHeaders: false,
 });
 
+const apiLimiter = sessionLimiter;
+
 // Security Enhancements
 app.use((req: Request, res: Response, next: NextFunction) => {
     res.locals.nonce = crypto.randomBytes(16).toString('base64');

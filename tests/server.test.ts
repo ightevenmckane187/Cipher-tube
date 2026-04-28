@@ -53,10 +53,16 @@ describe('Server Security and Health', () => {
 
     const create = await request(app).post('/mcp').set('x-user-id', userId);
     const sid = create.body.sessionId;
+    expect(sid).toBeDefined();
+
+    // Mock redis for subsequent check
+    redisMock.get.mockResolvedValueOnce(userId);
 
     const checkOk = await request(app).get(`/mcp/${sid}/check`).set('x-user-id', userId);
     expect(checkOk.status).toBe(200);
 
+    // Mock redis for fail check
+    redisMock.get.mockResolvedValueOnce(userId);
     const checkFail = await request(app).get(`/mcp/${sid}/check`).set('x-user-id', other);
     expect(checkFail.status).toBe(403);
 
