@@ -40,9 +40,9 @@ const sessionLimiter = rateLimit({
     legacyHeaders: false,
 });
 
-const apiLimiter = sessionLimiter;
-
 // Security Enhancements
+app.use(apiLimiter); // Sentinel: Apply global rate limiting before expensive operations
+
 app.use((req: Request, res: Response, next: NextFunction) => {
     res.locals.nonce = crypto.randomBytes(16).toString('base64');
     next();
@@ -58,7 +58,6 @@ app.use(helmet({
     },
     referrerPolicy: { policy: 'same-origin' },
 })); // Sets various security-related HTTP headers
-app.use(apiLimiter); // Sentinel: Apply global rate limiting
 app.disable('x-powered-by'); // Further ensures the header is removed
 
 export const redisClient: RedisClientType = createClient({
