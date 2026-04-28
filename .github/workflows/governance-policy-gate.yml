@@ -1,0 +1,289 @@
+name: "Governance · Policy Gate"
+
+on:
+  pull_request:
+    branches: [main, "release/"]
+    types: [opened, synchronize, reopened, review_requested, ready_for_review]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write
+
+concurrency:
+  group: governance-policy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  collect-metadata:
+    name: "Collect PR Metadata"
+    runs-on: ubuntu-latest
+    outputs:
+      opainput: ${{ steps.build-input.outputs.opainput }}
+      issecuritysensitive: ${{ steps.classify.outputs.issecuritysensitive }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed
+        uses: tj-actions/changed-files@v44
+        with:
+          json: true
+
+      - name: Get PR reviews
+        id: reviews
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const reviews = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+            });
+            const approvals = reviews.data
+              .filter(r => r.state === 'APPROVED')
+              .map(r => ({
+                user: r.user.login,
+                pillar: 'unknown',
+                tier: 1
+              }));
+            return JSON.stringify(approvals);
+
+      - name: Enrich approvals with team membership
+        id: enrich
+        uses: actions/github-script@v7
+        env:
+          RAW_APPROVALS: ${{ steps.reviews.outputs.result }}
+        with:
+          script: |
+            const approvals = JSON.parse(process.env.RAW_APPROVALS);
+            const teamMap = {
+              'sentinel-maintainers': { pillar: 'sentinel', tier: 3 },
+              'bolt-maintainers':     { pillar: 'bolt',     tier: 3 },
+              'palette-maintainers':  { pillar: 'palette',  tier: 3 },
+              'project-leads':        { pillar: 'governance', tier: 4 },
+              'maintainers':          { pillar: 'general',  tier: 3 },
+            };
+            for (const approval of approvals) {
+              for (const [team, meta] of Object.entries(teamMap)) {
+                try {
+                  await github.rest.teams.getMembershipForUserInOrg({
+                    org: context.repo.owner,
+                    team_slug: team,
+                    username: approval.user,
+                  });
+                  if (meta.tier > approval.tier) {
+                    approval.tier = meta.tier;
+                    approval.pillar = meta.pillar;
+                  }
+                } catch (e) { }
+              }
+            }
+            return JSON.stringify(approvals);
+
+      - name: Check for Safer-Tube checklist
+        id: checklist
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.pull_request.body || '';
+            const present = body.includes('Safer-Tube Security Checklist');
+            const items = {
+              identity_auth:                  body.includes('[x] All new endpoints require mTLS'),
+              nohardcodedsecrets:           body.includes('[x] No hardcoded secrets'),
+              secretdetectionpass:          body.includes('[x] Secret detection scan'),
+              input_validation:               body.includes('[x] All external inputs are validated'),
+              nosysteminstruction_injection: body.includes('[x] No external data is injected into'),
+              parameterized_queries:          body.includes('[x] SQL/NoSQL queries use parameterized'),
+              dependency_allowlist:           body.includes('[x] New dependencies are on the approved'),
+              dependencyauditclean:         body.includes('[x] npm audit'),
+              lockfiles_committed:            body.includes('[x] Lock files'),
+              encryptionatrest:             body.includes('[x] Encryption at rest'),
+              encryptionintransit:          body.includes('[x] Encryption in transit'),
+              key_management:                 body.includes('[x] Key material is managed'),
+              piimaskedin_logs:             body.includes('[x] PII/PHI fields are masked'),
+              rbac_updated:                   body.includes('[x] RBAC/ABAC policies updated'),
+              nowildcardpermissions:         body.includes('[x] No wildcard permissions'),
+              auditeventsemitted:           body.includes('[x] Security-relevant actions emit'),
+              logs_clean:                     body.includes('[x] Log entries do not contain secrets'),
+            };
+            return JSON.stringify({ present, items });
+
+      - name: Check commits are signed
+        id: signed
+        run: |
+          UNSIGNED=$(git log origin/main..HEAD --format='%H %G?' | grep -c ' N$' || true)
+          if [ "$UNSIGNED" -gt 0 ]; then
+            echo "commitssigned=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "commitssigned=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check for threat model updates
+        id: threat-model
+        run: |
+          if git diff --name-only origin/main...HEAD | grep -q '^docs/threat-model/'; then
+            echo "hasthreatmodel=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hasthreatmodel=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Calculate PR open duration
+        id: duration
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const created = new Date(context.payload.pull_request.created_at);
+            const now = new Date();
+            const hours = Math.floor((now - created) / (1000 * 60 * 60));
+            return hours;
+
+      - name: Classify security sensitivity
+        id: classify
+        run: |
+          SENSITIVE=$(git diff --name-only origin/main...HEAD | grep -cE '^(sentinel/|governance/|tube/crypto/|.*\.rego$|.*/auth/|.*/secrets/)' || true)
+          if [ "$SENSITIVE" -gt 0 ]; then
+            echo "issecuritysensitive=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "issecuritysensitive=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build OPA input JSON
+        id: build-input
+        uses: actions/github-script@v7
+        env:
+          CHANGED_FILES: ${{ steps.changed.outputs.all_changed_files }}
+          APPROVALS: ${{ steps.enrich.outputs.result }}
+          CHECKLIST: ${{ steps.checklist.outputs.result }}
+          COMMITS_SIGNED: ${{ steps.signed.outputs.commitssigned }}
+          HAS_THREAT_MODEL: ${{ steps.threat-model.outputs.hasthreatmodel }}
+          OPEN_HOURS: ${{ steps.duration.outputs.result }}
+        with:
+          script: |
+            const checklist = JSON.parse(process.env.CHECKLIST);
+            const approvals = JSON.parse(process.env.APPROVALS);
+            const changedPaths = JSON.parse(process.env.CHANGED_FILES);
+            const hasT4 = approvals.some(a => a.tier >= 4 && a.user !== context.payload.pull_request.user.login);
+            const input = {
+              pr: {
+                changed_paths: changedPaths,
+                approvals: approvals,
+                author: context.payload.pull_request.user.login,
+                target_branch: context.payload.pull_request.base.ref,
+                checklist_present: checklist.present,
+                checklist_items: checklist.items,
+                approval_count: approvals.filter(a => a.user !== context.payload.pull_request.user.login).length,
+                hast4approval: hasT4,
+                hasthreatmodel: process.env.HAS_THREAT_MODEL === 'true',
+                open_hours: parseInt(process.env.OPEN_HOURS),
+                hassecurityadvisory: false,
+                commits_signed: process.env.COMMITS_SIGNED === 'true',
+                cla_signed: true,
+                ci_passed: true,
+                unresolved_threads: 0,
+              }
+            };
+            const fs = require('fs');
+            fs.writeFileSync('opa-input.json', JSON.stringify(input, null, 2));
+            core.setOutput('opa_input', JSON.stringify(input));
+
+      - name: Upload OPA input
+        uses: actions/upload-artifact@v4
+        with:
+          name: opa-input
+          path: opa-input.json
+
+  opa-evaluate:
+    name: "OPA Policy Evaluation"
+    runs-on: ubuntu-latest
+    needs: collect-metadata
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install OPA
+        run: |
+          curl -L -o opa https://openpolicyagent.org/downloads/v0.68.0/opa_linux_amd64_static
+          chmod +x opa
+          sudo mv opa /usr/local/bin/opa
+          opa version
+
+      - name: Download OPA input
+        uses: actions/download-artifact@v4
+        with:
+          name: opa-input
+
+      - name: Run OPA unit tests
+        run: |
+          echo "::group::OPA Unit Tests"
+          opa test governance/policies/ -v
+          echo "::endgroup::"
+
+      - name: Evaluate crosspillarreview
+        run: |
+          echo "::group::Cross-Pillar Review Policy"
+          RESULT=$(opa eval \
+            -i opa-input.json \
+            -d governance/policies/crosspillarreview.rego \
+            'data.ciphertube.governance.crosspillarreview.deny' \
+            --format pretty)
+          echo "$RESULT"
+          if echo "$RESULT" | grep -q '"'; then
+            echo "::error::Cross-pillar review policy violations detected"
+            exit 1
+          fi
+          echo "::endgroup::"
+
+      - name: Evaluate safertubechecklist
+        run: |
+          echo "::group::Safer-Tube Checklist Policy"
+          RESULT=$(opa eval \
+            -i opa-input.json \
+            -d governance/policies/safertubechecklist.rego \
+            'data.ciphertube.governance.safertubechecklist.deny' \
+            --format pretty)
+          echo "$RESULT"
+          if echo "$RESULT" | grep -q '"'; then
+            echo "::error::Safer-Tube checklist policy violations detected"
+            exit 1
+          fi
+          echo "::endgroup::"
+
+      - name: Post policy results as PR comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            let body = '## 🔒 Governance Policy Gate Results\n\n';
+            const policies = [
+              { name: 'Cross-Pillar Review', pkg: 'crosspillarreview' },
+              { name: 'Safer-Tube Checklist', pkg: 'safertubechecklist' },
+            ];
+            for (const p of policies) {
+              try {
+                const result = execSync(
+                  `opa eval -i opa-input.json -d governance/policies/${p.pkg}.rego 'data.ciphertube.governance.${p.pkg}.deny' --format pretty`,
+                  { encoding: 'utf-8' }
+                );
+                const violations = result.trim();
+                if (violations === '[]' || violations === 'undefined') {
+                  body += `✅ ${p.name} — passed\n\n`;
+                } else {
+                  body += `❌ ${p.name} — violations:\n\n\`\`\`json\n${violations}\n\`\`\`\n\n`;
+                }
+              } catch (e) {
+                body += `⚠️ ${p.name} — evaluation error\n\n`;
+              }
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body,
+            });

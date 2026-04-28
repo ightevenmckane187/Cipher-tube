@@ -8,7 +8,6 @@ jest.mock('redis', () => {
     connect: jest.fn().mockResolvedValue(null),
     set: jest.fn().mockResolvedValue('OK'),
     get: jest.fn(),
-    quit: jest.fn().mockResolvedValue('OK'),
   };
   return {
     createClient: jest.fn(() => mRedis),
@@ -47,10 +46,11 @@ describe('Server Security and Health', () => {
   });
 
   it('should verify session ownership', async () => {
-    const userId = 'u1';
-    const other = 'u2';
+    const userId = 'user-owner';
+    const other = 'user-other';
 
-    // Create session
+    redisMock.get.mockResolvedValue(userId);
+
     const create = await request(app).post('/mcp').set('x-user-id', userId);
     const sid = create.body.sessionId;
     expect(sid).toBeDefined();
