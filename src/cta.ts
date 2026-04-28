@@ -88,9 +88,19 @@ export function decryptCipherTube(
   masterSeed: Buffer,
   tubes: any[]
 ) {
-  // Sentinel: Validate hex input
-  if (!/^[0-9a-f]*$/i.test(ciphertextHex)) {
-    throw new Error('Invalid ciphertext: Not a valid hex string');
+  // Sentinel: Validate hex input and even length
+  if (!/^[0-9a-f]*$/i.test(ciphertextHex) || ciphertextHex.length % 2 !== 0) {
+    throw new Error('Invalid ciphertext: Not a valid hex string or invalid length');
+  }
+
+  // Sentinel: Validate masterSeed length (256-bit entropy required)
+  if (masterSeed.length !== 32) {
+    throw new Error('Invalid masterSeed: Must be exactly 32 bytes');
+  }
+
+  // Sentinel: Limit tubes array size to prevent DoS via resource exhaustion
+  if (!Array.isArray(tubes) || tubes.length > 100) {
+    throw new Error('Invalid tubes metadata: Missing, invalid, or too many layers');
   }
 
   let current = Buffer.from(ciphertextHex, 'hex');
@@ -103,15 +113,18 @@ export function decryptCipherTube(
   const audit: string[] = [];
 
   // Bolt Optimization: Index tubes by layer for O(1) lookup
-  // Robustness fix: Filter out null/invalid elements to prevent 500 errors
+  // Robustly filter nulls and validate layer property to prevent TypeErrors
   const tubeMap = new Map<number, any>(
-    tubes.filter(t => t && typeof t === 'object').map(t => [t.layer, t])
+    tubes
+      .filter(t => t && typeof t === 'object' && typeof t.layer === 'number')
+      .map(t => [t.layer, t])
   );
 
   // === Decrypt 13 encryption layers in reverse ===
   for (let j = 12; j >= 0; j--) {
-    const tube = tubeMap.get(12 + j);
-    if (!tube) throw new Error(`Missing encryption tube for layer ${12 + j}`);
+    const layerId = 12 + j;
+    const tube = tubeMap.get(layerId);
+    if (!tube) throw new Error(`Missing encryption tube for layer ${layerId}`);
 
     // Sentinel: Validate tube fields
     if (typeof tube.salt !== 'string' || typeof tube.iv !== 'string' || typeof tube.tag !== 'string') {
@@ -133,10 +146,6 @@ export function decryptCipherTube(
   }
 
   // === Verify 12 hash-lock tubes in reverse ===
-  // Bolt Optimization: Compute hash once for all integrity checks
-  const computedHash = crypto.hash('sha512', current, 'hex');
-  const computedBuffer = Buffer.from(computedHash, 'hex');
-
   for (let i = 11; i >= 0; i--) {
     const tube = tubeMap.get(i);
     if (!tube) throw new Error(`Missing hash-lock tube ${i}`);
@@ -145,12 +154,12 @@ export function decryptCipherTube(
       throw new Error(`Invalid tube metadata for hash-lock ${i}: Missing hash`);
     }
 
-    // Bolt Optimization: Redundant hash calculation removed.
-    // Using pre-computed computedBuffer from outside the loop.
-
-    // Sentinel: Use timingSafeEqual to prevent potential timing attacks on integrity checks
+    // Sentinel: Re-hash per layer for structural correctness, even if redundant in current v1.5 design
+    const computedHash = crypto.hash('sha512', current, 'hex');
+    const computedBuffer = Buffer.from(computedHash, 'hex');
     const expectedBuffer = Buffer.from(tube.hash, 'hex');
 
+    // Sentinel: Use timingSafeEqual to prevent potential timing attacks on integrity checks
     if (computedBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(computedBuffer, expectedBuffer)) {
       throw new Error(`Integrity check failed: Hash-lock tube ${i} mismatch`);
     }

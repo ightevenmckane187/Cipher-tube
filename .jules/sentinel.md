@@ -22,3 +22,8 @@
 **Vulnerability:** 500 Internal Server Error (DoS) via malformed metadata elements in arrays.
 **Learning:** Functions iterating over complex metadata arrays (like `tubes`) are vulnerable to `TypeError` if array elements are `null` or have unexpected types, even if the array itself is present.
 **Prevention:** Explicitly validate each element's existence and type within `find` or loop callbacks before accessing properties to ensure total robustness against malformed JSON payloads.
+
+## 2026-04-21 - Atomic Security-Performance Balance
+**Vulnerability:** Logical regressions during performance optimization of cryptographic loops.
+**Learning:** Moving expensive operations (like hashing) outside of loops for O(1) performance can create security "theater" if the optimization assumes a static state that might be tampered with. It also complicates security reviews if the intent is not explicitly documented.
+**Prevention:** Always maintain per-layer verification logic in multi-layer crypto architectures even if it appears redundant. Use `timingSafeEqual` for ALL sensitive comparisons and ensure the implementation is actually called and not just commented.

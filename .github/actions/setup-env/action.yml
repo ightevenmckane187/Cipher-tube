@@ -1,0 +1,99 @@
+name: "Setup Cipher-tube Environment"
+description: "Install dependencies and configure environment for a specific pillar"
+
+inputs:
+  pillar:
+    description: "Target pillar: sentinel, bolt, palette, tube, or all"
+    required: true
+    default: "all"
+  node-version:
+    description: "Node.js version to install"
+    required: false
+    default: "20"
+  python-version:
+    description: "Python version to install"
+    required: false
+    default: "3.12"
+  install-opa:
+    description: "Whether to install OPA CLI"
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Cache Node modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.npm
+          **/node_modules
+        key: ${{ runner.os }}-node-${{ inputs.pillar }}-${{ hashFiles('**/package-lock.json', '**/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-node-${{ inputs.pillar }}-
+
+    - name: Setup Python
+      if: inputs.pillar == 'sentinel' || inputs.pillar == 'all'
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install Poetry
+      if: inputs.pillar == 'sentinel' || inputs.pillar == 'all'
+      shell: bash
+      run: pip install poetry
+
+    - name: Install OPA
+      if: inputs.install-opa == 'true'
+      shell: bash
+      run: |
+        curl -L -o /usr/local/bin/opa https://openpolicyagent.org/downloads/v0.68.0/opa_linux_amd64_static
+        chmod +x /usr/local/bin/opa
+        opa version
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        install_pillar() {
+          local p=$1
+          echo "📦 Installing $p dependencies..."
+          if [ -f "$p/package.json" ]; then
+            (cd "$p" && npm ci --prefer-offline)
+          fi
+          if [ -f "$p/pyproject.toml" ]; then
+            (cd "$p" && poetry install --no-interaction)
+          fi
+          if [ -f "$p/Cargo.toml" ]; then
+            (cd "$p" && cargo build)
+          fi
+        }
+
+        if [ "${{ inputs.pillar }}" = "all" ]; then
+          for pillar in sentinel bolt palette tube; do
+            if [ -d "$pillar" ]; then
+              install_pillar "$pillar"
+            fi
+          done
+          if [ -f "package.json" ]; then
+            npm ci --prefer-offline
+          fi
+        else
+          install_pillar "${{ inputs.pillar }}"
+        fi
+
+    - name: Create .env from example
+      shell: bash
+      run: |
+        if [ -f ".env.example" ] && [ ! -f ".env" ]; then
+          cp .env.example .env
+          echo "✅ Created .env from .env.example"
+        fi
+
+    - name: Environment ready
+      shell: bash
+      run: echo "✅ Cipher-tube environment ready (pillar=${{ inputs.pillar }})"
