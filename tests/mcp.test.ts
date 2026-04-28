@@ -56,7 +56,7 @@ describe('MCP Session Management', () => {
 
   describe('GET /mcp/:sessionId/check', () => {
     it('should verify ownership for the correct user', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440001';
+      const sessionId = '550e8400-e29b-41d4-8716-446655440001';
       redisMock.get.mockResolvedValueOnce('user123');
 
       const response = await request(app)
@@ -68,7 +68,7 @@ describe('MCP Session Management', () => {
     });
 
     it('should return 403 for the wrong user', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440002';
+      const sessionId = '550e8400-e29b-41d4-8716-446655440002';
       redisMock.get.mockResolvedValueOnce('user123');
 
       const response = await request(app)
@@ -79,7 +79,7 @@ describe('MCP Session Management', () => {
     });
 
     it('should return 404 for a non-existent session', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440003';
+      const sessionId = '550e8400-e29b-41d4-8716-446655440003';
       redisMock.get.mockResolvedValueOnce(null);
 
       const response = await request(app)
@@ -90,7 +90,7 @@ describe('MCP Session Management', () => {
     });
 
     it('should return 400 if x-user-id is too long on check', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440001';
+      const sessionId = '550e8400-e29b-41d4-8716-446655440001';
       const longUserId = 'a'.repeat(129);
       const response = await request(app)
         .get(`/mcp/${sessionId}/check`)
@@ -99,7 +99,7 @@ describe('MCP Session Management', () => {
     });
 
     it('should use in-memory cache for subsequent requests (Bolt Optimization)', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440004';
+      const sessionId = '550e8400-e29b-41d4-8716-446655440004';
       redisMock.get.mockResolvedValueOnce('user456');
 
       // First request - hits Redis
@@ -145,7 +145,7 @@ describe('MCP Session Management', () => {
       const response = await request(app).get('/');
       expect(response.status).toBe(200);
       expect(response.text).toContain('Cipher Tube Assembly');
-      expect(response.text).toContain('<main>');
+      expect(response.text).toContain('<main id="main-content">');
       expect(response.text).toContain('<footer>');
       expect(response.text).toContain('Quick Start');
       expect(response.text).toContain('Health Check');

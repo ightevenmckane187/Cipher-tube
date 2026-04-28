@@ -35,6 +35,8 @@ const sessionLimiter = rateLimit({
     legacyHeaders: false,
 });
 
+const apiLimiter = sessionLimiter;
+
 // Security Enhancements
 app.use(helmet()); // Sets various security-related HTTP headers
 app.disable('x-powered-by'); // Further ensures the header is removed
@@ -43,8 +45,6 @@ export const redisClient = createClient({
     url: process.env.REDIS_URL || 'redis://localhost:6379'
 });
 
-// UUID v4 validation regex
-const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SESSION_TTL = 86400; // 24 hours
 
 // Use a mock for testing as per memory instructions
@@ -119,6 +119,14 @@ app.get('/', (req: Request, res: Response) => {
             <main id="main-content">
                 <h1>Cipher Tube Assembly</h1>
                 <p>Welcome to the performance-optimized session management service.</p>
+                <section>
+                    <h2>Quick Start</h2>
+                    <p>To get started, create a session via the <code>POST /mcp</code> endpoint.</p>
+                </section>
+                <section>
+                    <h2>Health Check</h2>
+                    <p>Monitor service availability at the <code>/health</code> endpoint.</p>
+                </section>
                 <p>
                     <span class="status-dot" aria-hidden="true"></span>
                     <strong>Status:</strong> <span style="color: var(--success);">Online</span>
@@ -163,7 +171,7 @@ const validateUserId = (req: Request, res: Response, next: NextFunction) => {
     }
 
     if (userId.length > 128) {
-        return res.status(400).json({ error: 'Bad Request: x-user-id exceeds maximum length' });
+        return res.status(400).json({ error: 'Bad Request: Invalid x-user-id (exceeds maximum length)' });
     }
 
     next();
@@ -224,16 +232,8 @@ const ensureSessionOwner = async (req: Request, res: Response, next: NextFunctio
 };
 
 // Session Creation Endpoint
-app.post('/mcp', sessionLimiter, jsonParser, async (req: Request, res: Response) => {
-    const userId = req.headers['x-user-id'];
-
-    if (!userId) {
-        return res.status(401).json({ error: 'Missing x-user-id header' });
-    }
-
-    if (!isValidUserId(userId)) {
-        return res.status(400).json({ error: 'Bad Request: Invalid x-user-id format or length' });
-    }
+app.post('/mcp', sessionLimiter, validateUserId, jsonParser, async (req: Request, res: Response) => {
+    const userId = req.headers['x-user-id'] as string;
 
     const sessionId = crypto.randomUUID();
     const sessionKey = `session:${sessionId}:owner`;
@@ -255,9 +255,61 @@ app.post('/mcp', sessionLimiter, jsonParser, async (req: Request, res: Response)
 
 // Check Session Ownership Endpoint
 app.get('/mcp/:sessionId/check', sessionLimiter, validateUserId, ensureSessionOwner, (req: Request, res: Response) => {
-    res.json({ message: 'Session ownership verified' });
+    res.json({
+        status: 'owned',
+        message: 'Session ownership verified'
+    });
 });
-app.get('/mcp/:sessionId/check', apiLimiter, ensureSessionOwner, (req, res) => res.json({ status: 'authorized' }));
+
+// Encryption Endpoint
+app.post('/mcp/:sessionId/encrypt', apiLimiter, validateUserId, ensureSessionOwner, jsonParser, async (req: Request, res: Response) => {
+    const { message, masterSeed } = req.body;
+
+    if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: 'Bad Request: Missing or invalid message' });
+    }
+
+    if (!masterSeed || typeof masterSeed !== 'string' || !/^[0-9a-f]{64}$/i.test(masterSeed)) {
+        return res.status(400).json({ error: 'Bad Request: Invalid masterSeed' });
+    }
+
+    try {
+        const result = buildCipherTube(Buffer.from(message), Buffer.from(masterSeed, 'hex'));
+        res.json(result);
+    } catch (err: any) {
+        console.error('Encryption failed:', err?.message || 'Unknown error');
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Decryption Endpoint
+app.post('/mcp/:sessionId/decrypt', apiLimiter, validateUserId, ensureSessionOwner, jsonParser, async (req: Request, res: Response) => {
+    const { ciphertext, tubes, masterSeed } = req.body;
+
+    if (!ciphertext || typeof ciphertext !== 'string') {
+        return res.status(400).json({ error: 'Bad Request: Missing or invalid ciphertext' });
+    }
+
+    if (!Array.isArray(tubes)) {
+        return res.status(400).json({ error: 'Bad Request: Missing or invalid tubes' });
+    }
+
+    if (!masterSeed || typeof masterSeed !== 'string' || !/^[0-9a-f]{64}$/i.test(masterSeed)) {
+        return res.status(400).json({ error: 'Bad Request: Invalid masterSeed' });
+    }
+
+    try {
+        const result = decryptCipherTube(ciphertext, Buffer.from(masterSeed, 'hex'), tubes);
+        res.json(result);
+    } catch (err: any) {
+        const msg = err?.message || '';
+        if (msg.includes('Integrity check failed') || msg.includes('bad decrypt') || msg.includes('Unsupported state or unable to authenticate data')) {
+            return res.status(400).json({ error: msg.includes('Integrity check failed') ? msg : 'Decryption failed: Invalid key or tampered data' });
+        }
+        console.error('Decryption failed:', err?.message || 'Unknown error');
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 export { app };
 

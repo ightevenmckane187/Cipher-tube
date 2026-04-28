@@ -42,7 +42,7 @@ describe('Security Validation', () => {
 
     it('should reject x-user-id longer than 128 characters in GET /mcp/:sessionId/check', async () => {
       const longUserId = 'a'.repeat(129);
-      const sessionId = '550e8400-e29b-41d4-a716-446655440000';
+      const sessionId = '550e8400-e29b-41d4-8716-446655440000';
       const response = await request(app)
         .get(`/mcp/${sessionId}/check`)
         .set('x-user-id', longUserId);
@@ -79,7 +79,7 @@ describe('Security Validation', () => {
       (complexError as any).sensitiveInfo = 'secret-password-456';
 
       redisMock.get.mockRejectedValueOnce(complexError);
-      const sessionId = '550e8400-e29b-41d4-a716-446655440000';
+      const sessionId = '550e8400-e29b-41d4-8716-446655440000';
 
       await request(app)
         .get(`/mcp/${sessionId}/check`)

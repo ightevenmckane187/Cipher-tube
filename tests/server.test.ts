@@ -1,7 +1,30 @@
 import request from 'supertest';
 import { app } from '../src/server';
 
+// Mock Redis client
+jest.mock('redis', () => {
+  const mRedis = {
+    on: jest.fn(),
+    connect: jest.fn().mockResolvedValue(null),
+    set: jest.fn().mockResolvedValue('OK'),
+    get: jest.fn(),
+    quit: jest.fn().mockResolvedValue('OK'),
+  };
+  return {
+    createClient: jest.fn(() => mRedis),
+  };
+});
+
+import { createClient } from 'redis';
+
 describe('Server Security and Health', () => {
+  let redisMock: any;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    redisMock = (createClient as jest.Mock)();
+  });
+
   it('should have security headers from helmet', async () => {
     const response = await request(app).get('/health');
 
@@ -26,12 +49,20 @@ describe('Server Security and Health', () => {
   it('should verify session ownership', async () => {
     const userId = 'u1';
     const other = 'u2';
+
+    // Create session
     const create = await request(app).post('/mcp').set('x-user-id', userId);
     const sid = create.body.sessionId;
+    expect(sid).toBeDefined();
+
+    // Mock redis for subsequent check
+    redisMock.get.mockResolvedValueOnce(userId);
 
     const checkOk = await request(app).get(`/mcp/${sid}/check`).set('x-user-id', userId);
     expect(checkOk.status).toBe(200);
 
+    // Mock redis for fail check
+    redisMock.get.mockResolvedValueOnce(userId);
     const checkFail = await request(app).get(`/mcp/${sid}/check`).set('x-user-id', other);
     expect(checkFail.status).toBe(403);
 
