@@ -28,7 +28,8 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
 
   // === 12 Hash-Lock Tubes (Integrity) ===
   // Bolt Optimization: Pre-compute hash once for all integrity tubes
-  const integrityHash = crypto.hash('sha512', current, 'hex');
+  // Sentinel: Use createHash for Node.js 20.x compatibility
+  const integrityHash = crypto.createHash('sha512').update(current).digest('hex');
 
   for (let i = 0; i < 12; i++) {
     const salt = crypto.randomBytes(16);
@@ -155,7 +156,8 @@ export function decryptCipherTube(
     }
 
     // Sentinel: Re-hash per layer for structural correctness, even if redundant in current v1.5 design
-    const computedHash = crypto.hash('sha512', current, 'hex');
+    // Sentinel: Use createHash for Node.js 20.x compatibility
+    const computedHash = crypto.createHash('sha512').update(current).digest('hex');
     const computedBuffer = Buffer.from(computedHash, 'hex');
     const expectedBuffer = Buffer.from(tube.hash, 'hex');
 
