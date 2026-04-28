@@ -96,6 +96,7 @@ app.get('/', (req: Request, res: Response) => {
                     --bg-color: #121212;
                     --text-color: #e0e0e0;
                     --border-color: #333;
+                    --success: #2ecc71;
                 }
                 body {
                     font-family: system-ui, -apple-system, sans-serif;
@@ -171,15 +172,12 @@ app.get('/', (req: Request, res: Response) => {
         </head>
         <body>
             <a class="skip-link" href="#main-content">Skip to content</a>
-            <button id="theme-toggle" aria-label="Toggle dark mode" aria-pressed="false">
-                <span id="theme-icon">🌓</span>
-                <span id="theme-text">Toggle Theme</span>
-            </button>
             <main id="main-content">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h1>Cipher Tube Assembly</h1>
-                    <button id="theme-toggle" aria-label="Toggle dark mode" style="background: none; border: 1px solid var(--primary); color: var(--primary); padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-size: 1rem;">
-                        🌓 Theme
+                    <button id="theme-toggle" aria-label="Toggle dark mode" aria-pressed="false">
+                        <span id="theme-icon">🌓</span>
+                        <span id="theme-text">Theme</span>
                     </button>
                 </div>
                 <p>Welcome to the performance-optimized session management service.</p>
@@ -190,7 +188,7 @@ app.get('/', (req: Request, res: Response) => {
                     </p>
                 </div>
                 <h2>Quick Start</h2>
-                <p>To get started, create a session via POST /mcp.</p>
+                <p>To get started, create a session via <code>POST /mcp</code>.</p>
             </main>
             <footer>
                 <nav aria-label="Footer navigation">
