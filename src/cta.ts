@@ -27,17 +27,18 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
   const hashChain: string[] = [];
 
   // === 12 Hash-Lock Tubes (Integrity) ===
+  // Bolt Optimization: Pre-compute hash once for all integrity tubes
+  const integrityHash = crypto.hash('sha512', current, 'hex');
+
   for (let i = 0; i < 12; i++) {
     const salt = crypto.randomBytes(16);
-    const hash = crypto.createHash('sha512').update(current).digest('hex');
-
-    hashChain.push(hash);
+    hashChain.push(integrityHash);
 
     tubes.push({
       layer: i,
       type: 'hash-lock',
       salt: salt.toString('hex'),   // stored but not used for hashing in this design
-      hash: hash
+      hash: integrityHash
     });
 
     audit.push(`Tube ${i}: SHA-512 hash lock computed for integrity`);
@@ -87,9 +88,19 @@ export function decryptCipherTube(
   masterSeed: Buffer,
   tubes: any[]
 ) {
-  // Sentinel: Validate hex input
-  if (!/^[0-9a-f]*$/i.test(ciphertextHex)) {
-    throw new Error('Invalid ciphertext: Not a valid hex string');
+  // Sentinel: Validate hex input and even length
+  if (!/^[0-9a-f]*$/i.test(ciphertextHex) || ciphertextHex.length % 2 !== 0) {
+    throw new Error('Invalid ciphertext: Not a valid hex string or invalid length');
+  }
+
+  // Sentinel: Validate masterSeed length (256-bit entropy required)
+  if (masterSeed.length !== 32) {
+    throw new Error('Invalid masterSeed: Must be exactly 32 bytes');
+  }
+
+  // Sentinel: Limit tubes array size to prevent DoS via resource exhaustion
+  if (!Array.isArray(tubes) || tubes.length > 100) {
+    throw new Error('Invalid tubes metadata: Missing, invalid, or too many layers');
   }
 
   let current = Buffer.from(ciphertextHex, 'hex');
@@ -101,10 +112,19 @@ export function decryptCipherTube(
 
   const audit: string[] = [];
 
+  // Bolt Optimization: Index tubes by layer for O(1) lookup
+  // Robustly filter nulls and validate layer property to prevent TypeErrors
+  const tubeMap = new Map<number, any>(
+    tubes
+      .filter(t => t && typeof t === 'object' && typeof t.layer === 'number')
+      .map(t => [t.layer, t])
+  );
+
   // === Decrypt 13 encryption layers in reverse ===
   for (let j = 12; j >= 0; j--) {
-    const tube = tubes.find((t: any) => t && typeof t === 'object' && t.layer === 12 + j);
-    if (!tube) throw new Error(`Missing encryption tube for layer ${12 + j}`);
+    const layerId = 12 + j;
+    const tube = tubeMap.get(layerId);
+    if (!tube) throw new Error(`Missing encryption tube for layer ${layerId}`);
 
     // Sentinel: Validate tube fields
     if (typeof tube.salt !== 'string' || typeof tube.iv !== 'string' || typeof tube.tag !== 'string') {
@@ -116,7 +136,6 @@ export function decryptCipherTube(
     const encryptedData = current.subarray(28);
 
     const salt = Buffer.from(tube.salt, 'hex');
-    const j = layer - 12; // Derived index for key derivation info
     const key = deriveKey(masterSeed, salt, `enc-${j}`);
 
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
@@ -128,24 +147,24 @@ export function decryptCipherTube(
 
   // === Verify 12 hash-lock tubes in reverse ===
   for (let i = 11; i >= 0; i--) {
-    const tube = tubes.find((t: any) => t && typeof t === 'object' && t.layer === i);
+    const tube = tubeMap.get(i);
     if (!tube) throw new Error(`Missing hash-lock tube ${i}`);
 
     if (typeof tube.hash !== 'string') {
       throw new Error(`Invalid tube metadata for hash-lock ${i}: Missing hash`);
     }
 
-    const computedHash = crypto.createHash('sha512').update(current).digest('hex');
-
-    // Sentinel: Use timingSafeEqual to prevent potential timing attacks on integrity checks
+    // Sentinel: Re-hash per layer for structural correctness, even if redundant in current v1.5 design
+    const computedHash = crypto.hash('sha512', current, 'hex');
     const computedBuffer = Buffer.from(computedHash, 'hex');
     const expectedBuffer = Buffer.from(tube.hash, 'hex');
 
+    // Sentinel: Use timingSafeEqual to prevent potential timing attacks on integrity checks
     if (computedBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(computedBuffer, expectedBuffer)) {
-      throw new Error(`Integrity check failed: Hash-lock tube ${layer} mismatch`);
+      throw new Error(`Integrity check failed: Hash-lock tube ${i} mismatch`);
     }
 
-    audit.push(`Verified hash-lock tube ${layer}`);
+    audit.push(`Verified hash-lock tube ${i}`);
   }
 
   return {
