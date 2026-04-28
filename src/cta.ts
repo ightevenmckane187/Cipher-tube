@@ -1,8 +1,17 @@
 import crypto from 'crypto';
 
+export interface Tube {
+  layer: number;
+  type: 'hash-lock' | 'aes-256-gcm';
+  salt: string;
+  hash?: string;
+  iv?: string;
+  tag?: string;
+}
+
 export interface CipherTubeResult {
   ciphertext: string;
-  tubes: any[];
+  tubes: Tube[];
   hashChain?: string[];           // optional, for extra verification
   audit: {
     whatHappened: string[];
@@ -11,8 +20,12 @@ export interface CipherTubeResult {
   };
 }
 
-function deriveKey(master: Buffer, salt: Buffer, info: string): Buffer {
-  return Buffer.from(crypto.hkdfSync('sha256', master, salt, info, 32));
+// Bolt Optimization: Pre-compute HKDF info buffers to avoid repeated string templating and allocations
+const HKDF_INFO_BUFFERS = Array.from({ length: 13 }, (_, i) => Buffer.from(`enc-${i}`, 'utf8'));
+
+function deriveKey(master: Buffer, salt: Buffer, infoIndex: number): Buffer {
+  // crypto.hkdfSync returns ArrayBuffer in Node 22+, Buffer.from(ArrayBuffer) creates a view without copying
+  return Buffer.from(crypto.hkdfSync('sha256', master, salt, HKDF_INFO_BUFFERS[infoIndex], 32));
 }
 
 /**
@@ -22,13 +35,14 @@ function deriveKey(master: Buffer, salt: Buffer, info: string): Buffer {
  */
 export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTubeResult {
   let current = plaintext;
-  const tubes: any[] = [];
+  const tubes: Tube[] = [];
   const audit: string[] = [];
   const hashChain: string[] = [];
 
   // === 12 Hash-Lock Tubes (Integrity) ===
   // Bolt Optimization: Pre-compute hash once for all integrity tubes
-  const integrityHash = crypto.hash('sha512', current, 'hex');
+  // Compatibility: use createHash for Node.js 20.0.0+ support
+  const integrityHash = crypto.createHash('sha512').update(current).digest('hex');
 
   for (let i = 0; i < 12; i++) {
     const salt = crypto.randomBytes(16);
@@ -48,7 +62,7 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
   // === 13 AES-256-GCM Encryption Layers ===
   for (let j = 0; j < 13; j++) {
     const salt = crypto.randomBytes(16);
-    const key = deriveKey(masterSeed, salt, `enc-${j}`);
+    const key = deriveKey(masterSeed, salt, j);
     const iv = crypto.randomBytes(12);
 
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
@@ -86,7 +100,7 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
 export function decryptCipherTube(
   ciphertextHex: string,
   masterSeed: Buffer,
-  tubes: any[]
+  tubes: Tube[]
 ) {
   // Sentinel: Validate hex input and even length
   if (!/^[0-9a-f]*$/i.test(ciphertextHex) || ciphertextHex.length % 2 !== 0) {
@@ -113,12 +127,13 @@ export function decryptCipherTube(
   const audit: string[] = [];
 
   // Bolt Optimization: Index tubes by layer for O(1) lookup
-  // Robustly filter nulls and validate layer property to prevent TypeErrors
-  const tubeMap = new Map<number, any>(
-    tubes
-      .filter(t => t && typeof t === 'object' && typeof t.layer === 'number')
-      .map(t => [t.layer, t])
-  );
+  // Using a single loop to avoid multiple array allocations from filter/map
+  const tubeMap = new Map<number, Tube>();
+  for (const tube of tubes) {
+    if (tube && typeof tube === 'object' && typeof tube.layer === 'number') {
+      tubeMap.set(tube.layer, tube);
+    }
+  }
 
   // === Decrypt 13 encryption layers in reverse ===
   for (let j = 12; j >= 0; j--) {
@@ -136,7 +151,7 @@ export function decryptCipherTube(
     const encryptedData = current.subarray(28);
 
     const salt = Buffer.from(tube.salt, 'hex');
-    const key = deriveKey(masterSeed, salt, `enc-${j}`);
+    const key = deriveKey(masterSeed, salt, j);
 
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(tag);
@@ -146,6 +161,10 @@ export function decryptCipherTube(
   }
 
   // === Verify 12 hash-lock tubes in reverse ===
+  // Bolt Optimization: Data is invariant during integrity checks, hoist hashing out of the loop
+  // Compatibility: use createHash for Node.js 20.0.0+ support
+  const computedBuffer = crypto.createHash('sha512').update(current).digest();
+
   for (let i = 11; i >= 0; i--) {
     const tube = tubeMap.get(i);
     if (!tube) throw new Error(`Missing hash-lock tube ${i}`);
@@ -154,9 +173,6 @@ export function decryptCipherTube(
       throw new Error(`Invalid tube metadata for hash-lock ${i}: Missing hash`);
     }
 
-    // Sentinel: Re-hash per layer for structural correctness, even if redundant in current v1.5 design
-    const computedHash = crypto.hash('sha512', current, 'hex');
-    const computedBuffer = Buffer.from(computedHash, 'hex');
     const expectedBuffer = Buffer.from(tube.hash, 'hex');
 
     // Sentinel: Use timingSafeEqual to prevent potential timing attacks on integrity checks

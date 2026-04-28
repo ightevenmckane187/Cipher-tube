@@ -265,7 +265,7 @@ const validateUserId = (req: Request, res: Response, next: NextFunction) => {
 // Middleware to ensure session ownership
 // Sentinel: Relies on validateUserId middleware being called first
 const ensureSessionOwner = async (req: Request, res: Response, next: NextFunction) => {
-    const { sessionId } = req.params;
+    const sessionId = req.params.sessionId as string;
     const userId = req.headers['x-user-id'] as string;
 
     if (!sessionId) {
