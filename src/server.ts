@@ -98,6 +98,7 @@ app.get('/', (req: Request, res: Response) => {
                     --bg-color: #121212;
                     --text-color: #e0e0e0;
                     --border-color: #333;
+                    --success: #2ecc71;
                 }
                 body {
                     font-family: system-ui, -apple-system, sans-serif;
@@ -169,6 +170,35 @@ app.get('/', (req: Request, res: Response) => {
                 a { color: var(--primary); text-decoration: none; }
                 a:hover { text-decoration: underline; }
                 a:focus-visible, #theme-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+                .code-container {
+                    position: relative;
+                    margin: 1rem 0;
+                    background: #1e1e1e;
+                    border-radius: 8px;
+                    padding: 1rem;
+                    border: 1px solid var(--border-color);
+                }
+                pre {
+                    margin: 0;
+                    overflow-x: auto;
+                    color: #dcdcdc;
+                    font-size: 0.875rem;
+                }
+                .copy-button {
+                    position: absolute;
+                    top: 0.5rem;
+                    right: 0.5rem;
+                    background: rgba(255, 255, 255, 0.1);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    color: #fff;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 0.75rem;
+                    transition: all 0.2s;
+                }
+                .copy-button:hover { background: rgba(255, 255, 255, 0.2); }
+                .copy-button:focus-visible { outline: 2px solid var(--primary); }
             </style>
         </head>
         <body>
@@ -189,7 +219,11 @@ app.get('/', (req: Request, res: Response) => {
                     </p>
                 </div>
                 <h2>Quick Start</h2>
-                <p>To get started, create a session via POST /mcp.</p>
+                <p>To get started, create a session via the API:</p>
+                <div class="code-container">
+                    <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard">Copy</button>
+                    <pre><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
+                </div>
             </main>
             <footer>
                 <nav aria-label="Footer navigation">
@@ -217,6 +251,22 @@ app.get('/', (req: Request, res: Response) => {
                     document.documentElement.setAttribute('data-theme', newTheme);
                     localStorage.setItem('theme', newTheme);
                     updateUI(newTheme);
+                });
+
+                const copyButton = document.getElementById('copy-curl');
+                const curlCommand = document.getElementById('curl-command');
+
+                copyButton.addEventListener('click', async () => {
+                    try {
+                        await navigator.clipboard.writeText(curlCommand.textContent);
+                        const originalText = copyButton.textContent;
+                        copyButton.textContent = 'Copied!';
+                        setTimeout(() => {
+                            copyButton.textContent = originalText;
+                        }, 2000);
+                    } catch (err) {
+                        console.error('Failed to copy: ', err);
+                    }
                 });
             </script>
         </body>
@@ -264,11 +314,16 @@ const validateUserId = (req: Request, res: Response, next: NextFunction) => {
 // Middleware to ensure session ownership
 // Sentinel: Relies on validateUserId middleware being called first
 const ensureSessionOwner = async (req: Request, res: Response, next: NextFunction) => {
-    const { sessionId } = req.params;
+    let { sessionId } = req.params;
     const userId = req.headers['x-user-id'] as string;
 
     if (!sessionId) {
         return res.status(400).json({ error: 'Bad Request: Missing sessionId' });
+    }
+
+    // Handle case where sessionId might be an array (Express 5 type compatibility)
+    if (Array.isArray(sessionId)) {
+        sessionId = sessionId[0];
     }
 
     if (!UUID_V4_REGEX.test(sessionId)) {
