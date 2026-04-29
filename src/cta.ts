@@ -1,8 +1,17 @@
 import crypto from 'crypto';
 
+export interface Tube {
+  layer: number;
+  type: 'hash-lock' | 'aes-256-gcm';
+  salt: string;
+  hash?: string;
+  iv?: string;
+  tag?: string;
+}
+
 export interface CipherTubeResult {
   ciphertext: string;
-  tubes: any[];
+  tubes: Tube[];
   hashChain?: string[];           // optional, for extra verification
   audit: {
     whatHappened: string[];
@@ -22,13 +31,13 @@ function deriveKey(master: Buffer, salt: Buffer, info: string): Buffer {
  */
 export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTubeResult {
   let current = plaintext;
-  const tubes: any[] = [];
+  const tubes: Tube[] = [];
   const audit: string[] = [];
   const hashChain: string[] = [];
 
   // === 12 Hash-Lock Tubes (Integrity) ===
   // Bolt Optimization: Pre-compute hash once for all integrity tubes
-  const integrityHash = crypto.hash('sha512', current, 'hex');
+  const integrityHash = crypto.createHash('sha512').update(current).digest('hex');
 
   for (let i = 0; i < 12; i++) {
     const salt = crypto.randomBytes(16);
@@ -86,7 +95,7 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
 export function decryptCipherTube(
   ciphertextHex: string,
   masterSeed: Buffer,
-  tubes: any[]
+  tubes: Tube[]
 ) {
   // Sentinel: Validate hex input and even length
   if (!/^[0-9a-f]*$/i.test(ciphertextHex) || ciphertextHex.length % 2 !== 0) {
@@ -114,9 +123,9 @@ export function decryptCipherTube(
 
   // Bolt Optimization: Index tubes by layer for O(1) lookup
   // Robustly filter nulls and validate layer property to prevent TypeErrors
-  const tubeMap = new Map<number, any>(
+  const tubeMap = new Map<number, Tube>(
     tubes
-      .filter(t => t && typeof t === 'object' && typeof t.layer === 'number')
+      .filter((t): t is Tube => !!(t && typeof t === 'object' && typeof t.layer === 'number'))
       .map(t => [t.layer, t])
   );
 
@@ -155,7 +164,7 @@ export function decryptCipherTube(
     }
 
     // Sentinel: Re-hash per layer for structural correctness, even if redundant in current v1.5 design
-    const computedHash = crypto.hash('sha512', current, 'hex');
+    const computedHash = crypto.createHash('sha512').update(current).digest('hex');
     const computedBuffer = Buffer.from(computedHash, 'hex');
     const expectedBuffer = Buffer.from(tube.hash, 'hex');
 
