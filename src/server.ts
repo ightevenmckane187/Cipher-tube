@@ -468,6 +468,24 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
     }
 });
 
+// Sentinel: Global error handler to catch and sanitize all unhandled errors
+// This prevents stack trace leakage and provides a consistent JSON error format
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    // Log the error internally
+    console.error('Unhandled Error:', err.message || 'Unknown error');
+
+    // Handle JSON parsing errors specifically
+    if (err instanceof SyntaxError && 'status' in err && err.status === 400 && 'body' in err) {
+        return res.status(400).json({ error: 'Invalid JSON payload' });
+    }
+
+    // Default to 500 Internal Server Error for other unhandled cases
+    // We avoid sending the error object itself to the client to prevent information leakage
+    res.status(err.status || 500).json({
+        error: err.status === 404 ? 'Resource not found' : 'Internal server error'
+    });
+});
+
 export { app };
 
 if (process.env.NODE_ENV !== 'test') {
