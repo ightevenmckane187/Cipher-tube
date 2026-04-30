@@ -12,7 +12,10 @@ console.log(`Starting benchmark with ${ITERATIONS} iterations...`);
 
 const start = performance.now();
 for (let i = 0; i < ITERATIONS; i++) {
-    decryptCipherTube(ciphertext, masterSeed, tubes);
+    const result = decryptCipherTube(ciphertext, masterSeed, tubes);
+    if (i === 0 && result.plaintext !== plaintext.toString('utf8')) {
+        throw new Error('Verification failed: Decrypted plaintext does not match original');
+    }
 }
 const end = performance.now();
 
