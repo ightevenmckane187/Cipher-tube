@@ -27,3 +27,8 @@
 **Vulnerability:** Logical regressions during performance optimization of cryptographic loops.
 **Learning:** Moving expensive operations (like hashing) outside of loops for O(1) performance can create security "theater" if the optimization assumes a static state that might be tampered with. It also complicates security reviews if the intent is not explicitly documented.
 **Prevention:** Always maintain per-layer verification logic in multi-layer crypto architectures even if it appears redundant. Use `timingSafeEqual` for ALL sensitive comparisons and ensure the implementation is actually called and not just commented.
+
+## 2026-04-30 - Global Sanitized Error Handling
+**Vulnerability:** Information leakage (stack traces) via default Express error pages.
+**Learning:** Default Express error handling returns HTML pages with full stack traces for errors occurring in middleware, such as `SyntaxError` from `express.json()` when receiving malformed JSON. This exposes internal path structures and library versions.
+**Prevention:** Always implement a global error-handling middleware as the last entry in the middleware chain. This handler must explicitly catch common errors like `SyntaxError` (400) and `PayloadTooLargeError` (413), and return generic JSON responses to ensure the system fails securely without exposing implementation details.

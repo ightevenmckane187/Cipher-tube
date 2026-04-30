@@ -468,6 +468,22 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
     }
 });
 
+// Global Error Handler (Sentinel: Sanitize all unhandled errors)
+// Express 5 still requires the four-argument signature for error-handling middleware.
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    if (err instanceof SyntaxError && 'status' in err && err.status === 400 && 'body' in err) {
+        return res.status(400).json({ error: 'Invalid JSON payload' });
+    }
+
+    if (err && 'status' in err && err.status === 413) {
+        return res.status(413).json({ error: 'Payload too large' });
+    }
+
+    // Log error internally but return generic 500 to client to prevent stack trace leakage
+    console.error('Unhandled error:', err?.message || 'Unknown error');
+    res.status(500).json({ error: 'Internal server error' });
+});
+
 export { app };
 
 if (process.env.NODE_ENV !== 'test') {
