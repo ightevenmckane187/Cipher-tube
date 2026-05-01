@@ -497,6 +497,24 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
     }
 });
 
+/**
+ * Global error-handling middleware.
+ * Sentinel: Catch and sanitize unhandled errors to prevent information leakage and DoS.
+ */
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    if (err instanceof SyntaxError && 'status' in err && err.status === 400 && 'body' in err) {
+        return res.status(400).json({ error: 'Bad Request: Invalid JSON payload' });
+    }
+
+    if (err.status === 413) {
+        return res.status(413).json({ error: 'Payload too large: exceeds 10kb limit' });
+    }
+
+    // Sentinel: Log only message to avoid leaking sensitive internal state
+    console.error('Unhandled Error:', err?.message || 'Unknown error');
+    res.status(500).json({ error: 'Internal server error' });
+});
+
 export { app };
 
 if (process.env.NODE_ENV !== 'test') {
