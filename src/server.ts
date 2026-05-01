@@ -54,6 +54,8 @@ app.use(helmet({
             ...helmet.contentSecurityPolicy.getDefaultDirectives(),
             "img-src": ["'self'", "data:", "img.shields.io"],
             "script-src": ["'self'", (req: any, res: any) => `'nonce-${res.locals.nonce}'`],
+            "style-src": ["'self'", (req: any, res: any) => `'nonce-${res.locals.nonce}'`],
+            "object-src": ["'none'"],
         },
     },
     referrerPolicy: { policy: 'same-origin' },
@@ -84,7 +86,7 @@ app.get('/', (req: Request, res: Response) => {
                     document.documentElement.setAttribute('data-theme', theme);
                 })();
             </script>
-            <style>
+            <style nonce="${res.locals.nonce}">
                 :root {
                     --primary: #007bff;
                     --success: #1e7e34;
@@ -131,6 +133,11 @@ app.get('/', (req: Request, res: Response) => {
                     box-shadow: 0 0 0 rgba(30, 126, 52, 0.4);
                     animation: pulse 2s infinite;
                 }
+                @media (prefers-reduced-motion: reduce) {
+                    .status-dot {
+                        animation: none;
+                    }
+                }
                 @keyframes pulse {
                     0% { box-shadow: 0 0 0 0 rgba(30, 126, 52, 0.4); }
                     70% { box-shadow: 0 0 0 10px rgba(30, 126, 52, 0); }
@@ -168,6 +175,46 @@ app.get('/', (req: Request, res: Response) => {
                 a { color: var(--primary); text-decoration: none; }
                 a:hover { text-decoration: underline; }
                 a:focus-visible, #theme-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+                .code-container {
+                    position: relative;
+                    margin: 1rem 0;
+                    background: #1e1e1e;
+                    border-radius: 8px;
+                    padding: 1rem;
+                    border: 1px solid var(--border-color);
+                }
+                pre {
+                    margin: 0;
+                    overflow-x: auto;
+                    color: #dcdcdc;
+                    font-size: 0.875rem;
+                }
+                .copy-button {
+                    position: absolute;
+                    top: 0.5rem;
+                    right: 0.5rem;
+                    background: rgba(255, 255, 255, 0.1);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    color: #fff;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 0.75rem;
+                    transition: all 0.2s;
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                }
+                .copy-button:hover { background: rgba(255, 255, 255, 0.2); }
+                .copy-button:focus-visible { outline: 2px solid var(--primary); }
+                .copy-icon, .check-icon {
+                    width: 14px;
+                    height: 14px;
+                    fill: currentColor;
+                }
+                .check-icon { display: none; color: #2ecc71; }
+                .copy-button.copied .copy-icon { display: none; }
+                .copy-button.copied .check-icon { display: block; }
             </style>
         </head>
         <body>
@@ -175,10 +222,6 @@ app.get('/', (req: Request, res: Response) => {
             <main id="main-content">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h1>Cipher Tube Assembly</h1>
-                    <button id="theme-toggle" aria-label="Toggle dark mode" aria-pressed="false">
-                        <span id="theme-icon">🌓</span>
-                        <span id="theme-text">Theme</span>
-                    </button>
                 </div>
                 <p>Welcome to the performance-optimized session management service.</p>
                 <div role="status">
@@ -188,7 +231,15 @@ app.get('/', (req: Request, res: Response) => {
                     </p>
                 </div>
                 <h2>Quick Start</h2>
-                <p>To get started, create a session via <code>POST /mcp</code>.</p>
+                <p>To get started, create a session via the API:</p>
+                <div class="code-container">
+                    <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard">
+                        <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                        <svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                        <span id="copy-text">Copy</span>
+                    </button>
+                    <pre><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
+                </div>
             </main>
             <footer>
                 <nav aria-label="Footer navigation">
@@ -216,6 +267,31 @@ app.get('/', (req: Request, res: Response) => {
                     document.documentElement.setAttribute('data-theme', newTheme);
                     localStorage.setItem('theme', newTheme);
                     updateUI(newTheme);
+                });
+
+                const copyButton = document.getElementById('copy-curl');
+                const copyText = document.getElementById('copy-text');
+                const curlCommand = document.getElementById('curl-command');
+
+                // Dynamically update the example with the current origin
+                const currentOrigin = window.location.origin;
+                curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: demo-user"\`;
+
+                copyButton.addEventListener('click', async () => {
+                    try {
+                        await navigator.clipboard.writeText(curlCommand.textContent);
+                        copyButton.classList.add('copied');
+                        copyButton.setAttribute('aria-label', 'Command copied to clipboard');
+                        copyText.textContent = 'Copied!';
+
+                        setTimeout(() => {
+                            copyButton.classList.remove('copied');
+                            copyButton.setAttribute('aria-label', 'Copy command to clipboard');
+                            copyText.textContent = 'Copy';
+                        }, 2000);
+                    } catch (err) {
+                        console.error('Failed to copy: ', err);
+                    }
                 });
             </script>
         </body>
@@ -263,11 +339,16 @@ const validateUserId = (req: Request, res: Response, next: NextFunction) => {
 // Middleware to ensure session ownership
 // Sentinel: Relies on validateUserId middleware being called first
 const ensureSessionOwner = async (req: Request, res: Response, next: NextFunction) => {
-    const { sessionId } = req.params;
+    let { sessionId } = req.params;
     const userId = req.headers['x-user-id'] as string;
 
     if (!sessionId) {
         return res.status(400).json({ error: 'Bad Request: Missing sessionId' });
+    }
+
+    // Handle case where sessionId might be an array (Express 5 type compatibility)
+    if (Array.isArray(sessionId)) {
+        sessionId = sessionId[0];
     }
 
     if (!UUID_V4_REGEX.test(sessionId)) {
@@ -410,6 +491,24 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
 
         res.status(500).json({ error: 'Internal server error' });
     }
+});
+
+/**
+ * Global error-handling middleware.
+ * Sentinel: Catch and sanitize unhandled errors to prevent information leakage and DoS.
+ */
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    if (err instanceof SyntaxError && 'status' in err && err.status === 400 && 'body' in err) {
+        return res.status(400).json({ error: 'Bad Request: Invalid JSON payload' });
+    }
+
+    if (err.status === 413) {
+        return res.status(413).json({ error: 'Payload too large: exceeds 10kb limit' });
+    }
+
+    // Sentinel: Log only message to avoid leaking sensitive internal state
+    console.error('Unhandled Error:', err?.message || 'Unknown error');
+    res.status(500).json({ error: 'Internal server error' });
 });
 
 export { app };
