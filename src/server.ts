@@ -133,6 +133,11 @@ app.get('/', (req: Request, res: Response) => {
                     box-shadow: 0 0 0 rgba(30, 126, 52, 0.4);
                     animation: pulse 2s infinite;
                 }
+                @media (prefers-reduced-motion: reduce) {
+                    .status-dot {
+                        animation: none;
+                    }
+                }
                 @keyframes pulse {
                     0% { box-shadow: 0 0 0 0 rgba(30, 126, 52, 0.4); }
                     70% { box-shadow: 0 0 0 10px rgba(30, 126, 52, 0); }
@@ -196,9 +201,20 @@ app.get('/', (req: Request, res: Response) => {
                     cursor: pointer;
                     font-size: 0.75rem;
                     transition: all 0.2s;
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
                 }
                 .copy-button:hover { background: rgba(255, 255, 255, 0.2); }
                 .copy-button:focus-visible { outline: 2px solid var(--primary); }
+                .copy-icon, .check-icon {
+                    width: 14px;
+                    height: 14px;
+                    fill: currentColor;
+                }
+                .check-icon { display: none; color: #2ecc71; }
+                .copy-button.copied .copy-icon { display: none; }
+                .copy-button.copied .check-icon { display: block; }
             </style>
         </head>
         <body>
@@ -221,7 +237,11 @@ app.get('/', (req: Request, res: Response) => {
                 <h2>Quick Start</h2>
                 <p>To get started, create a session via the API:</p>
                 <div class="code-container">
-                    <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard">Copy</button>
+                    <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard">
+                        <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                        <svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                        <span id="copy-text">Copy</span>
+                    </button>
                     <pre><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
                 </div>
             </main>
@@ -254,15 +274,24 @@ app.get('/', (req: Request, res: Response) => {
                 });
 
                 const copyButton = document.getElementById('copy-curl');
+                const copyText = document.getElementById('copy-text');
                 const curlCommand = document.getElementById('curl-command');
+
+                // Dynamically update the example with the current origin
+                const currentOrigin = window.location.origin;
+                curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: demo-user"\`;
 
                 copyButton.addEventListener('click', async () => {
                     try {
                         await navigator.clipboard.writeText(curlCommand.textContent);
-                        const originalText = copyButton.textContent;
-                        copyButton.textContent = 'Copied!';
+                        copyButton.classList.add('copied');
+                        copyButton.setAttribute('aria-label', 'Command copied to clipboard');
+                        copyText.textContent = 'Copied!';
+
                         setTimeout(() => {
-                            copyButton.textContent = originalText;
+                            copyButton.classList.remove('copied');
+                            copyButton.setAttribute('aria-label', 'Copy command to clipboard');
+                            copyText.textContent = 'Copy';
                         }, 2000);
                     } catch (err) {
                         console.error('Failed to copy: ', err);
@@ -468,19 +497,21 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
     }
 });
 
-// Global Error Handler (Sentinel: Sanitize all unhandled errors)
-// Express 5 still requires the four-argument signature for error-handling middleware.
+/**
+ * Global error-handling middleware.
+ * Sentinel: Catch and sanitize unhandled errors to prevent information leakage and DoS.
+ */
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     if (err instanceof SyntaxError && 'status' in err && err.status === 400 && 'body' in err) {
-        return res.status(400).json({ error: 'Invalid JSON payload' });
+        return res.status(400).json({ error: 'Bad Request: Invalid JSON payload' });
     }
 
-    if (err && 'status' in err && err.status === 413) {
-        return res.status(413).json({ error: 'Payload too large' });
+    if (err.status === 413) {
+        return res.status(413).json({ error: 'Payload too large: exceeds 10kb limit' });
     }
 
-    // Log error internally but return generic 500 to client to prevent stack trace leakage
-    console.error('Unhandled error:', err?.message || 'Unknown error');
+    // Sentinel: Log only message to avoid leaking sensitive internal state
+    console.error('Unhandled Error:', err?.message || 'Unknown error');
     res.status(500).json({ error: 'Internal server error' });
 });
 
