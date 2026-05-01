@@ -59,6 +59,7 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
 
   // === 13 AES-256-GCM Encryption Layers ===
   for (let j = 0; j < 13; j++) {
+    const layerId = 12 + j;
     const salt = crypto.randomBytes(16);
     const info = ENCRYPTION_INFOS[j] || `enc-${j}`;
     const key = deriveKey(masterSeed, salt, info);
@@ -71,14 +72,14 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
     current = Buffer.concat([iv, tag, encrypted]);
 
     tubes.push({
-      layer: 12 + j,
+      layer: layerId,
       type: 'aes-256-gcm',
       salt: salt.toString('hex'),
       iv: iv.toString('hex'),
       tag: tag.toString('hex')
     });
 
-    audit.push(`Layer ${12 + j}: AES-256-GCM encryption applied`);
+    audit.push(`Layer ${layerId}: AES-256-GCM encryption applied`);
   }
 
   return {
