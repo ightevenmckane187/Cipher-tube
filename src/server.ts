@@ -219,10 +219,6 @@ app.get('/', (req: Request, res: Response) => {
         </head>
         <body>
             <a class="skip-link" href="#main-content">Skip to content</a>
-            <button id="theme-toggle" aria-label="Toggle dark mode" aria-pressed="false">
-                <span id="theme-icon">🌓</span>
-                <span id="theme-text">Toggle Theme</span>
-            </button>
             <main id="main-content">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h1>Cipher Tube Assembly</h1>
