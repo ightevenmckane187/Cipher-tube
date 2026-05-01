@@ -222,9 +222,13 @@ app.get('/', (req: Request, res: Response) => {
             <main id="main-content">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h1>Cipher Tube Assembly</h1>
+                    <button id="theme-toggle" aria-label="Switch to Dark Mode">
+                        <span id="theme-icon" aria-hidden="true">🌙</span>
+                        <span id="theme-text">Switch to Dark</span>
+                    </button>
                 </div>
                 <p>Welcome to the performance-optimized session management service.</p>
-                <div role="status">
+                <div role="status" aria-live="polite">
                     <p>
                         <span class="status-dot" aria-hidden="true"></span>
                         <strong>Status:</strong> <span style="color: var(--success);">Online</span>
@@ -256,6 +260,10 @@ app.get('/', (req: Request, res: Response) => {
                     themeText.textContent = isDark ? 'Switch to Light' : 'Switch to Dark';
                     themeIcon.textContent = isDark ? '☀️' : '🌙';
                     themeToggle.setAttribute('aria-pressed', isDark);
+                    themeToggle.setAttribute('aria-label', isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode');
+
+                    // Force re-evaluation of styles if needed (some browsers might need this)
+                    document.documentElement.setAttribute('data-theme', theme);
                 }
 
                 updateUI(document.documentElement.getAttribute('data-theme'));
@@ -499,7 +507,7 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
  */
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     if (err instanceof SyntaxError && 'status' in err && err.status === 400 && 'body' in err) {
-        return res.status(400).json({ error: 'Bad Request: Invalid JSON payload' });
+        return res.status(400).json({ error: 'Invalid JSON payload' });
     }
 
     if (err.status === 413) {
