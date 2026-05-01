@@ -499,7 +499,7 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
  */
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     if (err instanceof SyntaxError && 'status' in err && err.status === 400 && 'body' in err) {
-        return res.status(400).json({ error: 'Bad Request: Invalid JSON payload' });
+        return res.status(400).json({ error: 'Invalid JSON payload' });
     }
 
     if (err.status === 413) {
