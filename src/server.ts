@@ -321,11 +321,15 @@ const jsonParser = express.json({ limit: '10kb' });
  * Checks for existence, type, and length to prevent DoS and cache displacement.
  */
 const validateUserId = (req: Request, res: Response, next: NextFunction) => {
-    const userId = req.headers['x-user-id'];
+    let userId = req.headers['x-user-id'];
 
     if (typeof userId !== 'string' || userId.trim() === '') {
         return res.status(401).json({ error: 'Unauthorized: Missing or invalid x-user-id' });
     }
+
+    // Sentinel: Normalize user ID by trimming whitespace and reassigning to headers
+    userId = userId.trim();
+    req.headers['x-user-id'] = userId;
 
     // Custom header 'x-user-id' is validated for presence and length (max 128 chars)
     // Memory instructions require this specific length validation and error message.
@@ -493,13 +497,18 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
     }
 });
 
+// Sentinel: Catch-all 404 handler for non-existent routes
+app.use((req: Request, res: Response) => {
+    res.status(404).json({ error: 'Not Found' });
+});
+
 /**
  * Global error-handling middleware.
  * Sentinel: Catch and sanitize unhandled errors to prevent information leakage and DoS.
  */
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     if (err instanceof SyntaxError && 'status' in err && err.status === 400 && 'body' in err) {
-        return res.status(400).json({ error: 'Bad Request: Invalid JSON payload' });
+        return res.status(400).json({ error: 'Invalid JSON payload' });
     }
 
     if (err.status === 413) {
