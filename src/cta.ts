@@ -20,16 +20,10 @@ export interface CipherTubeResult {
   };
 }
 
-// Bolt Optimization: Pre-compute HKDF info buffers to avoid repeated string-to-buffer conversion.
-// We pre-compute for up to 100 layers as a safe upper bound for CTA assemblies.
-const ENCRYPTION_INFOS = Array.from({ length: 100 }, (_, i) => Buffer.from(`enc-${i}`, 'utf8'));
+// Bolt Optimization: Pre-compute HKDF info buffers for up to 100 layers
+const ENCRYPTION_INFOS = Array.from({ length: 100 }, (_, i) => Buffer.from(`enc-${i}`));
 
-/**
- * Derives a cryptographic key using HKDF.
- * Bolt Optimization: Uses pre-computed info buffers to improve performance.
- */
-function deriveKey(master: Buffer, salt: Buffer, layerIndex: number): Buffer {
-  const info = ENCRYPTION_INFOS[layerIndex] || Buffer.from(`enc-${layerIndex}`, 'utf8');
+function deriveKey(master: Buffer, salt: Buffer, info: string | Buffer): Buffer {
   return Buffer.from(crypto.hkdfSync('sha256', master, salt, info, 32));
 }
 
@@ -67,7 +61,8 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
   for (let j = 0; j < 13; j++) {
     const layerId = 12 + j;
     const salt = crypto.randomBytes(16);
-    const key = deriveKey(masterSeed, salt, j);
+    const info = ENCRYPTION_INFOS[j] || `enc-${j}`;
+    const key = deriveKey(masterSeed, salt, info);
     const iv = crypto.randomBytes(12);
 
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
@@ -131,8 +126,7 @@ export function decryptCipherTube(
 
   const audit: string[] = [];
 
-  // Bolt Optimization: Index tubes by layer for O(1) lookup using a single loop
-  // to avoid multiple intermediate array allocations (filter/map).
+  // Bolt Optimization: Use a single loop to build the tube map, avoiding intermediate arrays
   const tubeMap = new Map<number, Tube>();
   for (const tube of tubes) {
     if (tube && typeof tube === 'object' && typeof tube.layer === 'number') {
@@ -156,7 +150,8 @@ export function decryptCipherTube(
     const encryptedData = current.subarray(28);
 
     const salt = Buffer.from(tube.salt, 'hex');
-    const key = deriveKey(masterSeed, salt, j);
+    const info = ENCRYPTION_INFOS[j] || `enc-${j}`;
+    const key = deriveKey(masterSeed, salt, info);
 
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(tag);
@@ -166,9 +161,8 @@ export function decryptCipherTube(
   }
 
   // === Verify 12 hash-lock tubes in reverse ===
-  // Bolt Optimization: Hoist SHA-512 calculation out of the loop since it's invariant across these layers
-  const computedHash = crypto.createHash('sha512').update(current).digest('hex');
-  const computedBuffer = Buffer.from(computedHash, 'hex');
+  // Bolt Optimization: Hoist SHA-512 hash calculation as 'current' remains constant during this phase
+  const computedHashBuffer = crypto.createHash('sha512').update(current).digest();
 
   for (let i = 11; i >= 0; i--) {
     const tube = tubeMap.get(i);
@@ -178,10 +172,11 @@ export function decryptCipherTube(
       throw new Error(`Invalid tube metadata for hash-lock ${i}: Missing hash`);
     }
 
+    // Bolt Optimization: Use Buffers directly to avoid unnecessary hex string conversions
     const expectedBuffer = Buffer.from(tube.hash, 'hex');
 
     // Sentinel: Use timingSafeEqual to prevent potential timing attacks on integrity checks
-    if (computedBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(computedBuffer, expectedBuffer)) {
+    if (computedHashBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(computedHashBuffer, expectedBuffer)) {
       throw new Error(`Integrity check failed: Hash-lock tube ${i} mismatch`);
     }
 

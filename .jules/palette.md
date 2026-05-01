@@ -13,3 +13,7 @@
 ## 2026-04-29 - [Improving Developer UX with Interactive Code Blocks]
 **Learning:** For API-centric services, a plain text "Quick Start" is often insufficient. Providing a pre-formatted `curl` command in a terminal-style code block with a dedicated copy button significantly lowers the barrier to entry. Using visual feedback like temporary button text changes ("Copy" -> "Copied!") provides immediate reassurance of success.
 **Action:** Always include interactive examples for core API flows on landing pages. Ensure "Copy" buttons have explicit `aria-label` attributes and provide clear visual/textual state transitions upon interaction.
+
+## 2026-04-30 - [Respecting Motion Preferences and Enhancing Copy Feedback]
+**Learning:** Decorative animations like pulsing status dots can cause discomfort for users with motion sensitivities. Implementing `prefers-reduced-motion` allows the UI to remain functional while being inclusive. Furthermore, "Copy" interactions are greatly improved by using dual-state SVG icons (e.g., Copy to Checkmark) and updating `aria-label` dynamically to "Command copied to clipboard", which provides a high-confidence confirmation for both visual and screen-reader users.
+**Action:** Use media queries to disable non-essential animations. Implement multi-modal feedback (visual icons + ARIA updates) for interactive elements like copy buttons to ensure universal confirmation of success.

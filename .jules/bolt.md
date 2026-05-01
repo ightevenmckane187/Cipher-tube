@@ -6,6 +6,6 @@
 **Learning:** Redundant cryptographic operations (like hashing the same data 12 times in a loop) are a major bottleneck. Moving these outside the loop and using high-performance one-shot APIs like `crypto.hash()` significantly improves throughput. Additionally, replacing $O(N)$ array searches with $O(1)$ Map lookups yields measurable gains even for small datasets.
 **Action:** Always identify invariant computations in loops and move them out; use `Map` for frequent lookups by ID/layer.
 
-## 2025-05-23 - HKDF and Integrity Hoisting Optimizations
-**Learning:** In multi-layered cryptographic assemblies, string-to-buffer conversions for HKDF 'info' parameters and redundant integrity hash calculations on invariant data are significant overheads. Pre-computing 'info' buffers and hoisting the final integrity hash out of the verification loop yielded a ~25% throughput increase in decryption.
-**Action:** Pre-compute static cryptographic parameters and hoist all invariant computations out of decryption/verification loops.
+## 2026-04-30 - Optimized CTA Decryption and Structural Efficiency
+**Learning:** Hoisting SHA-512 hash calculations when the input remains constant across loop iterations (like in the hash-lock verification phase) provides a significant performance boost. Additionally, pre-computing HKDF info buffers avoids repeated string-to-buffer conversions. Using a single `for...of` loop for Map construction is more efficient than a `.filter().map()` chain which creates multiple intermediate arrays.
+**Action:** Always identify invariant computations in loops and hoist them; prefer single-pass iterations for data structure construction.
