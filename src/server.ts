@@ -222,6 +222,10 @@ app.get('/', (req: Request, res: Response) => {
             <main id="main-content">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h1>Cipher Tube Assembly</h1>
+                    <button id="theme-toggle" aria-label="Switch Theme" aria-pressed="false">
+                        <span id="theme-icon" aria-hidden="true"></span>
+                        <span id="theme-text">Switch to Dark</span>
+                    </button>
                 </div>
                 <p>Welcome to the performance-optimized session management service.</p>
                 <div role="status">
@@ -236,7 +240,7 @@ app.get('/', (req: Request, res: Response) => {
                     <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard">
                         <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
                         <svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                        <span id="copy-text">Copy</span>
+                        <span id="copy-text" aria-live="polite">Copy</span>
                     </button>
                     <pre><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
                 </div>
@@ -291,6 +295,13 @@ app.get('/', (req: Request, res: Response) => {
                         }, 2000);
                     } catch (err) {
                         console.error('Failed to copy: ', err);
+                    }
+                });
+
+                window.addEventListener('keydown', (e) => {
+                    if (e.key === 'c' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                        const btn = document.getElementById('copy-curl');
+                        if (btn) btn.click();
                     }
                 });
             </script>
@@ -499,7 +510,7 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
  */
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     if (err instanceof SyntaxError && 'status' in err && err.status === 400 && 'body' in err) {
-        return res.status(400).json({ error: 'Bad Request: Invalid JSON payload' });
+        return res.status(400).json({ error: 'Invalid JSON payload' });
     }
 
     if (err.status === 413) {
