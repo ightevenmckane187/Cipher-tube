@@ -38,12 +38,18 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
   const audit: string[] = [];
   const hashChain: string[] = [];
 
+  // Bolt Optimization: Consolidate 38 native crypto.randomBytes calls (12*16 + 13*16 + 13*12 = 556 bytes)
+  // into a single call to reduce context-switching overhead and allocation frequency.
+  const entropy = crypto.randomBytes(556);
+  let entropyOffset = 0;
+
   // === 12 Hash-Lock Tubes (Integrity) ===
   // Bolt Optimization: Pre-compute hash once for all integrity tubes
   const integrityHash = crypto.createHash('sha512').update(current).digest('hex');
 
   for (let i = 0; i < 12; i++) {
-    const salt = crypto.randomBytes(16);
+    const salt = entropy.subarray(entropyOffset, entropyOffset + 16);
+    entropyOffset += 16;
     hashChain.push(integrityHash);
 
     tubes.push({
@@ -60,10 +66,13 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
   // === 13 AES-256-GCM Encryption Layers ===
   for (let j = 0; j < 13; j++) {
     const layerId = 12 + j;
-    const salt = crypto.randomBytes(16);
+    const salt = entropy.subarray(entropyOffset, entropyOffset + 16);
+    entropyOffset += 16;
     const info = ENCRYPTION_INFOS[j] || `enc-${j}`;
     const key = deriveKey(masterSeed, salt, info);
-    const iv = crypto.randomBytes(12);
+
+    const iv = entropy.subarray(entropyOffset, entropyOffset + 12);
+    entropyOffset += 12;
 
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
     const encrypted = Buffer.concat([cipher.update(current), cipher.final()]);
