@@ -330,13 +330,18 @@ const jsonParser = express.json({ limit: '10kb' });
 /**
  * Middleware to validate x-user-id header.
  * Checks for existence, type, and length to prevent DoS and cache displacement.
+ * Sentinel: Explicitly trims whitespace and reassigns normalized value.
  */
 const validateUserId = (req: Request, res: Response, next: NextFunction) => {
-    const userId = req.headers['x-user-id'];
+    let userId = req.headers['x-user-id'];
 
     if (typeof userId !== 'string' || userId.trim() === '') {
         return res.status(401).json({ error: 'Unauthorized: Missing or invalid x-user-id' });
     }
+
+    // Sentinel: Normalize by trimming whitespace to ensure consistent cache keys
+    userId = userId.trim();
+    req.headers['x-user-id'] = userId;
 
     // Custom header 'x-user-id' is validated for presence and length (max 128 chars)
     // Memory instructions require this specific length validation and error message.
@@ -502,6 +507,14 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
 
         res.status(500).json({ error: 'Internal server error' });
     }
+});
+
+/**
+ * Catch-all 404 middleware.
+ * Sentinel: Returns JSON instead of default Express HTML error page to prevent leaking server info.
+ */
+app.use((req: Request, res: Response, next: NextFunction) => {
+    res.status(404).json({ error: 'Not Found' });
 });
 
 /**
