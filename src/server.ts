@@ -180,19 +180,42 @@ app.get('/', (req: Request, res: Response) => {
                     margin: 1rem 0;
                     background: #1e1e1e;
                     border-radius: 8px;
-                    padding: 1rem;
+                    overflow: hidden;
                     border: 1px solid var(--border-color);
                 }
+                .code-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    background: rgba(255, 255, 255, 0.05);
+                    padding: 8px 12px;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                }
+                .terminal-dots {
+                    display: flex;
+                    gap: 6px;
+                }
+                .dot {
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                }
+                .dot-red { background: #ff5f56; }
+                .dot-yellow { background: #ffbd2e; }
+                .dot-green { background: #27c93f; }
                 pre {
                     margin: 0;
+                    padding: 1rem;
                     overflow-x: auto;
                     color: #dcdcdc;
                     font-size: 0.875rem;
+                    scroll-behavior: smooth;
+                }
+                pre:focus-visible {
+                    outline: 2px solid var(--primary);
+                    outline-offset: -2px;
                 }
                 .copy-button {
-                    position: absolute;
-                    top: 0.5rem;
-                    right: 0.5rem;
                     background: rgba(255, 255, 255, 0.1);
                     border: 1px solid rgba(255, 255, 255, 0.2);
                     color: #fff;
@@ -207,6 +230,16 @@ app.get('/', (req: Request, res: Response) => {
                 }
                 .copy-button:hover { background: rgba(255, 255, 255, 0.2); }
                 .copy-button:focus-visible { outline: 2px solid var(--primary); }
+                .kb-shortcut {
+                    opacity: 0.6;
+                    font-size: 0.7rem;
+                    background: rgba(255, 255, 255, 0.1);
+                    padding: 0 4px;
+                    border-radius: 3px;
+                }
+                @media (max-width: 480px) {
+                    .kb-shortcut { display: none; }
+                }
                 .copy-icon, .check-icon {
                     width: 14px;
                     height: 14px;
@@ -236,13 +269,21 @@ app.get('/', (req: Request, res: Response) => {
                 </div>
                 <h2>Quick Start</h2>
                 <p>To get started, create a session via the API:</p>
-                <div class="code-container">
-                    <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard">
-                        <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-                        <svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                        <span id="copy-text" aria-live="polite">Copy</span>
-                    </button>
-                    <pre><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
+                <div class="code-container" role="region" aria-label="Terminal command example">
+                    <div class="code-header">
+                        <div class="terminal-dots" aria-hidden="true">
+                            <div class="dot dot-red"></div>
+                            <div class="dot dot-yellow"></div>
+                            <div class="dot dot-green"></div>
+                        </div>
+                        <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard (c)">
+                            <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                            <svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                            <span id="copy-text" aria-live="polite">Copy</span>
+                            <span class="kb-shortcut" aria-hidden="true">c</span>
+                        </button>
+                    </div>
+                    <pre tabindex="0" aria-label="cURL command"><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
                 </div>
             </main>
             <footer>
@@ -286,12 +327,13 @@ app.get('/', (req: Request, res: Response) => {
                         await navigator.clipboard.writeText(curlCommand.textContent);
                         copyButton.classList.add('copied');
                         copyButton.setAttribute('aria-label', 'Command copied to clipboard');
+                        const originalText = copyText.textContent;
                         copyText.textContent = 'Copied!';
 
                         setTimeout(() => {
                             copyButton.classList.remove('copied');
                             copyButton.setAttribute('aria-label', 'Copy command to clipboard');
-                            copyText.textContent = 'Copy';
+                            copyText.textContent = originalText;
                         }, 2000);
                     } catch (err) {
                         console.error('Failed to copy: ', err);
