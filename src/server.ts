@@ -504,10 +504,17 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
     }
 });
 
+// Catch-all 404 handler for unknown routes
+// Sentinel: Return JSON 404 to prevent default Express HTML error pages
+app.use((req: Request, res: Response) => {
+    res.status(404).json({ error: 'Not Found' });
+});
+
 /**
  * Global error-handling middleware.
  * Sentinel: Catch and sanitize unhandled errors to prevent information leakage and DoS.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     if (err instanceof SyntaxError && 'status' in err && err.status === 400 && 'body' in err) {
         return res.status(400).json({ error: 'Invalid JSON payload' });
