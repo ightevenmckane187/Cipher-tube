@@ -7,3 +7,28 @@
 **Vulnerability:** Denial of Service (DoS) and cache displacement via oversized request headers.
 **Learning:** Untrusted headers like `x-user-id` can be used to bloat in-memory caches or cause resource exhaustion if not size-limited at the application level, even if the reverse proxy has its own limits.
 **Prevention:** Implement centralized middleware to validate the presence, type, and maximum length of critical custom headers before they reach business logic or caching layers.
+
+## 2025-05-15 - Cryptographic Fail-Secure Handling
+**Vulnerability:** Information leakage or service degradation via unhandled cryptographic exceptions.
+**Learning:** Node.js `crypto` can throw specific errors (e.g., "Unsupported state") during decryption of tampered data that might escape generic `bad decrypt` checks, potentially leading to 500 errors and leaking internal stack traces if not caught.
+**Prevention:** Explicitly catch and map cryptographic errors to 400 Bad Request with generic "Decryption failed" messages to ensure the system fails securely without exposing implementation details.
+
+## 2025-05-20 - Defense-in-Depth for Multi-Layer Decryption
+**Vulnerability:** Service instability (500 errors) via malformed "onion" encryption payloads.
+**Learning:** Even with generic crypto error catching, missing structural validation (e.g., minimum length for N-layers, hex format) can trigger unhandled edge cases in buffer slicing or internal library calls before cryptographic verification occurs.
+**Prevention:** Implement structural sanity checks (format, minimum length, metadata presence) at the start of the decryption pipeline to reject invalid payloads early and prevent 400-level client errors from escalating to 500-level server errors.
+
+## 2026-04-20 - Structural Validation of Metadata Arrays
+**Vulnerability:** 500 Internal Server Error (DoS) via malformed metadata elements in arrays.
+**Learning:** Functions iterating over complex metadata arrays (like `tubes`) are vulnerable to `TypeError` if array elements are `null` or have unexpected types, even if the array itself is present.
+**Prevention:** Explicitly validate each element's existence and type within `find` or loop callbacks before accessing properties to ensure total robustness against malformed JSON payloads.
+
+## 2026-04-21 - Atomic Security-Performance Balance
+**Vulnerability:** Logical regressions during performance optimization of cryptographic loops.
+**Learning:** Moving expensive operations (like hashing) outside of loops for O(1) performance can create security "theater" if the optimization assumes a static state that might be tampered with. It also complicates security reviews if the intent is not explicitly documented.
+**Prevention:** Always maintain per-layer verification logic in multi-layer crypto architectures even if it appears redundant. Use `timingSafeEqual` for ALL sensitive comparisons and ensure the implementation is actually called and not just commented.
+
+## 2025-05-25 - Runtime Compatibility as Availability Risk
+**Vulnerability:** Service-wide Denial of Service (DoS) due to Node.js version/API mismatch.
+**Learning:** Using cryptographic APIs introduced in newer Node.js versions (e.g., `crypto.hash` in v21.7.0+) when the project declares support for older LTS versions (v20.x) creates a silent failure point that crashes the entire crypto pipeline at runtime.
+**Prevention:** Strictly adhere to standard `crypto.createHash` patterns for maximum compatibility across supported LTS versions, and verify API availability against the lowest supported version defined in `package.json`.

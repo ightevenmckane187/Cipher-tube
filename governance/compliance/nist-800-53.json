@@ -1,0 +1,211 @@
+{
+  "$schema": "https://cipher-tube.dev/schemas/compliance-mapping-v1.json",
+  "_framework": "NIST SP 800-53 Rev. 5",
+  "_version": "1.0.0",
+  "lastreviewed": "2026-04-27",
+  "reviewcadence": "quarterly",
+  "_description": "Maps Cipher-tube controls to NIST 800-53 Rev. 5 security and privacy control families. Each entry identifies the implementing component, evidence artifacts, and current assessment status.",
+
+  "controls": [
+    {
+      "id": "AC-1",
+      "family": "Access Control",
+      "title": "Policy and Procedures",
+      "ciphertubeimplementation": "Governance engine enforces RBAC/ABAC via OPA Rego policies. Trust tiers T0–T4 define role-based permissions. CONTRIBUTING.md and SECURITY.md document access procedures.",
+      "implementingcomponents": ["governance/policies/trusttier.rego", "CONTRIBUTING.md"],
+      "evidence": ["governance/policies/trust_tier.rego", "CONTRIBUTING.md §Trust Tiers"],
+      "status": "implemented",
+      "notes": ""
+    },
+    {
+      "id": "AC-2",
+      "family": "Access Control",
+      "title": "Account Management",
+      "ciphertubeimplementation": "Contributor accounts managed via GitHub org membership. Trust-tier promotions require T4 approval. Automated agents use Ed25519 scoped tokens with TTL. Kill-switch revocation available to T3+.",
+      "implementingcomponents": ["governance/policies/trusttier.rego", "governance/policies/agent_boundary.rego"],
+      "evidence": ["CODEOWNERS", "CONTRIBUTING.md §Trust Tiers"],
+      "status": "implemented",
+      "notes": ""
+    },
+    {
+      "id": "AC-3",
+      "family": "Access Control",
+      "title": "Access Enforcement",
+      "ciphertubeimplementation": "Deny-by-default OPA policies enforce access at the Tube Layer boundary. Cross-pillar calls validate caller trust tier. Automated agents restricted to permitted action set.",
+      "implementingcomponents": ["governance/policies/agentboundary.rego", "tube/"],
+      "evidence": ["governance/policies/crosspillarreview.rego"],
+      "status": "implemented",
+      "notes": ""
+    },
+    {
+      "id": "AC-6",
+      "family": "Access Control",
+      "title": "Least Privilege",
+      "ciphertubeimplementation": "Trust tiers enforce minimum necessary permissions. Automated agents scoped to single pillar. No wildcard permissions in policy files (enforced by Safer-Tube checklist). Cross-pillar grants require T4 approval.",
+      "implementingcomponents": ["governance/policies/trusttier.rego", "governance/policies/agent_boundary.rego"],
+      "evidence": ["Safer-Tube checklist item: nowildcardpermissions"],
+      "status": "implemented",
+      "notes": ""
+    },
+    {
+      "id": "AC-17",
+      "family": "Access Control",
+      "title": "Remote Access",
+      "ciphertubeimplementation": "All inter-pillar communication requires mTLS. TLS 1.3 enforced for transit encryption. No fallback to TLS 1.2 without explicit justification and Sentinel review.",
+      "implementing_components": ["tube/", "sentinel/"],
+      "evidence": ["Safer-Tube checklist item: encryptionintransit"],
+      "status": "implemented",
+      "notes": ""
+    },
+    {
+      "id": "AU-2",
+      "family": "Audit and Accountability",
+      "title": "Event Logging",
+      "ciphertubeimplementation": "All security-relevant actions emit structured audit events to the tamper-evident hash-chain ledger. Agent actions logged with Ed25519 identity. Audit events include timestamp, actor, action, target, and outcome.",
+      "implementing_components": ["sentinel/audit/", "tube/"],
+      "evidence": ["Safer-Tube checklist item: auditeventsemitted"],
+      "status": "implemented",
+      "notes": ""
+    },
+    {
+      "id": "AU-3",
+      "family": "Audit and Accountability",
+      "title": "Content of Audit Records",
+      "ciphertubeimplementation": "Audit records contain: event type, timestamp, source identity (Ed25519 signed), action performed, target resource, outcome, and hash-chain linkage. PII/secrets excluded from logs.",
+      "implementing_components": ["sentinel/audit/"],
+      "evidence": ["Safer-Tube checklist items: auditeventsemitted, logs_clean"],
+      "status": "implemented",
+      "notes": ""
+    },
+    {
+      "id": "AU-10",
+      "family": "Audit and Accountability",
+      "title": "Non-Repudiation",
+      "ciphertubeimplementation": "Hash-chain audit ledger provides tamper-evident, append-only record of all security actions. Each entry cryptographically linked to its predecessor. Integrity verified by CI pipeline.",
+      "implementing_components": ["sentinel/audit/", "governance-signed-commits.yml"],
+      "evidence": ["sentinel/audit/chain.json"],
+      "status": "implemented",
+      "notes": ""
+    },
+    {
+      "id": "CA-7",
+      "family": "Assessment, Authorization, and Monitoring",
+      "title": "Continuous Monitoring",
+      "ciphertubeimplementation": "CI pipelines run SAST, SCA, secret detection, and policy validation on every PR. Automated agents undergo quarterly drift detection. Performance benchmarks tracked continuously.",
+      "implementing_components": ["sentinel-security-scan.yml", "bolt-perf-check.yml", "governance-policy-gate.yml"],
+      "evidence": ["CI pipeline results"],
+      "status": "implemented",
+      "notes": ""
+    },
+    {
+      "id": "CM-2",
+      "family": "Configuration Management",
+      "title": "Baseline Configuration",
+      "ciphertubeimplementation": "Infrastructure defined as code via Docker Compose and Makefiles. Governance policies version-controlled in governance/policies/. Performance baselines stored in benchmarks/baseline.json.",
+      "implementing_components": ["docker-compose*.yml", "Makefile", "benchmarks/baseline.json"],
+      "evidence": ["Git history of configuration files"],
+      "status": "implemented",
+      "notes": ""
+    },
+    {
+      "id": "IA-2",
+      "family": "Identification and Authentication",
+      "title": "Identification and Authentication (Organizational Users)",
+      "ciphertubeimplementation": "Contributors authenticate via GitHub identity. Commits require GPG/SSH signatures. Automated agents authenticate via Ed25519-signed identity tokens with TTL expiry.",
+      "implementingcomponents": ["governance-signed-commits.yml", "governance/policies/agentboundary.rego"],
+      "evidence": ["Signed commit verification in CI"],
+      "status": "implemented",
+      "notes": ""
+    },
+    {
+      "id": "IA-5",
+      "family": "Identification and Authentication",
+      "title": "Authenticator Management",
+      "ciphertubeimplementation": "Ed25519 keys rotated per Sentinel policy. mTLS certificates managed via Tube Layer with automated rotation. No hardcoded credentials (enforced by secret detection).",
+      "implementing_components": ["sentinel/", "tube/"],
+      "evidence": ["Safer-Tube checklist items: identityauth, nohardcoded_secrets"],
+      "status": "implemented",
+      "notes": ""
+    },
+    {
+      "id": "RA-5",
+      "family": "Risk Assessment",
+      "title": "Vulnerability Monitoring and Scanning",
+      "ciphertubeimplementation": "Automated SAST (CodeQL, Semgrep), SCA (npm/pip/cargo audit), and secret detection (detect-secrets, TruffleHog) on every PR. Dependency scanning via Dependabot/Renovate for continuous monitoring.",
+      "implementing_components": ["sentinel-security-scan.yml"],
+      "evidence": ["CI scan results, SARIF uploads to GitHub Security tab"],
+      "status": "implemented",
+      "notes": ""
+    },
+    {
+      "id": "SA-11",
+      "family": "System and Services Acquisition",
+      "title": "Developer Testing and Evaluation",
+      "ciphertubeimplementation": "80% minimum line coverage for new code. Unit, integration, and policy tests required. Performance regression tests with baseline comparison. Accessibility audits with WCAG 2.2 AA threshold.",
+      "implementing_components": ["bolt-perf-check.yml", "palette-a11y-check.yml", "governance-policy-gate.yml"],
+      "evidence": ["CI test results, coverage reports"],
+      "status": "implemented",
+      "notes": ""
+    },
+    {
+      "id": "SC-8",
+      "family": "System and Communications Protection",
+      "title": "Transmission Confidentiality and Integrity",
+      "ciphertubeimplementation": "All inter-pillar communication encrypted via mTLS with TLS 1.3. Message integrity verified via hash-chain. Certificate pinning between pillars.",
+      "implementing_components": ["tube/", "crypto/"],
+      "evidence": ["Safer-Tube checklist item: encryptionintransit"],
+      "status": "implemented",
+      "notes": ""
+    },
+    {
+      "id": "SC-12",
+      "family": "System and Communications Protection",
+      "title": "Cryptographic Key Establishment and Management",
+      "ciphertubeimplementation": "Ed25519 keys for identity. AES-256-GCM for data at rest. Key material stored in designated secrets manager, never in repositories. Rotation enforced by Sentinel agent.",
+      "implementing_components": ["sentinel/", "tube/crypto/"],
+      "evidence": ["Safer-Tube checklist items: encryptionatrest, key_management"],
+      "status": "implemented",
+      "notes": ""
+    },
+    {
+      "id": "SC-28",
+      "family": "System and Communications Protection",
+      "title": "Protection of Information at Rest",
+      "ciphertubeimplementation": "AES-256-GCM encryption for all data at rest. Key management via secrets manager. PII/PHI masked in logs and telemetry.",
+      "implementing_components": ["sentinel/", "tube/"],
+      "evidence": ["Safer-Tube checklist items: encryptionatrest, piimaskedin_logs"],
+      "status": "implemented",
+      "notes": ""
+    },
+    {
+      "id": "SI-2",
+      "family": "System and Information Integrity",
+      "title": "Flaw Remediation",
+      "ciphertubeimplementation": "SECURITY.md defines SLAs: Critical ≤7 days, High ≤14 days, Medium ≤30 days, Low next release. Incident response process with 4 phases. Post-incident review mandatory.",
+      "implementing_components": ["SECURITY.md"],
+      "evidence": ["Security advisories, incident reports"],
+      "status": "implemented",
+      "notes": ""
+    },
+    {
+      "id": "SI-10",
+      "family": "System and Information Integrity",
+      "title": "Information Input Validation",
+      "ciphertubeimplementation": "All external inputs validated and sanitized into DATACONTEXT. No external data in SYSTEMINSTRUCTION paths. Parameterized queries enforced. Rate limiting on API endpoints.",
+      "implementing_components": ["sentinel/", "bolt/"],
+      "evidence": ["Safer-Tube checklist items: inputvalidation, nosysteminstructioninjection, parameterized_queries"],
+      "status": "implemented",
+      "notes": ""
+    },
+    {
+      "id": "SR-3",
+      "family": "Supply Chain Risk Management",
+      "title": "Controls and Processes",
+      "ciphertubeimplementation": "Approved dependency allowlist (governance/allowed-deps.json). Blocked packages with CVE justification. Lock file integrity verification. License compliance scanning. Quarterly dependency review.",
+      "implementing_components": ["governance/allowed-deps.json", "sentinel-security-scan.yml"],
+      "evidence": ["allowed-deps.json review history", "CI audit results"],
+      "status": "implemented",
+      "notes": ""
+    }
+  ]
+}

@@ -1,0 +1,153 @@
+{
+  "$schema": "https://cipher-tube.dev/schemas/allowed-deps-v1.json",
+  "_comment": "Approved dependency allowlist for Cipher-tube. All direct dependencies must appear here before merge. Reviewed and maintained by @cipher-tube/sentinel-maintainers.",
+  "lastreviewed": "2026-04-27",
+  "reviewcadence": "quarterly",
+
+  "node": {
+    "allowed": [
+      "@axe-core/cli",
+      "@axe-core/react",
+      "@playwright/test",
+      "@storybook/react",
+      "@storybook/addon-a11y",
+      "@testing-library/react",
+      "@testing-library/jest-dom",
+      "@types/node",
+      "@types/react",
+      "compression",
+      "cors",
+      "dotenv",
+      "eslint",
+      "express",
+      "fastify",
+      "helmet",
+      "http-server",
+      "jest",
+      "jsonwebtoken",
+      "lighthouse",
+      "node-forge",
+      "opa-wasm",
+      "pa11y",
+      "pino",
+      "pino-pretty",
+      "playwright",
+      "prettier",
+      "react",
+      "react-dom",
+      "semgrep",
+      "stylelint",
+      "supertest",
+      "tsx",
+      "typescript",
+      "uuid",
+      "vitest",
+      "winston",
+      "zod"
+    ],
+    "blocked": [
+      "eval5",
+      "vm2",
+      "node-serialize",
+      "js-yaml < 3.13.1"
+    ],
+    "blocked_reasons": {
+      "eval5": "Arbitrary code execution risk — use vm2-alternatives or isolated-vm",
+      "vm2": "CVE-2023-37466 — sandbox escape; use isolated-vm instead",
+      "node-serialize": "CVE-2017-5941 — deserialization RCE",
+      "js-yaml < 3.13.1": "CVE-2013-4660 — arbitrary code execution via !!js/function"
+    }
+  },
+
+  "python": {
+    "allowed": [
+      "cryptography",
+      "fastapi",
+      "gunicorn",
+      "httpx",
+      "mypy",
+      "opa-python-client",
+      "pip-audit",
+      "pip-licenses",
+      "poetry",
+      "pydantic",
+      "pytest",
+      "pytest-asyncio",
+      "pytest-cov",
+      "python-jose",
+      "requests",
+      "ruff",
+      "structlog",
+      "uvicorn",
+      "uvloop"
+    ],
+    "blocked": [
+      "pickle5",
+      "pyyaml < 5.4"
+    ],
+    "blocked_reasons": {
+      "pickle5": "Deserialization RCE risk — use JSON or msgpack",
+      "pyyaml < 5.4": "CVE-2020-14343 — arbitrary code execution via yaml.load()"
+    }
+  },
+
+  "rust": {
+    "allowed": [
+      "actix-web",
+      "axum",
+      "chrono",
+      "clap",
+      "ed25519-dalek",
+      "hyper",
+      "jsonwebtoken",
+      "opentelemetry",
+      "rand",
+      "reqwest",
+      "ring",
+      "rustls",
+      "serde",
+      "serde_json",
+      "sha2",
+      "thiserror",
+      "tokio",
+      "tower",
+      "tracing",
+      "tracing-subscriber",
+      "uuid",
+      "x25519-dalek"
+    ],
+    "blocked": [
+      "openssl < 0.10.60"
+    ],
+    "blocked_reasons": {
+      "openssl < 0.10.60": "Multiple memory safety CVEs — use ring or rustls where possible"
+    }
+  },
+
+  "review_process": {
+    "add_dependency": [
+      "1. Open a PR adding the dependency to this file under the correct ecosystem.",
+      "2. Include justification: why this dependency, why not an existing alternative.",
+      "3. Include license: must be compatible (MIT, Apache-2.0, BSD-2/3, ISC, MPL-2.0).",
+      "4. Include security review: npm audit / pip audit / cargo audit results.",
+      "5. Sentinel maintainer reviews and approves.",
+      "6. 48-hour cool-down for governance changes applies."
+    ],
+    "remove_dependency": [
+      "1. Open a PR removing the dependency from this file.",
+      "2. Verify no production code imports the dependency.",
+      "3. Update lock files accordingly.",
+      "4. Standard 2-approval review process."
+    ],
+    "blocked_licenses": [
+      "GPL-3.0-only",
+      "GPL-3.0-or-later",
+      "AGPL-3.0-only",
+      "AGPL-3.0-or-later",
+      "SSPL-1.0",
+      "EUPL-1.2",
+      "CC-BY-NC-*",
+      "CC-BY-ND-*"
+    ]
+  }
+}

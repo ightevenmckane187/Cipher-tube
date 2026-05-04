@@ -1,0 +1,8 @@
+name: Feature Request
+description: Suggest an idea for Cipher-tube.
+body:
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      placeholder: Why do we need this feature?
