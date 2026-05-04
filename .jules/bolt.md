@@ -9,3 +9,7 @@
 ## 2026-04-30 - Optimized CTA Decryption and Structural Efficiency
 **Learning:** Hoisting SHA-512 hash calculations when the input remains constant across loop iterations (like in the hash-lock verification phase) provides a significant performance boost. Additionally, pre-computing HKDF info buffers avoids repeated string-to-buffer conversions. Using a single `for...of` loop for Map construction is more efficient than a `.filter().map()` chain which creates multiple intermediate arrays.
 **Action:** Always identify invariant computations in loops and hoist them; prefer single-pass iterations for data structure construction.
+
+## 2025-05-23 - Balanced Integrity Verification and Optimization
+**Learning:** Hoisting a single hash check out of a multi-tube loop is an anti-pattern that breaks the zero-trust integrity model. Instead, use a cache (like a Map) to store converted hash Buffers. This maintains per-tube verification while eliminating redundant hex-to-Buffer overhead for identical hashes.
+**Action:** Always ensure optimizations preserve the underlying security model; use caching for invariant values that vary across items but are repeated.
