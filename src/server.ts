@@ -508,6 +508,11 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
     }
 });
 
+// 404 Handler for unmatched routes
+app.use((req: Request, res: Response) => {
+    res.status(404).json({ error: 'Not Found' });
+});
+
 /**
  * Global error-handling middleware.
  * Sentinel: Catch and sanitize unhandled errors to prevent information leakage and DoS.
