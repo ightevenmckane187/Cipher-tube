@@ -215,6 +215,15 @@ app.get('/', (req: Request, res: Response) => {
                 .check-icon { display: none; color: #2ecc71; }
                 .copy-button.copied .copy-icon { display: none; }
                 .copy-button.copied .check-icon { display: block; }
+                kbd {
+                    background-color: rgba(255, 255, 255, 0.1);
+                    border: 1px solid rgba(255, 255, 255, 0.3);
+                    border-radius: 3px;
+                    padding: 1px 4px;
+                    font-size: 0.7rem;
+                    font-family: inherit;
+                    margin-left: 2px;
+                }
             </style>
         </head>
         <body>
@@ -237,12 +246,12 @@ app.get('/', (req: Request, res: Response) => {
                 <h2>Quick Start</h2>
                 <p>To get started, create a session via the API:</p>
                 <div class="code-container">
-                    <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard">
+                    <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard (shortcut: c)" title="Copy to clipboard (c)">
                         <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
                         <svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                        <span id="copy-text" aria-live="polite">Copy</span>
+                        <span id="copy-text" aria-live="polite">Copy <kbd>(c)</kbd></span>
                     </button>
-                    <pre><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
+                    <pre tabindex="0" role="region" aria-label="Terminal command example"><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
                 </div>
             </main>
             <footer>
@@ -257,9 +266,11 @@ app.get('/', (req: Request, res: Response) => {
 
                 function updateUI(theme) {
                     const isDark = theme === 'dark';
+                    const label = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
                     themeText.textContent = isDark ? 'Switch to Light' : 'Switch to Dark';
                     themeIcon.textContent = isDark ? '☀️' : '🌙';
                     themeToggle.setAttribute('aria-pressed', isDark);
+                    themeToggle.setAttribute('aria-label', label);
                 }
 
                 updateUI(document.documentElement.getAttribute('data-theme'));
@@ -291,7 +302,7 @@ app.get('/', (req: Request, res: Response) => {
                         setTimeout(() => {
                             copyButton.classList.remove('copied');
                             copyButton.setAttribute('aria-label', 'Copy command to clipboard');
-                            copyText.textContent = 'Copy';
+                            copyText.innerHTML = 'Copy <kbd>(c)</kbd>';
                         }, 2000);
                     } catch (err) {
                         console.error('Failed to copy: ', err);
