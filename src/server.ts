@@ -228,7 +228,7 @@ app.get('/', (req: Request, res: Response) => {
                     </button>
                 </div>
                 <p>Welcome to the performance-optimized session management service.</p>
-                <div role="status">
+                <div role="status" aria-live="polite">
                     <p>
                         <span class="status-dot" aria-hidden="true"></span>
                         <strong>Status:</strong> <span style="color: var(--success);">Online</span>
@@ -260,6 +260,10 @@ app.get('/', (req: Request, res: Response) => {
                     themeText.textContent = isDark ? 'Switch to Light' : 'Switch to Dark';
                     themeIcon.textContent = isDark ? '☀️' : '🌙';
                     themeToggle.setAttribute('aria-pressed', isDark);
+                    themeToggle.setAttribute('aria-label', isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode');
+
+                    // Force re-evaluation of styles if needed (some browsers might need this)
+                    document.documentElement.setAttribute('data-theme', theme);
                 }
 
                 updateUI(document.documentElement.getAttribute('data-theme'));
