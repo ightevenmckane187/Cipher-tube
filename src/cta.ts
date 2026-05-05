@@ -38,12 +38,17 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
   const audit: string[] = [];
   const hashChain: string[] = [];
 
+  // Bolt Optimization: Consolidate 38 crypto.randomBytes calls into one (12*16 + 13*16 + 13*12 = 556 bytes)
+  const entropyPool = crypto.randomBytes(556);
+  let entropyOffset = 0;
+
   // === 12 Hash-Lock Tubes (Integrity) ===
   // Bolt Optimization: Pre-compute hash once for all integrity tubes
   const integrityHash = crypto.createHash('sha512').update(current).digest('hex');
 
   for (let i = 0; i < 12; i++) {
-    const salt = crypto.randomBytes(16);
+    const salt = entropyPool.subarray(entropyOffset, entropyOffset + 16);
+    entropyOffset += 16;
     hashChain.push(integrityHash);
 
     tubes.push({
@@ -60,16 +65,22 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
   // === 13 AES-256-GCM Encryption Layers ===
   for (let j = 0; j < 13; j++) {
     const layerId = 12 + j;
-    const salt = crypto.randomBytes(16);
+    const salt = entropyPool.subarray(entropyOffset, entropyOffset + 16);
+    entropyOffset += 16;
+    const iv = entropyPool.subarray(entropyOffset, entropyOffset + 12);
+    entropyOffset += 12;
+
     const info = ENCRYPTION_INFOS[j] || `enc-${j}`;
     const key = deriveKey(masterSeed, salt, info);
-    const iv = crypto.randomBytes(12);
 
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-    const encrypted = Buffer.concat([cipher.update(current), cipher.final()]);
+
+    // Bolt Optimization: Use Buffer.concat with all parts to minimize allocations
+    const encrypted = cipher.update(current);
+    const final = cipher.final();
     const tag = cipher.getAuthTag();
 
-    current = Buffer.concat([iv, tag, encrypted]);
+    current = Buffer.concat([iv, tag, encrypted, final]);
 
     tubes.push({
       layer: layerId,
@@ -156,6 +167,7 @@ export function decryptCipherTube(
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(tag);
 
+    // Bolt Optimization: Consolidate decryption result into one call
     current = Buffer.concat([decipher.update(encryptedData), decipher.final()]);
     audit.push(`Decrypted AES-256-GCM layer ${j}`);
   }
