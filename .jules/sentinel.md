@@ -32,3 +32,8 @@
 **Vulnerability:** Service-wide Denial of Service (DoS) due to Node.js version/API mismatch.
 **Learning:** Using cryptographic APIs introduced in newer Node.js versions (e.g., `crypto.hash` in v21.7.0+) when the project declares support for older LTS versions (v20.x) creates a silent failure point that crashes the entire crypto pipeline at runtime.
 **Prevention:** Strictly adhere to standard `crypto.createHash` patterns for maximum compatibility across supported LTS versions, and verify API availability against the lowest supported version defined in `package.json`.
+
+## 2026-05-05 - CSP Policy vs. UI Functionality
+**Vulnerability:** Potential service disruption via overly-restrictive Content-Security-Policy (CSP).
+**Learning:** Blindly applying `form-action: 'none'` in a CSP is a "security-only" view that ignores frontend requirements. Even in seemingly "API-only" projects, landing pages with interactive elements (like theme toggles or search) often require `'self'` to function if they use standard form-like behaviors.
+**Prevention:** Always verify CSP changes against the actual UI using automated frontend tests (Playwright) and prefer `'self'` over `'none'` for `form-action` unless the application is verified to be purely read-only with no possible form submissions.
