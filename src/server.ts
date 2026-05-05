@@ -336,11 +336,15 @@ const jsonParser = express.json({ limit: '10kb' });
  * Checks for existence, type, and length to prevent DoS and cache displacement.
  */
 const validateUserId = (req: Request, res: Response, next: NextFunction) => {
-    const userId = req.headers['x-user-id'];
+    let userId = req.headers['x-user-id'];
 
     if (typeof userId !== 'string' || userId.trim() === '') {
         return res.status(401).json({ error: 'Unauthorized: Missing or invalid x-user-id' });
     }
+
+    // Sentinel: Normalize x-user-id by trimming whitespace and reassigning back to headers
+    userId = userId.trim();
+    req.headers['x-user-id'] = userId;
 
     // Custom header 'x-user-id' is validated for presence and length (max 128 chars)
     // Memory instructions require this specific length validation and error message.
