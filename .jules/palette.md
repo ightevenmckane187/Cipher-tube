@@ -17,3 +17,7 @@
 ## 2026-04-30 - [Respecting Motion Preferences and Enhancing Copy Feedback]
 **Learning:** Decorative animations like pulsing status dots can cause discomfort for users with motion sensitivities. Implementing `prefers-reduced-motion` allows the UI to remain functional while being inclusive. Furthermore, "Copy" interactions are greatly improved by using dual-state SVG icons (e.g., Copy to Checkmark) and updating `aria-label` dynamically to "Command copied to clipboard", which provides a high-confidence confirmation for both visual and screen-reader users.
 **Action:** Use media queries to disable non-essential animations. Implement multi-modal feedback (visual icons + ARIA updates) for interactive elements like copy buttons to ensure universal confirmation of success.
+
+## 2026-05-06 - [Keyboard Discoverability and Theme-Agnostic Animations]
+**Learning:** For web applications with keyboard shortcuts, providing a visual hint (like a `<kbd>` tag) directly on the interactive element (e.g., a "Copy" button) significantly improves power-user discoverability. Additionally, using theme-aware CSS variables for animation glow effects and `transparent` for fade-out stops ensures visual consistency across Light and Dark modes without hardcoded color leaks.
+**Action:** Always pair keyboard listeners with visual UI hints (e.g., `<kbd>(key)</kbd>`). Use CSS variables for all animation color properties to ensure theme compatibility and avoid visual regressions when switching modes.
