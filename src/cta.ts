@@ -20,8 +20,12 @@ export interface CipherTubeResult {
   };
 }
 
-// Bolt Optimization: Pre-compute HKDF info buffers for up to 100 layers
+// Bolt Optimization: Pre-compute constants
+const NUM_INTEGRITY_TUBES = 12;
+const NUM_ENCRYPTION_LAYERS = 13;
 const ENCRYPTION_INFOS = Array.from({ length: 100 }, (_, i) => Buffer.from(`enc-${i}`));
+const AUDIT_TUBE_INTEGRITY = Array.from({ length: NUM_INTEGRITY_TUBES }, (_, i) => `Tube ${i}: SHA-512 hash lock computed for integrity`);
+const AUDIT_LAYER_ENCRYPTION = Array.from({ length: NUM_ENCRYPTION_LAYERS }, (_, i) => `Layer ${NUM_INTEGRITY_TUBES + i}: AES-256-GCM encryption applied`);
 
 function deriveKey(master: Buffer, salt: Buffer, info: string | Buffer): Buffer {
   return Buffer.from(crypto.hkdfSync('sha256', master, salt, info, 32));
@@ -38,32 +42,42 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
   const audit: string[] = [];
   const hashChain: string[] = [];
 
-  // === 12 Hash-Lock Tubes (Integrity) ===
-  // Bolt Optimization: Pre-compute hash once for all integrity tubes
-  const integrityHash = crypto.createHash('sha512').update(current).digest('hex');
+  // Bolt Optimization: Use a single entropy pool for all salts and IVs (556 bytes total)
+  // (NUM_INTEGRITY_TUBES + NUM_ENCRYPTION_LAYERS) * 16 bytes for salts + NUM_ENCRYPTION_LAYERS * 12 bytes for IVs
+  const totalEntropyNeeded = (NUM_INTEGRITY_TUBES + NUM_ENCRYPTION_LAYERS) * 16 + NUM_ENCRYPTION_LAYERS * 12;
+  const entropyPool = crypto.randomBytes(totalEntropyNeeded);
+  let entropyOffset = 0;
 
-  for (let i = 0; i < 12; i++) {
-    const salt = crypto.randomBytes(16);
+  // === 12 Hash-Lock Tubes (Integrity) ===
+  // Bolt Optimization: Use one-shot crypto.hash() for efficiency (Node.js 22+)
+  const integrityHash = (crypto as any).hash('sha512', current, 'hex');
+
+  for (let i = 0; i < NUM_INTEGRITY_TUBES; i++) {
+    const salt = entropyPool.subarray(entropyOffset, entropyOffset + 16);
+    entropyOffset += 16;
+
     hashChain.push(integrityHash);
 
     tubes.push({
       layer: i,
       type: 'hash-lock',
-      salt: salt.toString('hex'),   // stored but not used for hashing in this design
+      salt: salt.toString('hex'),
       hash: integrityHash
     });
 
-    audit.push(`Tube ${i}: SHA-512 hash lock computed for integrity`);
-    // IMPORTANT: Do NOT replace current with hash → data remains recoverable
+    audit.push(AUDIT_TUBE_INTEGRITY[i]);
   }
 
   // === 13 AES-256-GCM Encryption Layers ===
-  for (let j = 0; j < 13; j++) {
-    const layerId = 12 + j;
-    const salt = crypto.randomBytes(16);
+  for (let j = 0; j < NUM_ENCRYPTION_LAYERS; j++) {
+    const layerId = NUM_INTEGRITY_TUBES + j;
+    const salt = entropyPool.subarray(entropyOffset, entropyOffset + 16);
+    entropyOffset += 16;
+    const iv = entropyPool.subarray(entropyOffset, entropyOffset + 12);
+    entropyOffset += 12;
+
     const info = ENCRYPTION_INFOS[j] || `enc-${j}`;
     const key = deriveKey(masterSeed, salt, info);
-    const iv = crypto.randomBytes(12);
 
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
     const encrypted = Buffer.concat([cipher.update(current), cipher.final()]);
@@ -79,7 +93,7 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
       tag: tag.toString('hex')
     });
 
-    audit.push(`Layer ${layerId}: AES-256-GCM encryption applied`);
+    audit.push(AUDIT_LAYER_ENCRYPTION[j]);
   }
 
   return {
@@ -89,7 +103,7 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
     audit: {
       whatHappened: audit,
       timestamp: new Date().toISOString(),
-      seedHash: crypto.createHash('sha256').update(masterSeed).digest('hex')
+      seedHash: (crypto as any).hash('sha256', masterSeed, 'hex')
     }
   };
 }
@@ -135,8 +149,8 @@ export function decryptCipherTube(
   }
 
   // === Decrypt 13 encryption layers in reverse ===
-  for (let j = 12; j >= 0; j--) {
-    const layerId = 12 + j;
+  for (let j = NUM_ENCRYPTION_LAYERS - 1; j >= 0; j--) {
+    const layerId = NUM_INTEGRITY_TUBES + j;
     const tube = tubeMap.get(layerId);
     if (!tube) throw new Error(`Missing encryption tube for layer ${layerId}`);
 
@@ -162,9 +176,9 @@ export function decryptCipherTube(
 
   // === Verify 12 hash-lock tubes in reverse ===
   // Bolt Optimization: Hoist SHA-512 hash calculation as 'current' remains constant during this phase
-  const computedHashBuffer = crypto.createHash('sha512').update(current).digest();
+  const computedHashBuffer = Buffer.from((crypto as any).hash('sha512', current, 'buffer'));
 
-  for (let i = 11; i >= 0; i--) {
+  for (let i = NUM_INTEGRITY_TUBES - 1; i >= 0; i--) {
     const tube = tubeMap.get(i);
     if (!tube) throw new Error(`Missing hash-lock tube ${i}`);
 
