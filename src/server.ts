@@ -56,8 +56,12 @@ app.use(helmet({
             "script-src": ["'self'", (req: any, res: any) => `'nonce-${res.locals.nonce}'`],
             "style-src": ["'self'", (req: any, res: any) => `'nonce-${res.locals.nonce}'`],
             "object-src": ["'none'"],
+            "base-uri": ["'none'"],
+            "form-action": ["'self'"],
+            "frame-ancestors": ["'none'"],
         },
     },
+    frameguard: { action: 'deny' },
     referrerPolicy: { policy: 'same-origin' },
 })); // Sets various security-related HTTP headers
 app.disable('x-powered-by'); // Further ensures the header is removed
