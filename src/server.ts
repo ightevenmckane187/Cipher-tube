@@ -90,6 +90,7 @@ app.get('/', (req: Request, res: Response) => {
                 :root {
                     --primary: #007bff;
                     --success: #1e7e34;
+                    --success-glow: rgba(30, 126, 52, 0.4);
                     --bg-color: #ffffff;
                     --text-color: #1d1d1f;
                     --border-color: #ccc;
@@ -99,6 +100,7 @@ app.get('/', (req: Request, res: Response) => {
                     --text-color: #e0e0e0;
                     --border-color: #333;
                     --success: #2ecc71;
+                    --success-glow: rgba(46, 204, 113, 0.4);
                 }
                 body {
                     font-family: system-ui, -apple-system, sans-serif;
@@ -130,7 +132,7 @@ app.get('/', (req: Request, res: Response) => {
                     background-color: var(--success);
                     border-radius: 50%;
                     margin-right: 8px;
-                    box-shadow: 0 0 0 rgba(30, 126, 52, 0.4);
+                    box-shadow: 0 0 0 var(--success-glow);
                     animation: pulse 2s infinite;
                 }
                 @media (prefers-reduced-motion: reduce) {
@@ -139,9 +141,9 @@ app.get('/', (req: Request, res: Response) => {
                     }
                 }
                 @keyframes pulse {
-                    0% { box-shadow: 0 0 0 0 rgba(30, 126, 52, 0.4); }
-                    70% { box-shadow: 0 0 0 10px rgba(30, 126, 52, 0); }
-                    100% { box-shadow: 0 0 0 0 rgba(30, 126, 52, 0); }
+                    0% { box-shadow: 0 0 0 0 var(--success-glow); }
+                    70% { box-shadow: 0 0 0 10px transparent; }
+                    100% { box-shadow: 0 0 0 0 transparent; }
                 }
                 #theme-toggle {
                     background: none;
@@ -241,8 +243,9 @@ app.get('/', (req: Request, res: Response) => {
                         <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
                         <svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
                         <span id="copy-text" aria-live="polite">Copy</span>
+                        <kbd aria-hidden="true" style="margin-left: 4px; font-size: 0.7rem; opacity: 0.8; border: 1px solid rgba(255,255,255,0.3); padding: 1px 4px; border-radius: 3px;">(c)</kbd>
                     </button>
-                    <pre><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
+                    <pre tabindex="0" role="region" aria-label="Terminal command example"><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
                 </div>
             </main>
             <footer>
