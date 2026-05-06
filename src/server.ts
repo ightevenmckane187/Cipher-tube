@@ -30,6 +30,9 @@ const apiLimiter = rateLimit({
     max: 1000, // Higher limit for general API
     standardHeaders: true,
     legacyHeaders: false,
+    handler: (req, res) => {
+        res.status(429).json({ error: 'Too many requests, please try again later.' });
+    },
 });
 
 // Rate limiter for session-related operations
@@ -38,6 +41,9 @@ const sessionLimiter = rateLimit({
     max: 100, // Limit each IP to 100 requests per window
     standardHeaders: true,
     legacyHeaders: false,
+    handler: (req, res) => {
+        res.status(429).json({ error: 'Too many requests, please try again later.' });
+    },
 });
 
 // Security Enhancements
@@ -56,8 +62,12 @@ app.use(helmet({
             "script-src": ["'self'", (req: any, res: any) => `'nonce-${res.locals.nonce}'`],
             "style-src": ["'self'", (req: any, res: any) => `'nonce-${res.locals.nonce}'`],
             "object-src": ["'none'"],
+            "base-uri": ["'none'"],
+            "form-action": ["'self'"],
+            "frame-ancestors": ["'none'"],
         },
     },
+    frameguard: { action: 'deny' },
     referrerPolicy: { policy: 'same-origin' },
 })); // Sets various security-related HTTP headers
 app.disable('x-powered-by'); // Further ensures the header is removed
