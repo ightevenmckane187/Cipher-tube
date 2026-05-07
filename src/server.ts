@@ -30,6 +30,9 @@ const apiLimiter = rateLimit({
     max: 1000, // Higher limit for general API
     standardHeaders: true,
     legacyHeaders: false,
+    handler: (req: Request, res: Response) => {
+        res.status(429).json({ error: 'Too many requests, please try again later.' });
+    },
 });
 
 // Rate limiter for session-related operations
@@ -38,6 +41,9 @@ const sessionLimiter = rateLimit({
     max: 100, // Limit each IP to 100 requests per window
     standardHeaders: true,
     legacyHeaders: false,
+    handler: (req: Request, res: Response) => {
+        res.status(429).json({ error: 'Too many requests, please try again later.' });
+    },
 });
 
 // Security Enhancements
@@ -56,9 +62,19 @@ app.use(helmet({
             "script-src": ["'self'", (req: any, res: any) => `'nonce-${res.locals.nonce}'`],
             "style-src": ["'self'", (req: any, res: any) => `'nonce-${res.locals.nonce}'`],
             "object-src": ["'none'"],
+            "base-uri": ["'none'"],
+            "form-action": ["'self'"],
+            "frame-ancestors": ["'none'"],
         },
     },
+    frameguard: { action: 'deny' },
+    hsts: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true,
+    },
     referrerPolicy: { policy: 'same-origin' },
+    xFrameOptions: { action: "deny" },
 })); // Sets various security-related HTTP headers
 app.disable('x-powered-by'); // Further ensures the header is removed
 
@@ -90,6 +106,7 @@ app.get('/', (req: Request, res: Response) => {
                 :root {
                     --primary: #007bff;
                     --success: #1e7e34;
+                    --success-glow: rgba(30, 126, 52, 0.4);
                     --bg-color: #ffffff;
                     --text-color: #1d1d1f;
                     --border-color: #ccc;
@@ -99,6 +116,7 @@ app.get('/', (req: Request, res: Response) => {
                     --text-color: #e0e0e0;
                     --border-color: #333;
                     --success: #2ecc71;
+                    --success-glow: rgba(46, 204, 113, 0.4);
                 }
                 body {
                     font-family: system-ui, -apple-system, sans-serif;
@@ -130,7 +148,7 @@ app.get('/', (req: Request, res: Response) => {
                     background-color: var(--success);
                     border-radius: 50%;
                     margin-right: 8px;
-                    box-shadow: 0 0 0 rgba(30, 126, 52, 0.4);
+                    box-shadow: 0 0 0 var(--success-glow);
                     animation: pulse 2s infinite;
                 }
                 @media (prefers-reduced-motion: reduce) {
@@ -139,9 +157,9 @@ app.get('/', (req: Request, res: Response) => {
                     }
                 }
                 @keyframes pulse {
-                    0% { box-shadow: 0 0 0 0 rgba(30, 126, 52, 0.4); }
-                    70% { box-shadow: 0 0 0 10px rgba(30, 126, 52, 0); }
-                    100% { box-shadow: 0 0 0 0 rgba(30, 126, 52, 0); }
+                    0% { box-shadow: 0 0 0 0 var(--success-glow); }
+                    70% { box-shadow: 0 0 0 10px transparent; }
+                    100% { box-shadow: 0 0 0 0 transparent; }
                 }
                 #theme-toggle {
                     background: none;
@@ -261,7 +279,7 @@ app.get('/', (req: Request, res: Response) => {
                     </button>
                 </div>
                 <p>Welcome to the performance-optimized session management service.</p>
-                <div role="status">
+                <div role="status" aria-live="polite">
                     <p>
                         <span class="status-dot" aria-hidden="true"></span>
                         <strong>Status:</strong> <span style="color: var(--success);">Online</span>
@@ -269,21 +287,14 @@ app.get('/', (req: Request, res: Response) => {
                 </div>
                 <h2>Quick Start</h2>
                 <p>To get started, create a session via the API:</p>
-                <div class="code-container" role="region" aria-label="Terminal command example">
-                    <div class="code-header">
-                        <div class="terminal-dots" aria-hidden="true">
-                            <div class="dot dot-red"></div>
-                            <div class="dot dot-yellow"></div>
-                            <div class="dot dot-green"></div>
-                        </div>
-                        <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard (c)">
-                            <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-                            <svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                            <span id="copy-text" aria-live="polite">Copy</span>
-                            <span class="kb-shortcut" aria-hidden="true">c</span>
-                        </button>
-                    </div>
-                    <pre tabindex="0" aria-label="cURL command"><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
+                <div class="code-container">
+                    <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard">
+                        <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                        <svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                        <span id="copy-text" aria-live="polite">Copy</span>
+                        <kbd aria-hidden="true" style="margin-left: 4px; font-size: 0.7rem; opacity: 0.8; border: 1px solid rgba(255,255,255,0.3); padding: 1px 4px; border-radius: 3px;">(c)</kbd>
+                    </button>
+                    <pre tabindex="0" role="region" aria-label="Terminal command example"><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
                 </div>
             </main>
             <footer>
@@ -301,6 +312,10 @@ app.get('/', (req: Request, res: Response) => {
                     themeText.textContent = isDark ? 'Switch to Light' : 'Switch to Dark';
                     themeIcon.textContent = isDark ? '☀️' : '🌙';
                     themeToggle.setAttribute('aria-pressed', isDark);
+                    themeToggle.setAttribute('aria-label', isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode');
+
+                    // Force re-evaluation of styles if needed (some browsers might need this)
+                    document.documentElement.setAttribute('data-theme', theme);
                 }
 
                 updateUI(document.documentElement.getAttribute('data-theme'));
@@ -544,6 +559,11 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
 
         res.status(500).json({ error: 'Internal server error' });
     }
+});
+
+// 404 Handler for unmatched routes
+app.use((req: Request, res: Response) => {
+    res.status(404).json({ error: 'Not Found' });
 });
 
 /**
