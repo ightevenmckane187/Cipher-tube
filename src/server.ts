@@ -90,15 +90,19 @@ app.get('/', (req: Request, res: Response) => {
                 :root {
                     --primary: #007bff;
                     --success: #1e7e34;
+                    --success-glow: rgba(30, 126, 52, 0.4);
                     --bg-color: #ffffff;
                     --text-color: #1d1d1f;
                     --border-color: #ccc;
+                    --kbd-bg: #f8f9fa;
                 }
                 [data-theme='dark'] {
                     --bg-color: #121212;
                     --text-color: #e0e0e0;
                     --border-color: #333;
                     --success: #2ecc71;
+                    --success-glow: rgba(46, 204, 113, 0.4);
+                    --kbd-bg: #2d2d2d;
                 }
                 body {
                     font-family: system-ui, -apple-system, sans-serif;
@@ -130,7 +134,7 @@ app.get('/', (req: Request, res: Response) => {
                     background-color: var(--success);
                     border-radius: 50%;
                     margin-right: 8px;
-                    box-shadow: 0 0 0 rgba(30, 126, 52, 0.4);
+                    box-shadow: 0 0 0 var(--success-glow);
                     animation: pulse 2s infinite;
                 }
                 @media (prefers-reduced-motion: reduce) {
@@ -139,9 +143,9 @@ app.get('/', (req: Request, res: Response) => {
                     }
                 }
                 @keyframes pulse {
-                    0% { box-shadow: 0 0 0 0 rgba(30, 126, 52, 0.4); }
-                    70% { box-shadow: 0 0 0 10px rgba(30, 126, 52, 0); }
-                    100% { box-shadow: 0 0 0 0 rgba(30, 126, 52, 0); }
+                    0% { box-shadow: 0 0 0 0 var(--success-glow); }
+                    70% { box-shadow: 0 0 0 10px transparent; }
+                    100% { box-shadow: 0 0 0 0 transparent; }
                 }
                 #theme-toggle {
                     background: none;
@@ -175,6 +179,19 @@ app.get('/', (req: Request, res: Response) => {
                 a { color: var(--primary); text-decoration: none; }
                 a:hover { text-decoration: underline; }
                 a:focus-visible, #theme-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+                kbd {
+                    background-color: var(--kbd-bg);
+                    border: 1px solid var(--border-color);
+                    border-radius: 3px;
+                    box-shadow: 0 1px 1px rgba(0,0,0,.2), 0 2px 0 0 rgba(255,255,255,.7) inset;
+                    color: var(--text-color);
+                    display: inline-block;
+                    font-size: .85em;
+                    font-weight: 700;
+                    line-height: 1;
+                    padding: 2px 4px;
+                    white-space: nowrap;
+                }
                 .code-container {
                     position: relative;
                     margin: 1rem 0;
@@ -222,9 +239,10 @@ app.get('/', (req: Request, res: Response) => {
             <main id="main-content">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h1>Cipher Tube Assembly</h1>
-                    <button id="theme-toggle" aria-label="Switch Theme" aria-pressed="false">
+                    <button id="theme-toggle" aria-label="Switch Theme" aria-pressed="false" title="Toggle Theme (t)">
                         <span id="theme-icon" aria-hidden="true"></span>
                         <span id="theme-text">Switch to Dark</span>
+                        <kbd style="margin-left: 8px;">t</kbd>
                     </button>
                 </div>
                 <p>Welcome to the performance-optimized session management service.</p>
@@ -237,12 +255,13 @@ app.get('/', (req: Request, res: Response) => {
                 <h2>Quick Start</h2>
                 <p>To get started, create a session via the API:</p>
                 <div class="code-container">
-                    <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard">
+                    <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard (c)">
                         <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
                         <svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
                         <span id="copy-text" aria-live="polite">Copy</span>
+                        <kbd style="margin-left: 4px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff;">c</kbd>
                     </button>
-                    <pre><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
+                    <pre tabindex="0" role="region" aria-label="Terminal command example"><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
                 </div>
             </main>
             <footer>
@@ -303,8 +322,13 @@ app.get('/', (req: Request, res: Response) => {
                 });
 
                 window.addEventListener('keydown', (e) => {
-                    if (e.key === 'c' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                    if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+                    if (e.key === 'c') {
                         const btn = document.getElementById('copy-curl');
+                        if (btn) btn.click();
+                    } else if (e.key === 't') {
+                        const btn = document.getElementById('theme-toggle');
                         if (btn) btn.click();
                     }
                 });
