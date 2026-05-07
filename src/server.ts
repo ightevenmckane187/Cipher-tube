@@ -67,6 +67,12 @@ app.use(helmet({
             "frame-ancestors": ["'none'"],
         },
     },
+    frameguard: { action: 'deny' },
+    hsts: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true,
+    },
     referrerPolicy: { policy: 'same-origin' },
     xFrameOptions: { action: "deny" },
 })); // Sets various security-related HTTP headers
