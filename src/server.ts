@@ -198,19 +198,42 @@ app.get('/', (req: Request, res: Response) => {
                     margin: 1rem 0;
                     background: #1e1e1e;
                     border-radius: 8px;
-                    padding: 1rem;
+                    overflow: hidden;
                     border: 1px solid var(--border-color);
                 }
+                .code-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    background: rgba(255, 255, 255, 0.05);
+                    padding: 8px 12px;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                }
+                .terminal-dots {
+                    display: flex;
+                    gap: 6px;
+                }
+                .dot {
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                }
+                .dot-red { background: #ff5f56; }
+                .dot-yellow { background: #ffbd2e; }
+                .dot-green { background: #27c93f; }
                 pre {
                     margin: 0;
+                    padding: 1rem;
                     overflow-x: auto;
                     color: #dcdcdc;
                     font-size: 0.875rem;
+                    scroll-behavior: smooth;
+                }
+                pre:focus-visible {
+                    outline: 2px solid var(--primary);
+                    outline-offset: -2px;
                 }
                 .copy-button {
-                    position: absolute;
-                    top: 0.5rem;
-                    right: 0.5rem;
                     background: rgba(255, 255, 255, 0.1);
                     border: 1px solid rgba(255, 255, 255, 0.2);
                     color: #fff;
@@ -225,6 +248,16 @@ app.get('/', (req: Request, res: Response) => {
                 }
                 .copy-button:hover { background: rgba(255, 255, 255, 0.2); }
                 .copy-button:focus-visible { outline: 2px solid var(--primary); }
+                .kb-shortcut {
+                    opacity: 0.6;
+                    font-size: 0.7rem;
+                    background: rgba(255, 255, 255, 0.1);
+                    padding: 0 4px;
+                    border-radius: 3px;
+                }
+                @media (max-width: 480px) {
+                    .kb-shortcut { display: none; }
+                }
                 .copy-icon, .check-icon {
                     width: 14px;
                     height: 14px;
@@ -309,12 +342,13 @@ app.get('/', (req: Request, res: Response) => {
                         await navigator.clipboard.writeText(curlCommand.textContent);
                         copyButton.classList.add('copied');
                         copyButton.setAttribute('aria-label', 'Command copied to clipboard');
+                        const originalText = copyText.textContent;
                         copyText.textContent = 'Copied!';
 
                         setTimeout(() => {
                             copyButton.classList.remove('copied');
                             copyButton.setAttribute('aria-label', 'Copy command to clipboard');
-                            copyText.textContent = 'Copy';
+                            copyText.textContent = originalText;
                         }, 2000);
                     } catch (err) {
                         console.error('Failed to copy: ', err);
