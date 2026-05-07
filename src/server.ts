@@ -56,7 +56,16 @@ app.use(helmet({
             "script-src": ["'self'", (req: any, res: any) => `'nonce-${res.locals.nonce}'`],
             "style-src": ["'self'", (req: any, res: any) => `'nonce-${res.locals.nonce}'`],
             "object-src": ["'none'"],
+            "base-uri": ["'none'"],
+            "form-action": ["'self'"],
+            "frame-ancestors": ["'none'"],
         },
+    },
+    frameguard: { action: 'deny' },
+    hsts: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true,
     },
     referrerPolicy: { policy: 'same-origin' },
 })); // Sets various security-related HTTP headers

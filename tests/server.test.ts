@@ -29,9 +29,14 @@ describe('Server Security and Health', () => {
 
     // Check for some common helmet headers
     expect(response.headers['x-dns-prefetch-control']).toBe('off');
-    expect(response.headers['x-frame-options']).toBe('SAMEORIGIN');
+    expect(response.headers['x-frame-options']).toBe('DENY');
     expect(response.headers['x-content-type-options']).toBe('nosniff');
-    expect(response.headers['strict-transport-security']).toBeDefined();
+    expect(response.headers['strict-transport-security']).toContain('max-age=31536000');
+    expect(response.headers['strict-transport-security']).toContain('includeSubDomains');
+    expect(response.headers['strict-transport-security']).toContain('preload');
+    expect(response.headers['content-security-policy']).toContain("base-uri 'none'");
+    expect(response.headers['content-security-policy']).toContain("form-action 'self'");
+    expect(response.headers['content-security-policy']).toContain("frame-ancestors 'none'");
   });
 
   it('should NOT have x-powered-by header', async () => {
