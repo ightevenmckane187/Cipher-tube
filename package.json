@@ -28,16 +28,21 @@
     "prepare": "echo 'Ensure git hooks are configured'"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
     "@types/js-yaml": "^4.0.9",
     "@types/supertest": "^7.2.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.1",
+    "@typescript-eslint/parser": "^8.59.1",
     "eslint": "^9.0.0",
+    "globals": "^17.6.0",
     "prettier": "^3.3.0",
     "stylelint": "^16.0.0",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.9",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.59.1"
   },
   "engines": {
     "node": ">=20.0.0",
