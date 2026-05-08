@@ -7,6 +7,9 @@ on:
     workflows: ["Build Container", "Build and Store Artifacts"]
     types: [completed]
 
+permissions:
+  contents: read
+
 jobs:
   main-health-check:
     runs-on: ubuntu-latest
