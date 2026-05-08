@@ -54,11 +54,14 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
   let entropyOffset = 0;
 
   // === 12 Hash-Lock Tubes (Integrity) ===
-  // Bolt Optimization: Pre-compute hash once for all integrity tubes
-  const integrityHash = crypto.createHash('sha512').update(current).digest('hex');
+  // Bolt Optimization: Use high-performance one-shot hashing
+  const integrityHash = (crypto as any).hash('sha512', current, 'hex');
+
+  // Bolt Optimization: Convert entropy pool to hex once to avoid repeated conversions in loops
+  const entropyHex = entropyPool.toString('hex');
 
   for (let i = 0; i < NUM_INTEGRITY_TUBES; i++) {
-    const salt = entropyPool.subarray(entropyOffset, entropyOffset + 16);
+    const saltHex = entropyHex.substring(entropyOffset * 2, entropyOffset * 2 + 32);
     entropyOffset += 16;
 
     hashChain.push(integrityHash);
@@ -66,7 +69,7 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
     tubes.push({
       layer: i,
       type: 'hash-lock',
-      salt: salt.toString('hex'),
+      salt: saltHex,
       hash: integrityHash
     });
 
@@ -78,25 +81,28 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
   for (let j = 0; j < NUM_ENCRYPTION_LAYERS; j++) {
     const layerId = NUM_INTEGRITY_TUBES + j;
     const salt = entropyPool.subarray(entropyOffset, entropyOffset + 16);
+    const saltHex = entropyHex.substring(entropyOffset * 2, entropyOffset * 2 + 32);
     entropyOffset += 16;
     const iv = entropyPool.subarray(entropyOffset, entropyOffset + 12);
+    const ivHex = entropyHex.substring(entropyOffset * 2, entropyOffset * 2 + 24);
     entropyOffset += 12;
 
     const info = ENCRYPTION_INFOS[j] || `enc-${j}`;
     const key = deriveKey(masterSeed, salt, info);
 
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-    const encrypted = Buffer.concat([cipher.update(current), cipher.final()]);
+    const update = cipher.update(current);
+    const final = cipher.final();
     const tag = cipher.getAuthTag();
 
-    // Reduce intermediate allocations by concatenating only when necessary
-    current = Buffer.concat([iv, tag, encrypted]);
+    // Bolt Optimization: Single Buffer.concat to reduce intermediate allocations
+    current = Buffer.concat([iv, tag, update, final]);
 
     tubes.push({
       layer: layerId,
       type: 'aes-256-gcm',
-      salt: salt.toString('hex'),
-      iv: iv.toString('hex'),
+      salt: saltHex,
+      iv: ivHex,
       tag: tag.toString('hex')
     });
 
@@ -110,7 +116,7 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
     audit: {
       whatHappened: audit,
       timestamp: new Date().toISOString(),
-      seedHash: crypto.createHash('sha256').update(masterSeed).digest('hex')
+      seedHash: (crypto as any).hash('sha256', masterSeed, 'hex')
     }
   };
 }
@@ -185,8 +191,8 @@ export function decryptCipherTube(
   const hashCache = new Map<string, Buffer>();
 
   // === Verify 12 hash-lock tubes in reverse ===
-  // Bolt Optimization: Hoist SHA-512 hash calculation as 'current' remains constant during this phase
-  const computedHashBuffer = crypto.createHash('sha512').update(current).digest();
+  // Bolt Optimization: Hoist SHA-512 hash calculation using one-shot API
+  const computedHashBuffer = (crypto as any).hash('sha512', current, 'buffer');
 
   for (let i = NUM_INTEGRITY_TUBES - 1; i >= 0; i--) {
     const tube = tubeMap.get(i);
