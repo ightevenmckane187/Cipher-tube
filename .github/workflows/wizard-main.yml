@@ -1,0 +1,26 @@
+name: "🧙‍♂️ Wizard · Main Sentinel"
+
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: ["Build Container", "Build and Store Artifacts"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  main-health-check:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'failure' || github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Diagnose and Repair
+        run: |
+          echo "Wizard monitoring main branch health..."
+          # Logic to detect failure and trigger repair engine
+          pnpm install --filter @cipher-tube/wizard...
+          npx tsx wizard/src/index.ts --fix
