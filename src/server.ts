@@ -46,37 +46,39 @@ const sessionLimiter = rateLimit({
     },
 });
 
-// Security Enhancements
-app.use(apiLimiter); // Sentinel: Apply global rate limiting before expensive operations
-
-app.use((req: Request, res: Response, next: NextFunction) => {
-    res.locals.nonce = crypto.randomBytes(16).toString('base64');
-    next();
-});
-
+// Security Enhancements: Core Headers (Defense-in-depth for all responses)
 app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-            "img-src": ["'self'", "data:", "img.shields.io"],
-            "script-src": ["'self'", (req: any, res: any) => `'nonce-${res.locals.nonce}'`],
-            "style-src": ["'self'", (req: any, res: any) => `'nonce-${res.locals.nonce}'`],
-            "object-src": ["'none'"],
-            "base-uri": ["'none'"],
-            "form-action": ["'self'"],
-            "frame-ancestors": ["'none'"],
-        },
-    },
-    frameguard: { action: 'deny' },
+    contentSecurityPolicy: false, // Applied later after rate limiting
+    frameguard: { action: 'deny' }, // Ensures X-Frame-Options: DENY
     hsts: {
         maxAge: 31536000,
         includeSubDomains: true,
         preload: true,
     },
     referrerPolicy: { policy: 'same-origin' },
-    xFrameOptions: { action: "deny" },
-})); // Sets various security-related HTTP headers
+}));
 app.disable('x-powered-by'); // Further ensures the header is removed
+
+app.use(apiLimiter); // Sentinel: Apply global rate limiting after core security headers are set
+
+// CSP and Nonce: Applied only to requests that pass the rate limiter
+app.use((req: Request, res: Response, next: NextFunction) => {
+    res.locals.nonce = crypto.randomBytes(16).toString('base64');
+    next();
+});
+
+app.use(helmet.contentSecurityPolicy({
+    directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        "img-src": ["'self'", "data:", "img.shields.io"],
+        "script-src": ["'self'", (req: any, res: any) => `'nonce-${res.locals.nonce}'`],
+        "style-src": ["'self'", (req: any, res: any) => `'nonce-${res.locals.nonce}'`],
+        "object-src": ["'none'"],
+        "base-uri": ["'none'"],
+        "form-action": ["'self'"],
+        "frame-ancestors": ["'none'"],
+    },
+}));
 
 export const redisClient: RedisClientType = createClient({
     url: process.env.REDIS_URL || 'redis://localhost:6379'
