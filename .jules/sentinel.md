@@ -32,3 +32,8 @@
 **Vulnerability:** Service-wide Denial of Service (DoS) due to Node.js version/API mismatch.
 **Learning:** Using cryptographic APIs introduced in newer Node.js versions (e.g., `crypto.hash` in v21.7.0+) when the project declares support for older LTS versions (v20.x) creates a silent failure point that crashes the entire crypto pipeline at runtime.
 **Prevention:** Strictly adhere to standard `crypto.createHash` patterns for maximum compatibility across supported LTS versions, and verify API availability against the lowest supported version defined in `package.json`.
+
+## 2026-05-30 - Middleware Order for Rate-Limited Security Headers
+**Vulnerability:** Security headers (XFO, HSTS) missing on 429 "Too Many Requests" responses.
+**Learning:** Applying rate limiters before security middleware (like `helmet`) causes blocked requests to return without protection. However, applying CSP/nonce generation before the limiter exposes the server to entropy exhaustion DoS.
+**Prevention:** Split security middleware: apply core headers (HSTS, X-Frame-Options) before the rate limiter to protect all responses, but apply resource-intensive headers (CSP with nonces) after the limiter to prevent resource waste on malicious traffic.
