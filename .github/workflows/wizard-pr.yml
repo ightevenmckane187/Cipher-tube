@@ -37,10 +37,13 @@ jobs:
 
       - name: Run Wizard Analysis
         id: wizard
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           # Determine if we should apply fixes
           FIX_FLAG=""
-          if [[ "${{ github.event.comment.body }}" == *"/wizard fix"* ]] || [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          if [[ "$COMMENT_BODY" == *"/wizard fix"* ]] || [[ "$EVENT_NAME" == "pull_request" ]]; then
             FIX_FLAG="--fix"
           fi
 
