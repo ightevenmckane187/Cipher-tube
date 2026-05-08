@@ -32,3 +32,8 @@
 **Vulnerability:** Service-wide Denial of Service (DoS) due to Node.js version/API mismatch.
 **Learning:** Using cryptographic APIs introduced in newer Node.js versions (e.g., `crypto.hash` in v21.7.0+) when the project declares support for older LTS versions (v20.x) creates a silent failure point that crashes the entire crypto pipeline at runtime.
 **Prevention:** Strictly adhere to standard `crypto.createHash` patterns for maximum compatibility across supported LTS versions, and verify API availability against the lowest supported version defined in `package.json`.
+
+## 2026-04-22 - Type Hardening for Governance Manifests
+**Vulnerability:** Potential runtime `TypeError` (DoS) via malformed governance manifests.
+**Learning:** Iterating over object entries or arrays in a governance loader without explicit type checks can crash the server if the configuration file is corrupted or maliciously altered.
+**Prevention:** Always use `Array.isArray` and `typeof` (with `null` check) to verify the structure of complex configuration objects before processing.

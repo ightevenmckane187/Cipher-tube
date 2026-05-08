@@ -74,7 +74,6 @@ app.use(helmet({
         preload: true,
     },
     referrerPolicy: { policy: 'same-origin' },
-    xFrameOptions: { action: "deny" },
 })); // Sets various security-related HTTP headers
 app.disable('x-powered-by'); // Further ensures the header is removed
 
