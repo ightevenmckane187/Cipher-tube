@@ -23,17 +23,37 @@ export interface CipherTubeResult {
 const NUM_INTEGRITY_TUBES = 12;
 const NUM_ENCRYPTION_LAYERS = 13;
 
-// Bolt Optimization: Pre-compute HKDF info buffers for up to 100 layers
-const ENCRYPTION_INFOS = Array.from({ length: 100 }, (_, i) => Buffer.from(`enc-${i}`));
+// Bolt Optimization: Pre-compute HKDF info buffers for up to 100 layers.
+// Using a manual loop instead of Array.from for faster initialization.
+const ENCRYPTION_INFOS = new Array<Buffer>(100);
+for (let i = 0; i < 100; i++) {
+  ENCRYPTION_INFOS[i] = Buffer.from(`enc-${i}`);
+}
 
-// Bolt Optimization: Pre-compute audit log strings to avoid repeated interpolations
-const AUDIT_TUBE_INTEGRITY = Array.from({ length: NUM_INTEGRITY_TUBES }, (_, i) => `Tube ${i}: SHA-512 hash lock computed for integrity`);
-const AUDIT_LAYER_ENCRYPTION = Array.from({ length: NUM_ENCRYPTION_LAYERS }, (_, i) => `Layer ${NUM_INTEGRITY_TUBES + i}: AES-256-GCM encryption applied`);
-const AUDIT_DECRYPT_LAYER = Array.from({ length: NUM_ENCRYPTION_LAYERS }, (_, i) => `Decrypted AES-256-GCM layer ${i}`);
-const AUDIT_VERIFY_TUBE = Array.from({ length: NUM_INTEGRITY_TUBES }, (_, i) => `Verified hash-lock tube ${i}`);
+// Bolt Optimization: Pre-compute audit log strings to avoid repeated interpolations.
+// Using manual loops for faster initialization.
+const AUDIT_TUBE_INTEGRITY = new Array<string>(NUM_INTEGRITY_TUBES);
+for (let i = 0; i < NUM_INTEGRITY_TUBES; i++) {
+  AUDIT_TUBE_INTEGRITY[i] = `Tube ${i}: SHA-512 hash lock computed for integrity`;
+}
 
-function deriveKey(master: Buffer, salt: Buffer, info: string | Buffer): Buffer {
-  return Buffer.from(crypto.hkdfSync('sha256', master, salt, info, 32));
+const AUDIT_LAYER_ENCRYPTION = new Array<string>(NUM_ENCRYPTION_LAYERS);
+for (let i = 0; i < NUM_ENCRYPTION_LAYERS; i++) {
+  AUDIT_LAYER_ENCRYPTION[i] = `Layer ${NUM_INTEGRITY_TUBES + i}: AES-256-GCM encryption applied`;
+}
+
+const AUDIT_DECRYPT_LAYER = new Array<string>(NUM_ENCRYPTION_LAYERS);
+for (let i = 0; i < NUM_ENCRYPTION_LAYERS; i++) {
+  AUDIT_DECRYPT_LAYER[i] = `Decrypted AES-256-GCM layer ${i}`;
+}
+
+const AUDIT_VERIFY_TUBE = new Array<string>(NUM_INTEGRITY_TUBES);
+for (let i = 0; i < NUM_INTEGRITY_TUBES; i++) {
+  AUDIT_VERIFY_TUBE[i] = `Verified hash-lock tube ${i}`;
+}
+
+function deriveKey(master: Buffer, salt: Buffer, info: string | Buffer): ArrayBuffer {
+  return crypto.hkdfSync('sha256', master, salt, info, 32);
 }
 
 /**
@@ -90,13 +110,14 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
     const info = ENCRYPTION_INFOS[j] || `enc-${j}`;
     const key = deriveKey(masterSeed, salt, info);
 
-    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key as any, iv);
     const update = cipher.update(current);
-    const final = cipher.final();
+    cipher.final(); // Required to finalize authentication tag
     const tag = cipher.getAuthTag();
 
-    // Bolt Optimization: Single Buffer.concat to reduce intermediate allocations
-    current = Buffer.concat([iv, tag, update, final]);
+    // Bolt Optimization: Single Buffer.concat to reduce intermediate allocations.
+    // Omitted cipher.final() from concat as it's empty for GCM, saving one buffer copy.
+    current = Buffer.concat([iv, tag, update]);
 
     tubes.push({
       layer: layerId,
@@ -153,18 +174,18 @@ export function decryptCipherTube(
 
   const audit: string[] = [];
 
-  // Bolt Optimization: Use a single loop to build the tube map, avoiding intermediate arrays
-  const tubeMap = new Map<number, Tube>();
+  // Bolt Optimization: Use a fixed-size array for O(1) layer lookups instead of a Map
+  const tubeLookup = new Array<Tube>(100);
   for (const tube of tubes) {
     if (tube && typeof tube === 'object' && typeof tube.layer === 'number') {
-      tubeMap.set(tube.layer, tube);
+      tubeLookup[tube.layer] = tube;
     }
   }
 
   // === Decrypt 13 encryption layers in reverse ===
   for (let j = NUM_ENCRYPTION_LAYERS - 1; j >= 0; j--) {
     const layerId = NUM_INTEGRITY_TUBES + j;
-    const tube = tubeMap.get(layerId);
+    const tube = tubeLookup[layerId];
     if (!tube) throw new Error(`Missing encryption tube for layer ${layerId}`);
 
     // Sentinel: Validate tube fields
@@ -180,10 +201,12 @@ export function decryptCipherTube(
     const info = ENCRYPTION_INFOS[j] || `enc-${j}`;
     const key = deriveKey(masterSeed, salt, info);
 
-    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key as any, iv);
     decipher.setAuthTag(tag);
 
-    current = Buffer.concat([decipher.update(encryptedData), decipher.final()]);
+    // Bolt Optimization: Omitted decipher.final() from concat as it's empty for GCM, saving one buffer copy.
+    current = decipher.update(encryptedData);
+    decipher.final();
     audit.push(AUDIT_DECRYPT_LAYER[j]);
   }
 
@@ -195,7 +218,7 @@ export function decryptCipherTube(
   const computedHashBuffer = (crypto as any).hash('sha512', current, 'buffer');
 
   for (let i = NUM_INTEGRITY_TUBES - 1; i >= 0; i--) {
-    const tube = tubeMap.get(i);
+    const tube = tubeLookup[i];
     if (!tube) throw new Error(`Missing hash-lock tube ${i}`);
 
     if (typeof tube.hash !== 'string') {

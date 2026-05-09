@@ -13,3 +13,7 @@
 ## 2026-05-15 - Entropy Pooling and Lockfile Stability
 **Learning:** Consolidating multiple `crypto.randomBytes` calls into a single larger call and slicing it with `subarray` significantly reduces syscall overhead and improves performance by ~35% in high-frequency cryptographic paths. Additionally, running `pnpm install` in some environments can destructively update the lockfile; always verify lockfile integrity before submission and avoid committing unrelated dependency changes.
 **Action:** Batch entropy generation where possible; always use `git status` and `git restore` to maintain a clean lockfile.
+
+## 2026-06-12 - Hot Path Cryptographic and Lookup Optimizations
+**Learning:** `crypto.hkdfSync` returns an `ArrayBuffer` which can be used directly as a key in `createCipheriv`, avoiding the overhead of a `Buffer.from` wrapper. In hot decryption loops, replacing `Map` lookups with fixed-size array indexing and omitting empty `final()` buffers from `Buffer.concat` (valid for AES-GCM) provides measurable micro-optimization gains. Additionally, manual loops for initializing large constant arrays are faster than `Array.from` in this environment.
+**Action:** Use `ArrayBuffer` directly for keys; prefer array indexing over `Map` for small integer keys; omit empty `final()` buffers in GCM hot paths.
