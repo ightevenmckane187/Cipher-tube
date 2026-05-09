@@ -37,3 +37,8 @@
 **Vulnerability:** Security headers (XFO, HSTS) missing on 429 "Too Many Requests" responses.
 **Learning:** Applying rate limiters before security middleware (like `helmet`) causes blocked requests to return without protection. However, applying CSP/nonce generation before the limiter exposes the server to entropy exhaustion DoS.
 **Prevention:** Split security middleware: apply core headers (HSTS, X-Frame-Options) before the rate limiter to protect all responses, but apply resource-intensive headers (CSP with nonces) after the limiter to prevent resource waste on malicious traffic.
+
+## 2026-06-05 - Hardened Structural Validation for Governance Manifests
+**Vulnerability:** 500 Internal Server Error (DoS) via malformed manifest root objects or nested signature arrays.
+**Learning:** Relying on `Object.entries` or `for...of` loops on properties of untrusted JSON objects can trigger `TypeError` if those properties are unexpectedly `null`, primitives, or have mismatched types (e.g., array instead of object).
+**Prevention:** Always verify that container properties are non-array objects and that nested collections are indeed arrays before attempting iteration in security-critical validators.
