@@ -14,6 +14,9 @@ export class AuthorityChainValidator {
     }
 
     // Validate Roles
+    if (!manifest.roles || typeof manifest.roles !== 'object' || Array.isArray(manifest.roles)) {
+      throw new Error('roles must be an object');
+    }
     for (const [roleId, role] of Object.entries(manifest.roles)) {
       if (typeof role !== 'object' || role === null) {
         throw new Error(`Role ${roleId} must be an object`);
@@ -27,6 +30,9 @@ export class AuthorityChainValidator {
     }
 
     // Validate Lifecycle Gates
+    if (!manifest.lifecycle_gates || typeof manifest.lifecycle_gates !== 'object' || Array.isArray(manifest.lifecycle_gates)) {
+      throw new Error('lifecycle_gates must be an object');
+    }
     for (const [gateId, gate] of Object.entries(manifest.lifecycle_gates)) {
       if (typeof gate !== 'object' || gate === null) {
         throw new Error(`Lifecycle gate ${gateId} must be an object`);
@@ -35,6 +41,9 @@ export class AuthorityChainValidator {
       for (const field of requiredGateFields) {
         if (!(field in gate)) {
           throw new Error(`Lifecycle gate ${gateId} is missing required field: ${field}`);
+        }
+        if (!Array.isArray((gate as any)[field])) {
+          throw new Error(`Lifecycle gate ${gateId} field ${field} must be an array`);
         }
       }
 
@@ -48,8 +57,11 @@ export class AuthorityChainValidator {
 
     // Validate Governance Controls
     const hiAi = manifest.governance_controls.high_impact_ai;
-    if (!hiAi || typeof hiAi !== 'object') {
+    if (!hiAi || typeof hiAi !== 'object' || Array.isArray(hiAi)) {
       throw new Error('Missing governance_controls.high_impact_ai');
+    }
+    if (!Array.isArray(hiAi.mandatory_signatures)) {
+      throw new Error('mandatory_signatures must be an array');
     }
     for (const roleId of hiAi.mandatory_signatures) {
       if (!(roleId in manifest.roles)) {
