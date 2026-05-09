@@ -253,9 +253,11 @@ app.get('/', (req: Request, res: Response) => {
                 .kb-shortcut {
                     opacity: 0.6;
                     font-size: 0.7rem;
-                    background: rgba(255, 255, 255, 0.1);
+                    background: rgba(128, 128, 128, 0.1);
+                    border: 1px solid var(--border-color);
                     padding: 0 4px;
                     border-radius: 3px;
+                    margin-left: 4px;
                 }
                 @media (max-width: 480px) {
                     .kb-shortcut { display: none; }
@@ -275,9 +277,10 @@ app.get('/', (req: Request, res: Response) => {
             <main id="main-content">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h1>Cipher Tube Assembly</h1>
-                    <button id="theme-toggle" aria-label="Switch Theme" aria-pressed="false">
+                    <button id="theme-toggle" aria-label="Switch Theme" aria-pressed="false" aria-keyshortcuts="t">
                         <span id="theme-icon" aria-hidden="true"></span>
                         <span id="theme-text">Switch to Dark</span>
+                        <kbd class="kb-shortcut" aria-hidden="true">(t)</kbd>
                     </button>
                 </div>
                 <p>Welcome to the performance-optimized session management service.</p>
@@ -290,11 +293,11 @@ app.get('/', (req: Request, res: Response) => {
                 <h2>Quick Start</h2>
                 <p>To get started, create a session via the API:</p>
                 <div class="code-container">
-                    <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard">
+                    <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard" aria-keyshortcuts="c">
                         <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
                         <svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
                         <span id="copy-text" aria-live="polite">Copy</span>
-                        <kbd aria-hidden="true" style="margin-left: 4px; font-size: 0.7rem; opacity: 0.8; border: 1px solid rgba(255,255,255,0.3); padding: 1px 4px; border-radius: 3px;">(c)</kbd>
+                        <kbd class="kb-shortcut" aria-hidden="true">(c)</kbd>
                     </button>
                     <pre tabindex="0" role="region" aria-label="Terminal command example"><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
                 </div>
@@ -358,8 +361,13 @@ app.get('/', (req: Request, res: Response) => {
                 });
 
                 window.addEventListener('keydown', (e) => {
-                    if (e.key === 'c' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                    if (e.ctrlKey || e.metaKey || e.altKey || ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+                    if (e.key === 'c') {
                         const btn = document.getElementById('copy-curl');
+                        if (btn) btn.click();
+                    } else if (e.key === 't') {
+                        const btn = document.getElementById('theme-toggle');
                         if (btn) btn.click();
                     }
                 });
