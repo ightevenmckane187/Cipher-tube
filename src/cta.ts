@@ -123,6 +123,10 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
 
 /**
  * Decrypts and verifies the full Cipher Tube
+ *
+ * BOLT OPTIMIZATION:
+ * Used Map-based lookup for tubes instead of Array.find() to reduce complexity from O(L*N) to O(L).
+ * Where L is the number of layers (25) and N is the number of tubes (25).
  */
 export function decryptCipherTube(
   ciphertextHex: string,

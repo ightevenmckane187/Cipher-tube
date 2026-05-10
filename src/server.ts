@@ -13,13 +13,11 @@ const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
-// Using LRU cache to prevent memory leaks with 5s TTL and 1000 items limit
 export const sessionCache = new LRUCache<string, string>({
     max: 1000,
     ttl: 5000, // 5 seconds
 });
 
-// Session ID Validation (UUID v4)
 const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const SESSION_TTL = 86400; // 24 hours in seconds
@@ -35,10 +33,9 @@ const apiLimiter = rateLimit({
     },
 });
 
-// Rate limiter for session-related operations
 const sessionLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per window
+    windowMs: 15 * 60 * 1000,
+    max: 100,
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req: Request, res: Response) => {
@@ -67,7 +64,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     next();
 });
 
-app.use(helmet.contentSecurityPolicy({
+  app.use(helmet.contentSecurityPolicy({
     directives: {
         ...helmet.contentSecurityPolicy.getDefaultDirectives(),
         "img-src": ["'self'", "data:", "img.shields.io"],
@@ -96,7 +93,6 @@ app.get('/', (req: Request, res: Response) => {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <meta name="description" content="Cipher Tube Assembly - Optimized session management service.">
             <title>Cipher Tube Assembly</title>
             <script nonce="${res.locals.nonce}">
                 (function() {
@@ -369,27 +365,12 @@ app.get('/', (req: Request, res: Response) => {
     `);
 });
 
-// Optimization: Cache health check response for 1s to reduce CPU overhead (Bolt Optimization)
-let cachedHealthResponse: string | null = null;
-let lastHealthCheckTime = 0;
-
 app.get('/health', (req: Request, res: Response) => {
-    const now = Date.now();
-    if (!cachedHealthResponse || now - lastHealthCheckTime > 1000) {
-        cachedHealthResponse = JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() });
-        lastHealthCheckTime = now;
-    }
-    res.setHeader('Content-Type', 'application/json');
-    res.send(cachedHealthResponse);
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Middleware for JSON parsing with size limit
 const jsonParser = express.json({ limit: '10kb' });
 
-/**
- * Middleware to validate x-user-id header.
- * Checks for existence, type, and length to prevent DoS and cache displacement.
- */
 const validateUserId = (req: Request, res: Response, next: NextFunction) => {
     let userId = req.headers['x-user-id'];
 
@@ -406,7 +387,6 @@ const validateUserId = (req: Request, res: Response, next: NextFunction) => {
     if (userId.length > 128) {
         return res.status(400).json({ error: 'Invalid x-user-id: exceeds maximum length' });
     }
-
     next();
 };
 
@@ -429,34 +409,19 @@ const ensureSessionOwner = async (req: Request, res: Response, next: NextFunctio
         return res.status(400).json({ error: 'Bad Request: Invalid sessionId format' });
     }
 
-    // Optimization: Check in-memory cache first
     const cachedOwnerId = sessionCache.get(sessionId);
     if (cachedOwnerId) {
-        if (cachedOwnerId === userId) {
-            return next();
-        } else {
-            return res.status(403).json({ error: 'Forbidden: You do not own this session' });
-        }
+        if (cachedOwnerId === userId) return next();
+        return res.status(403).json({ error: 'Forbidden' });
     }
 
     try {
-        const sessionKey = `session:${sessionId}:owner`;
-        const ownerId = await redisClient.get(sessionKey);
-
-        if (!ownerId) {
-            return res.status(404).json({ error: 'Session not found or expired' });
-        }
-
-        // Update cache
+        const ownerId = await redisClient.get(`session:${sessionId}:owner`);
+        if (!ownerId) return res.status(404).json({ error: 'Session not found' });
         sessionCache.set(sessionId, ownerId);
-
-        if (ownerId !== userId) {
-            return res.status(403).json({ error: 'Forbidden: You do not own this session' });
-        }
-
+        if (ownerId !== userId) return res.status(403).json({ error: 'Forbidden' });
         next();
     } catch (err: any) {
-        // Sentinel: Log only message to avoid leaking sensitive internal state
         console.error('Session ownership check failed:', err?.message || 'Unknown error');
         res.status(500).json({ error: 'Internal server error' });
     }
@@ -467,24 +432,19 @@ app.post('/mcp', sessionLimiter, jsonParser, validateUserId, async (req: Request
     const userId = req.headers['x-user-id'] as string;
 
     const sessionId = crypto.randomUUID();
-    const sessionKey = `session:${sessionId}:owner`;
-
     try {
         // Store session ownership with 24-hour TTL (86400 seconds)
         await redisClient.set(sessionKey, userId, { EX: SESSION_TTL });
 
         // Optimization: Pre-warm the in-memory cache to skip the first Redis lookup (Bolt Optimization)
         sessionCache.set(sessionId, userId);
-
         res.status(201).json({ sessionId });
     } catch (err: any) {
-        // Sentinel: Log only message to avoid leaking sensitive internal state
         console.error('Session creation failed:', err?.message || 'Unknown error');
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// Check Session Ownership Endpoint
 app.get('/mcp/:sessionId/check', sessionLimiter, validateUserId, ensureSessionOwner, (req: Request, res: Response) => {
     res.json({ message: 'Session ownership verified', status: 'owned' });
 });
@@ -595,6 +555,6 @@ export { app };
 
 if (process.env.NODE_ENV !== 'test') {
     app.listen(PORT, () => {
-        console.log(`Cipher-tube server running on port ${PORT}`);
+        console.log(`Server running on port ${PORT}`);
     });
 }
