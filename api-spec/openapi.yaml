@@ -1,0 +1,152 @@
+openapi: 3.1.0
+info:
+  title: Cipher-tube API
+  version: 1.0.0
+  description: >
+    Cipher-tube modular OS API.
+    Provides session orchestration, tube management, message routing,
+    and system event introspection.
+
+servers:
+  - url: https://api.cipher-tube.com
+  - url: http://localhost:3000
+
+tags:
+  - name: sessions
+  - name: tubes
+  - name: messages
+  - name: system
+  - name: auth
+
+paths:
+  /auth/token:
+    post:
+      tags: [auth]
+      summary: Issue JWT token
+      operationId: issueToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                clientId:
+                  type: string
+                clientSecret:
+                  type: string
+      responses:
+        '200':
+          description: Token issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  expiresIn:
+                    type: integer
+        '401':
+          description: Invalid credentials
+
+  /sessions:
+    post:
+      tags: [sessions]
+      summary: Create a new session
+      operationId: createSession
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                metadata:
+                  type: object
+      responses:
+        '201':
+          description: Session created
+
+  /sessions/{sessionId}:
+    get:
+      tags: [sessions]
+      summary: Get session details
+      operationId: getSession
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session details
+
+  /tubes:
+    post:
+      tags: [tubes]
+      summary: Create a tube
+      operationId: createTube
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                config:
+                  type: object
+      responses:
+        '201':
+          description: Tube created
+
+  /messages:
+    post:
+      tags: [messages]
+      summary: Send a message into a tube
+      operationId: sendMessage
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tubeId:
+                  type: string
+                payload:
+                  type: object
+      responses:
+        '202':
+          description: Message accepted
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object

@@ -57,7 +57,7 @@ describe('Session Ownership API', () => {
 
     it('should allow the owner to check their session', async () => {
         // We use a real UUID for sessionId to satisfy validation
-        const sessionId = '550e8400-e29b-41d4-a716-446655440000';
+        const sessionId = '550e8400-e29b-41d4-8716-446655440000';
 
         // Mock redisClient.get to return the owner
         redisMock.get.mockResolvedValueOnce(userId);
@@ -71,7 +71,7 @@ describe('Session Ownership API', () => {
     });
 
     it('should return 403 if a different user checks the session', async () => {
-        const sessionId = '550e8400-e29b-41d4-a716-446655440000';
+        const sessionId = '550e8400-e29b-41d4-8716-446655440000';
 
         // Mock redisClient.get to return the original owner
         redisMock.get.mockResolvedValueOnce(userId);
@@ -84,7 +84,7 @@ describe('Session Ownership API', () => {
     });
 
     it('should return 404 if the session does not exist', async () => {
-        const sessionId = '550e8400-e29b-41d4-a716-446655440004';
+        const sessionId = '550e8400-e29b-41d4-8716-446655440004';
         redisMock.get.mockResolvedValueOnce(null);
 
         const checkRes = await request(app)

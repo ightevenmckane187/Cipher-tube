@@ -1,0 +1,379 @@
+{
+  "$schema": "https://cipher-tube.dev/schemas/compliance-mapping-v1.json",
+  "_framework": "WCAG 2.2 Level AA",
+  "_version": "1.0.0",
+  "lastreviewed": "2026-04-27",
+  "reviewcadence": "quarterly",
+  "_description": "Maps Cipher-tube Palette pillar controls to WCAG 2.2 Level AA success criteria. Each criterion identifies the implementing component, automated testing method, and current conformance status.",
+
+  "principles": [
+    {
+      "id": "1",
+      "name": "Perceivable",
+      "guidelines": [
+        {
+          "id": "1.1",
+          "name": "Text Alternatives",
+          "criteria": [
+            {
+              "id": "1.1.1",
+              "level": "A",
+              "title": "Non-text Content",
+              "description": "All non-text content has a text alternative that serves the equivalent purpose.",
+              "ciphertubeimplementation": "Palette component library requires alt text on all images, icons, and media. Design-token system includes aria-label mappings. axe-core scans enforce presence of text alternatives.",
+              "implementing_components": ["palette/", "ui/"],
+              "automated_testing": "axe-core rule: image-alt, input-image-alt, area-alt",
+              "status": "conformant",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "id": "1.3",
+          "name": "Adaptable",
+          "criteria": [
+            {
+              "id": "1.3.1",
+              "level": "A",
+              "title": "Info and Relationships",
+              "description": "Information, structure, and relationships conveyed through presentation can be programmatically determined.",
+              "ciphertubeimplementation": "Palette enforces semantic HTML structure. Headings, lists, tables, and form labels use appropriate elements. ARIA landmarks used for page regions.",
+              "implementing_components": ["palette/", "ui/"],
+              "automated_testing": "axe-core rules: heading-order, list, definition-list, table-fake-caption",
+              "status": "conformant",
+              "notes": ""
+            },
+            {
+              "id": "1.3.4",
+              "level": "AA",
+              "title": "Orientation",
+              "description": "Content does not restrict its view and operation to a single display orientation unless essential.",
+              "ciphertubeimplementation": "Palette CSS uses responsive layouts without orientation locks. Playwright cross-browser tests validate portrait and landscape rendering.",
+              "implementing_components": ["palette/", "themes/"],
+              "automated_testing": "Lighthouse audit, Playwright viewport tests",
+              "status": "conformant",
+              "notes": ""
+            },
+            {
+              "id": "1.3.5",
+              "level": "AA",
+              "title": "Identify Input Purpose",
+              "description": "The purpose of each input field collecting user information can be programmatically determined.",
+              "ciphertubeimplementation": "Palette form components include autocomplete attributes per HTML 5.2 input purposes. Design tokens define standard input-purpose mappings.",
+              "implementing_components": ["palette/", "ui/"],
+              "automated_testing": "axe-core rule: autocomplete-valid",
+              "status": "conformant",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "id": "1.4",
+          "name": "Distinguishable",
+          "criteria": [
+            {
+              "id": "1.4.1",
+              "level": "A",
+              "title": "Use of Color",
+              "description": "Color is not used as the only visual means of conveying information.",
+              "ciphertubeimplementation": "Palette design tokens include secondary indicators (icons, patterns, text labels) for all color-dependent states. Storybook a11y addon validates.",
+              "implementing_components": ["palette/", "themes/tokens/"],
+              "automated_testing": "Manual review + Storybook a11y addon",
+              "status": "conformant",
+              "notes": ""
+            },
+            {
+              "id": "1.4.3",
+              "level": "AA",
+              "title": "Contrast (Minimum)",
+              "description": "Text and images of text have a contrast ratio of at least 4.5:1 (3:1 for large text).",
+              "ciphertubeimplementation": "Design-token color system enforces minimum contrast ratios. Token validation script checks contrastRatio field on all color tokens. axe-core and Lighthouse audit contrast.",
+              "implementing_components": ["themes/tokens/", "palette/"],
+              "automated_testing": "axe-core rule: color-contrast; Lighthouse accessibility audit; token validation script",
+              "status": "conformant",
+              "notes": "contrastRatio field required on all color tokens — enforced by palette-a11y-check.yml"
+            },
+            {
+              "id": "1.4.4",
+              "level": "AA",
+              "title": "Resize Text",
+              "description": "Text can be resized up to 200% without loss of content or functionality.",
+              "ciphertubeimplementation": "Palette typography tokens use rem units exclusively. Layout uses CSS Grid/Flexbox with relative sizing. Token validation rejects non-rem font-size values.",
+              "implementing_components": ["themes/tokens/", "palette/"],
+              "automated_testing": "Token validation script (rem enforcement); Playwright zoom tests",
+              "status": "conformant",
+              "notes": "rem enforcement validated by palette-a11y-check.yml design token validation"
+            },
+            {
+              "id": "1.4.11",
+              "level": "AA",
+              "title": "Non-text Contrast",
+              "description": "UI components and graphical objects have a contrast ratio of at least 3:1 against adjacent colors.",
+              "ciphertubeimplementation": "Design tokens define border, focus-ring, and icon colors with minimum 3:1 contrast. axe-core scans validate interactive component contrast.",
+              "implementing_components": ["themes/tokens/", "palette/"],
+              "automated_testing": "axe-core graphical-object contrast checks",
+              "status": "conformant",
+              "notes": ""
+            },
+            {
+              "id": "1.4.13",
+              "level": "AA",
+              "title": "Content on Hover or Focus",
+              "description": "Additional content triggered by hover or focus is dismissible, hoverable, and persistent.",
+              "ciphertubeimplementation": "Palette tooltip and popover components implement dismissible (Escape key), hoverable (pointer can move to content), and persistent (remains until dismissed) behaviors.",
+              "implementing_components": ["palette/", "ui/"],
+              "automated_testing": "Playwright interaction tests; manual review",
+              "status": "conformant",
+              "notes": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "name": "Operable",
+      "guidelines": [
+        {
+          "id": "2.1",
+          "name": "Keyboard Accessible",
+          "criteria": [
+            {
+              "id": "2.1.1",
+              "level": "A",
+              "title": "Keyboard",
+              "description": "All functionality is operable through a keyboard interface.",
+              "ciphertubeimplementation": "Palette component library ensures all interactive elements are keyboard-operable. Tab order follows logical reading order. Custom widgets implement ARIA keyboard patterns.",
+              "implementing_components": ["palette/", "ui/"],
+              "automated_testing": "axe-core rule: keyboard; pa11y keyboard navigation; Playwright keyboard tests",
+              "status": "conformant",
+              "notes": ""
+            },
+            {
+              "id": "2.1.2",
+              "level": "A",
+              "title": "No Keyboard Trap",
+              "description": "Keyboard focus can be moved away from any component using standard navigation.",
+              "ciphertubeimplementation": "Palette modal and dialog components implement focus trapping with Escape key exit. No component traps focus without an exit mechanism.",
+              "implementing_components": ["palette/", "ui/"],
+              "automated_testing": "axe-core rule: no-trap; Playwright focus tests",
+              "status": "conformant",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "id": "2.4",
+          "name": "Navigable",
+          "criteria": [
+            {
+              "id": "2.4.1",
+              "level": "A",
+              "title": "Bypass Blocks",
+              "description": "A mechanism is available to bypass blocks of content repeated on multiple pages.",
+              "ciphertubeimplementation": "Palette layout includes skip-to-main-content link. ARIA landmark roles mark navigation, main, and complementary regions.",
+              "implementing_components": ["palette/", "ui/"],
+              "automated_testing": "axe-core rules: bypass, landmark-main-is-top-level",
+              "status": "conformant",
+              "notes": ""
+            },
+            {
+              "id": "2.4.7",
+              "level": "AA",
+              "title": "Focus Visible",
+              "description": "Any keyboard-operable UI has a visible keyboard focus indicator.",
+              "ciphertubeimplementation": "Palette design tokens define focus-ring styles with minimum 3:1 contrast. :focus-visible CSS pseudo-class used for keyboard-only focus indicators. Custom focus rings on all interactive components.",
+              "implementing_components": ["palette/", "themes/tokens/"],
+              "automated_testing": "axe-core rule: focus-visible; Lighthouse audit",
+              "status": "conformant",
+              "notes": ""
+            },
+            {
+              "id": "2.4.11",
+              "level": "AA",
+              "title": "Focus Not Obscured (Minimum)",
+              "description": "When a UI component receives keyboard focus, it is not entirely hidden by author-created content.",
+              "ciphertubeimplementation": "Palette z-index system ensures focused elements are never fully obscured by overlays, sticky headers, or other positioned content. Scroll-margin applied to focusable elements.",
+              "implementing_components": ["palette/", "themes/"],
+              "automated_testing": "Playwright focus-visibility tests; manual review",
+              "status": "conformant",
+              "notes": "New in WCAG 2.2"
+            }
+          ]
+        },
+        {
+          "id": "2.5",
+          "name": "Input Modalities",
+          "criteria": [
+            {
+              "id": "2.5.7",
+              "level": "AA",
+              "title": "Dragging Movements",
+              "description": "Functionality that uses dragging can be operated by a single pointer without dragging, unless dragging is essential.",
+              "ciphertubeimplementation": "Palette drag-and-drop components provide alternative single-click or button-based mechanisms (move up/down buttons, select-and-place). Keyboard arrow-key reordering available.",
+              "implementing_components": ["palette/", "ui/"],
+              "automated_testing": "Playwright interaction tests; manual review",
+              "status": "conformant",
+              "notes": "New in WCAG 2.2"
+            },
+            {
+              "id": "2.5.8",
+              "level": "AA",
+              "title": "Target Size (Minimum)",
+              "description": "Targets for pointer inputs are at least 24x24 CSS pixels, with exceptions.",
+              "ciphertubeimplementation": "Palette design tokens define minimum interactive target sizes (44x44 CSS px for mobile, 24x24 minimum for desktop). Component library enforces minimum tap targets.",
+              "implementing_components": ["palette/", "themes/tokens/"],
+              "automated_testing": "Lighthouse target-size audit; custom CSS lint rule",
+              "status": "conformant",
+              "notes": "New in WCAG 2.2. Palette exceeds minimum with 44x44 on mobile."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "name": "Understandable",
+      "guidelines": [
+        {
+          "id": "3.1",
+          "name": "Readable",
+          "criteria": [
+            {
+              "id": "3.1.1",
+              "level": "A",
+              "title": "Language of Page",
+              "description": "The default human language of each page can be programmatically determined.",
+              "ciphertubeimplementation": "Palette layout component sets lang attribute on the root HTML element. Theming engine supports RTL/LTR based on language direction.",
+              "implementing_components": ["palette/"],
+              "automated_testing": "axe-core rule: html-has-lang, html-lang-valid",
+              "status": "conformant",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "id": "3.2",
+          "name": "Predictable",
+          "criteria": [
+            {
+              "id": "3.2.6",
+              "level": "AA",
+              "title": "Consistent Help",
+              "description": "If a page contains help mechanisms, they occur in the same relative order across pages.",
+              "ciphertubeimplementation": "Palette navigation component places help link in consistent position across all views. Help mechanism included in standard layout template.",
+              "implementing_components": ["palette/", "ui/"],
+              "automated_testing": "Manual review; Storybook visual regression",
+              "status": "conformant",
+              "notes": "New in WCAG 2.2"
+            }
+          ]
+        },
+        {
+          "id": "3.3",
+          "name": "Input Assistance",
+          "criteria": [
+            {
+              "id": "3.3.1",
+              "level": "A",
+              "title": "Error Identification",
+              "description": "If an input error is automatically detected, the item in error is identified and described to the user in text.",
+              "ciphertubeimplementation": "Palette form components display inline error messages associated with aria-describedby. Error states use both color and icon indicators.",
+              "implementing_components": ["palette/", "ui/"],
+              "automated_testing": "axe-core rule: aria-valid-attr-value; Playwright form tests",
+              "status": "conformant",
+              "notes": ""
+            },
+            {
+              "id": "3.3.7",
+              "level": "A",
+              "title": "Redundant Entry",
+              "description": "Information previously entered by or provided to the user that is required to be entered again is either auto-populated or available for the user to select.",
+              "ciphertubeimplementation": "Palette form components implement auto-fill and session-based data persistence for multi-step flows. Previously entered values available via select/autocomplete.",
+              "implementing_components": ["palette/", "ui/"],
+              "automated_testing": "Playwright multi-step form tests; manual review",
+              "status": "conformant",
+              "notes": "New in WCAG 2.2"
+            },
+            {
+              "id": "3.3.8",
+              "level": "AA",
+              "title": "Accessible Authentication (Minimum)",
+              "description": "A cognitive function test is not required for any step in an authentication process unless an alternative is provided.",
+              "ciphertubeimplementation": "Palette authentication flows support password managers (no copy-paste blocking), WebAuthn/passkeys, and do not require CAPTCHA as the sole authentication method.",
+              "implementing_components": ["palette/", "ui/"],
+              "automated_testing": "Manual review; Playwright authentication flow tests",
+              "status": "conformant",
+              "notes": "New in WCAG 2.2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "name": "Robust",
+      "guidelines": [
+        {
+          "id": "4.1",
+          "name": "Compatible",
+          "criteria": [
+            {
+              "id": "4.1.2",
+              "level": "A",
+              "title": "Name, Role, Value",
+              "description": "For all UI components, the name and role can be programmatically determined; states, properties, and values can be programmatically set.",
+              "ciphertubeimplementation": "Palette component library uses semantic HTML elements with ARIA attributes where custom widgets are needed. All interactive components expose accessible name, role, and state.",
+              "implementing_components": ["palette/", "ui/"],
+              "automated_testing": "axe-core rules: aria-roles, aria-required-attr, aria-valid-attr",
+              "status": "conformant",
+              "notes": ""
+            }
+          ]
+        }
+      ]
+    }
+  ],
+
+  "testing_infrastructure": {
+    "automated_tools": [
+      {
+        "tool": "axe-core",
+        "version": "latest",
+        "scope": "Component-level and page-level scans",
+        "ci_integration": "palette-a11y-check.yml",
+        "wcag_coverage": "WCAG 2.0 A/AA, WCAG 2.1 A/AA, WCAG 2.2 AA (partial)"
+      },
+      {
+        "tool": "Lighthouse",
+        "version": "latest",
+        "scope": "Page-level accessibility scoring",
+        "ci_integration": "palette-a11y-check.yml",
+        "wcag_coverage": "WCAG 2.1 A/AA (scoring-based)"
+      },
+      {
+        "tool": "pa11y",
+        "version": "latest",
+        "scope": "Page-level standards compliance",
+        "ci_integration": "palette-a11y-check.yml",
+        "wcag_coverage": "WCAG 2.1 AA"
+      },
+      {
+        "tool": "Playwright",
+        "version": "latest",
+        "scope": "Cross-browser keyboard, focus, and interaction testing",
+        "ci_integration": "palette-a11y-check.yml",
+        "wcag_coverage": "Behavioral criteria (keyboard, focus, drag alternatives)"
+      },
+      {
+        "tool": "Storybook a11y addon",
+        "version": "latest",
+        "scope": "Component development-time accessibility feedback",
+        "ci_integration": "Storybook build in palette-a11y-check.yml",
+        "wcag_coverage": "WCAG 2.1 A/AA via axe-core integration"
+      }
+    ],
+    "manualreviewcadence": "quarterly",
+    "manualreviewscope": "All WCAG 2.2 AA criteria not fully covered by automated tools, including cognitive and contextual criteria (3.2.6, 3.3.7, 3.3.8, 2.5.7, 2.5.8, 2.4.11)"
+  }
+}

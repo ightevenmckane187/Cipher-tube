@@ -1,0 +1,133 @@
+
+
+============================================================================
+
+CODEOWNERS — Cipher-tube
+
+============================================================================
+
+
+
+This file defines code-ownership rules that drive automatic PR review
+
+assignment. Ownership aligns with the pillar-based governance model
+
+documented in CONTRIBUTING.md.
+
+
+
+Rules are evaluated bottom-to-top — later patterns take precedence.
+
+Teams must be created under the GitHub organization before this file
+
+takes effect. Replace @cipher-tube/ prefixes with your org handle.
+
+============================================================================
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+DEFAULT — catches anything not matched by a more specific rule
+
+──────────────────────────────────────────────────────────────────────────────
+
+*                                   @cipher-tube/maintainers
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+SENTINEL PILLAR — Security, crypto, policy enforcement, audit
+
+──────────────────────────────────────────────────────────────────────────────
+
+/sentinel/                          @cipher-tube/sentinel-maintainers
+/security/                          @cipher-tube/sentinel-maintainers
+/governance/policies/               @cipher-tube/sentinel-maintainers @cipher-tube/project-leads
+/governance/compliance/             @cipher-tube/sentinel-maintainers @cipher-tube/project-leads
+/governance/allowed-deps.json       @cipher-tube/sentinel-maintainers
+/.github/workflows/sentinel-*.yml  @cipher-tube/sentinel-maintainers @cipher-tube/project-leads
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+BOLT PILLAR — Performance, scaling, benchmarks, resource budgets
+
+──────────────────────────────────────────────────────────────────────────────
+
+/bolt/                              @cipher-tube/bolt-maintainers
+/benchmarks/                        @cipher-tube/bolt-maintainers
+/perf/                              @cipher-tube/bolt-maintainers
+/.github/workflows/bolt-*.yml      @cipher-tube/bolt-maintainers @cipher-tube/project-leads
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+PALETTE PILLAR — UX, accessibility, theming, interaction telemetry
+
+──────────────────────────────────────────────────────────────────────────────
+
+/palette/                           @cipher-tube/palette-maintainers
+/ui/                                @cipher-tube/palette-maintainers
+/themes/                            @cipher-tube/palette-maintainers
+/.github/workflows/palette-*.yml   @cipher-tube/palette-maintainers @cipher-tube/project-leads
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+TUBE LAYER — Shared ownership (cryptographic inter-pillar transport)
+
+──────────────────────────────────────────────────────────────────────────────
+
+/tube/                              @cipher-tube/sentinel-maintainers @cipher-tube/bolt-maintainers @cipher-tube/palette-maintainers
+/crypto/                            @cipher-tube/sentinel-maintainers @cipher-tube/bolt-maintainers
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+GOVERNANCE — Policy-as-code, trust tiers, CI config
+
+Requires project-lead sign-off per CONTRIBUTING.md §Governance
+
+──────────────────────────────────────────────────────────────────────────────
+
+/governance/                        @cipher-tube/sentinel-maintainers @cipher-tube/project-leads
+/.github/CONTRIBUTING.md            @cipher-tube/project-leads
+/SECURITY.md                        @cipher-tube/sentinel-maintainers @cipher-tube/project-leads
+/.github/CODEOWNERS                 @cipher-tube/project-leads
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+CI / CD PIPELINES — Infrastructure-as-code
+
+──────────────────────────────────────────────────────────────────────────────
+
+/.github/workflows/                 @cipher-tube/maintainers @cipher-tube/project-leads
+/Makefile                           @cipher-tube/maintainers
+/docker-compose*.yml                @cipher-tube/maintainers
+/Dockerfile*                        @cipher-tube/maintainers
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+DOCUMENTATION
+
+──────────────────────────────────────────────────────────────────────────────
+
+/docs/                              @cipher-tube/maintainers
+/docs/threat-model/                 @cipher-tube/sentinel-maintainers
+/README.md                          @cipher-tube/project-leads
+/CHANGELOG.md                       @cipher-tube/maintainers
+
+
+──────────────────────────────────────────────────────────────────────────────
+
+DEPENDENCY LOCK FILES — Sentinel reviews all dependency changes
+
+──────────────────────────────────────────────────────────────────────────────
+
+package-lock.json                   @cipher-tube/sentinel-maintainers
+poetry.lock                         @cipher-tube/sentinel-maintainers
+Cargo.lock                          @cipher-tube/sentinel-maintainers
+yarn.lock                           @cipher-tube/sentinel-maintainers
+pnpm-lock.yaml                     @cipher-tube/sentinel-maintainers

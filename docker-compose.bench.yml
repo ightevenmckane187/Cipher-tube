@@ -1,0 +1,74 @@
+services:
+  # OPA — Policy Engine (minimal config for benchmarks)
+  opa:
+    image: openpolicyagent/opa:0.68.0
+    command: run --server --addr :8181 /policies
+    volumes:
+      - ./governance/policies:/policies:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8181/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Tube Layer — Inter-Pillar Transport (benchmark mode)
+  tube:
+    build:
+      context: ./tube
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - TUBE_PORT=3000
+      - TUBETLSVERSION=1.3
+      - TUBEMTLSENABLED=false
+      - OPA_ENDPOINT=http://opa:8181
+      - LOG_LEVEL=warn
+    depends_on:
+      opa:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Bolt — Performance Pillar (benchmark target)
+  bolt:
+    build:
+      context: ./bolt
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - BOLT_PORT=3002
+      - TUBE_ENDPOINT=http://tube:3000
+      - LOG_LEVEL=warn
+    depends_on:
+      tube:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Benchmark Runner
+  bench-runner:
+    build:
+      context: ./bolt
+      dockerfile: Dockerfile
+    entrypoint: ["sh", "-c", "sleep 5 && npm run benchmark -- --json > /results/benchmark-results.json"]
+    environment:
+      - BOLT_ENDPOINT=http://bolt:3002
+      - TUBE_ENDPOINT=http://tube:3000
+      - BENCHMARK_ITERATIONS=1000
+      - BENCHMARK_WARMUP=100
+      - BENCHMARK_CONCURRENCY=10
+    volumes:
+      - bench-results:/results
+    depends_on:
+      bolt:
+        condition: service_healthy
+
+volumes:
+  bench-results:
+    driver: local
