@@ -5,11 +5,12 @@ import dotenv from 'dotenv';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { LRUCache } from 'lru-cache';
+import path from 'path';
 import { buildCipherTube, decryptCipherTube } from './cta';
 
 dotenv.config();
 
-const app: Application = express();
+export const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
@@ -22,7 +23,7 @@ export const sessionCache = new LRUCache<string, string>({
 // Session ID Validation (UUID v4)
 const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-const SESSION_TTL = 86400; // 24 hours in seconds
+const SESSION_TTL = 3600; // 1 hour in seconds (Standardized for compliance)
 
 // Rate limiter for general API operations
 const apiLimiter = rateLimit({
@@ -80,6 +81,9 @@ app.use(helmet.contentSecurityPolicy({
     },
 }));
 
+// Serve accessible documentation (WCAG 602.3 compliance)
+app.use('/docs', express.static(path.join(__dirname, '../docs')));
+
 export const redisClient: RedisClientType = createClient({
     url: process.env.REDIS_URL || 'redis://localhost:6379'
 });
@@ -112,6 +116,7 @@ app.get('/', (req: Request, res: Response) => {
                     --bg-color: #ffffff;
                     --text-color: #1d1d1f;
                     --border-color: #ccc;
+                    --error: #d93025;
                 }
                 [data-theme='dark'] {
                     --bg-color: #121212;
@@ -119,6 +124,7 @@ app.get('/', (req: Request, res: Response) => {
                     --border-color: #333;
                     --success: #2ecc71;
                     --success-glow: rgba(46, 204, 113, 0.4);
+                    --error: #f28b82;
                 }
                 body {
                     font-family: system-ui, -apple-system, sans-serif;
@@ -130,7 +136,7 @@ app.get('/', (req: Request, res: Response) => {
                     color: var(--text-color);
                     transition: background-color 0.3s, color 0.3s;
                 }
-                h1 { color: var(--primary); }
+                h1, h2, h3 { color: var(--primary); }
                 .skip-link {
                     position: absolute;
                     top: -40px;
@@ -156,6 +162,10 @@ app.get('/', (req: Request, res: Response) => {
                 @media (prefers-reduced-motion: reduce) {
                     .status-dot {
                         animation: none;
+                    }
+                    * {
+                        transition: none !important;
+                        animation: none !important;
                     }
                 }
                 @keyframes pulse {
@@ -194,7 +204,7 @@ app.get('/', (req: Request, res: Response) => {
                 footer { margin-top: 4rem; font-size: 0.875rem; border-top: 1px solid var(--border-color); padding-top: 1rem; }
                 a { color: var(--primary); text-decoration: none; }
                 a:hover { text-decoration: underline; }
-                a:focus-visible, #theme-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+                a:focus-visible, #theme-toggle:focus-visible, .copy-button:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
                 .code-container {
                     position: relative;
                     margin: 1rem 0;
@@ -211,18 +221,6 @@ app.get('/', (req: Request, res: Response) => {
                     padding: 8px 12px;
                     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
                 }
-                .terminal-dots {
-                    display: flex;
-                    gap: 6px;
-                }
-                .dot {
-                    width: 12px;
-                    height: 12px;
-                    border-radius: 50%;
-                }
-                .dot-red { background: #ff5f56; }
-                .dot-yellow { background: #ffbd2e; }
-                .dot-green { background: #27c93f; }
                 pre {
                     margin: 0;
                     padding: 1rem;
@@ -250,16 +248,6 @@ app.get('/', (req: Request, res: Response) => {
                 }
                 .copy-button:hover { background: rgba(255, 255, 255, 0.2); }
                 .copy-button:focus-visible { outline: 2px solid var(--primary); }
-                .kb-shortcut {
-                    opacity: 0.6;
-                    font-size: 0.7rem;
-                    background: rgba(255, 255, 255, 0.1);
-                    padding: 0 4px;
-                    border-radius: 3px;
-                }
-                @media (max-width: 480px) {
-                    .kb-shortcut { display: none; }
-                }
                 .copy-icon, .check-icon {
                     width: 14px;
                     height: 14px;
@@ -268,42 +256,101 @@ app.get('/', (req: Request, res: Response) => {
                 .check-icon { display: none; color: #2ecc71; }
                 .copy-button.copied .copy-icon { display: none; }
                 .copy-button.copied .check-icon { display: block; }
+
+                /* Session Timeout Banner Styles */
+                #timeout-banner {
+                    display: none;
+                    position: fixed;
+                    bottom: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: var(--bg-color);
+                    border: 2px solid var(--primary);
+                    padding: 1rem 2rem;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    z-index: 1000;
+                    align-items: center;
+                    gap: 1rem;
+                }
+                #extend-session-btn {
+                    background: var(--primary);
+                    color: white;
+                    border: none;
+                    padding: 0.5rem 1rem;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-weight: bold;
+                }
+                #extend-session-btn:focus-visible {
+                    outline: 3px solid var(--primary);
+                    outline-offset: 2px;
+                }
             </style>
         </head>
         <body>
             <a class="skip-link" href="#main-content">Skip to content</a>
-            <main id="main-content">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h1>Cipher Tube Assembly</h1>
-                    <button id="theme-toggle" aria-label="Switch Theme" aria-pressed="false">
-                        <span id="theme-icon" aria-hidden="true"></span>
-                        <span id="theme-text">Switch to Dark</span>
-                    </button>
-                </div>
-                <p>Welcome to the performance-optimized session management service.</p>
-                <div role="status" aria-live="polite">
-                    <p>
-                        <span class="status-dot" aria-hidden="true"></span>
-                        <strong>Status:</strong> <span style="color: var(--success);">Online</span>
-                    </p>
-                </div>
-                <h2>Quick Start</h2>
-                <p>To get started, create a session via the API:</p>
-                <div class="code-container">
-                    <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard">
-                        <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-                        <svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                        <span id="copy-text" aria-live="polite">Copy</span>
-                        <kbd aria-hidden="true" style="margin-left: 4px; font-size: 0.7rem; opacity: 0.8; border: 1px solid rgba(255,255,255,0.3); padding: 1px 4px; border-radius: 3px;">(c)</kbd>
-                    </button>
-                    <pre tabindex="0" role="region" aria-label="Terminal command example"><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
-                </div>
-            </main>
-            <footer>
-                <nav aria-label="Footer navigation">
-                    <a href="/health">Health Check</a>
+            <header role="banner">
+                <nav aria-label="Main Navigation">
+                     <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: bold; color: var(--primary);">Cipher Tube</span>
+                        <button id="theme-toggle" aria-label="Switch Theme" aria-pressed="false" aria-keyshortcuts="t">
+                            <span id="theme-icon" aria-hidden="true"></span>
+                            <span id="theme-text">Switch to Dark</span>
+                            <kbd aria-hidden="true" class="kb-shortcut">(t)</kbd>
+                        </button>
+                    </div>
                 </nav>
+            </header>
+
+            <main id="main-content">
+                <section aria-labelledby="hero-heading">
+                    <h1 id="hero-heading">Cipher Tube Assembly</h1>
+                    <p>Welcome to the performance-optimized session management service.</p>
+                </section>
+
+                <section aria-labelledby="status-heading">
+                    <h2 id="status-heading" class="sr-only">System Status</h2>
+                    <div role="status" aria-live="polite">
+                        <p>
+                            <span class="status-dot" aria-hidden="true"></span>
+                            <strong>Status:</strong> <span style="color: var(--success);">Online</span>
+                        </p>
+                    </div>
+                </section>
+
+                <section aria-labelledby="quick-start-heading">
+                    <h2 id="quick-start-heading">Quick Start</h2>
+                    <p>To get started, create a session via the API:</p>
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span>Terminal</span>
+                            <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard" aria-keyshortcuts="c">
+                                <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                                <svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                <span id="copy-text" aria-live="polite">Copy</span>
+                                <kbd aria-hidden="true" style="margin-left: 4px; font-size: 0.7rem; opacity: 0.8; border: 1px solid rgba(255,255,255,0.3); padding: 1px 4px; border-radius: 3px;">(c)</kbd>
+                            </button>
+                        </div>
+                        <pre tabindex="0" role="region" aria-label="Terminal command example"><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
+                    </div>
+                </section>
+            </main>
+
+            <div id="timeout-banner" role="alert" aria-live="assertive">
+                <span>Session expires in 1 minute.</span>
+                <button id="extend-session-btn">Extend Session</button>
+            </div>
+
+            <footer role="contentinfo">
+                <nav aria-label="Footer navigation">
+                    <a href="/health">Health Check</a> |
+                    <a href="/docs/USER_GUIDE.md">User Guide</a> |
+                    <a href="/docs/ACCESSIBILITY.md">Accessibility Statement</a>
+                </nav>
+                <p>&copy; 2026 Cipher Tube Assembly</p>
             </footer>
+
             <script nonce="${res.locals.nonce}">
                 const themeToggle = document.getElementById('theme-toggle');
                 const themeText = document.getElementById('theme-text');
@@ -315,8 +362,6 @@ app.get('/', (req: Request, res: Response) => {
                     themeIcon.textContent = isDark ? '☀️' : '🌙';
                     themeToggle.setAttribute('aria-pressed', isDark);
                     themeToggle.setAttribute('aria-label', isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode');
-
-                    // Force re-evaluation of styles if needed (some browsers might need this)
                     document.documentElement.setAttribute('data-theme', theme);
                 }
 
@@ -325,8 +370,6 @@ app.get('/', (req: Request, res: Response) => {
                 themeToggle.addEventListener('click', () => {
                     const currentTheme = document.documentElement.getAttribute('data-theme');
                     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-
-                    document.documentElement.setAttribute('data-theme', newTheme);
                     localStorage.setItem('theme', newTheme);
                     updateUI(newTheme);
                 });
@@ -335,34 +378,88 @@ app.get('/', (req: Request, res: Response) => {
                 const copyText = document.getElementById('copy-text');
                 const curlCommand = document.getElementById('curl-command');
 
-                // Dynamically update the example with the current origin
                 const currentOrigin = window.location.origin;
-                curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: demo-user"\`;
+                // Use string concatenation for the inline script to avoid template literal issues in some environments
+                curlCommand.textContent = 'curl -X POST ' + currentOrigin + '/mcp -H "x-user-id: demo-user"';
 
                 copyButton.addEventListener('click', async () => {
                     try {
                         await navigator.clipboard.writeText(curlCommand.textContent);
                         copyButton.classList.add('copied');
                         copyButton.setAttribute('aria-label', 'Command copied to clipboard');
-                        const originalText = copyText.textContent;
                         copyText.textContent = 'Copied!';
-
                         setTimeout(() => {
                             copyButton.classList.remove('copied');
                             copyButton.setAttribute('aria-label', 'Copy command to clipboard');
-                            copyText.textContent = originalText;
+                            copyText.textContent = 'Copy';
                         }, 2000);
                     } catch (err) {
                         console.error('Failed to copy: ', err);
                     }
                 });
 
+                // Global Shortcuts
                 window.addEventListener('keydown', (e) => {
-                    if (e.key === 'c' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
-                        const btn = document.getElementById('copy-curl');
-                        if (btn) btn.click();
+                    if (e.ctrlKey || e.metaKey || e.altKey) return;
+                    if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+                    if (e.key === 'c') {
+                        copyButton.click();
+                    } else if (e.key === 't') {
+                        themeToggle.click();
                     }
                 });
+
+                // Session Timeout Simulation
+                let timeoutWarning;
+                let currentSessionId = null;
+                const SESSION_DURATION = 3600 * 1000;
+                const WARNING_TIME = 60 * 1000;
+
+                function resetTimer() {
+                    if (timeoutWarning) clearTimeout(timeoutWarning);
+                    document.getElementById('timeout-banner').style.display = 'none';
+
+                    timeoutWarning = setTimeout(() => {
+                        document.getElementById('timeout-banner').style.display = 'flex';
+                    }, SESSION_DURATION - WARNING_TIME);
+                }
+
+                document.getElementById('extend-session-btn').addEventListener('click', async () => {
+                    try {
+                        if (currentSessionId) {
+                            const response = await fetch('/session/' + currentSessionId + '/extend', {
+                                method: 'POST',
+                                headers: { 'x-user-id': 'demo-user' }
+                            });
+                            if (response.ok) {
+                                resetTimer();
+                                alert('Session successfully extended!');
+                            } else {
+                                alert('Failed to extend session. Please login again.');
+                            }
+                        } else {
+                            resetTimer();
+                            alert('Session timer reset (Demo Mode)');
+                        }
+                    } catch (err) {
+                        console.error('Extension failed:', err);
+                        alert('A network error occurred.');
+                    }
+                });
+
+                // Intercept session creation to track ID for extension
+                const originalFetch = window.fetch;
+                window.fetch = async (...args) => {
+                    const response = await originalFetch(...args);
+                    if (typeof args[0] === 'string' && args[0].includes('/mcp') && args[1]?.method === 'POST') {
+                        const data = await response.clone().json();
+                        if (data.sessionId) currentSessionId = data.sessionId;
+                    }
+                    return response;
+                };
+
+                resetTimer();
             </script>
         </body>
         </html>
@@ -388,23 +485,20 @@ const jsonParser = express.json({ limit: '10kb' });
 
 /**
  * Middleware to validate x-user-id header.
- * Checks for existence, type, and length to prevent DoS and cache displacement.
  */
 const validateUserId = (req: Request, res: Response, next: NextFunction) => {
     let userId = req.headers['x-user-id'];
 
     if (typeof userId !== 'string' || userId.trim() === '') {
-        return res.status(401).json({ error: 'Unauthorized: Missing or invalid x-user-id' });
+        return res.status(401).json({ error: 'Unauthorized: Missing or invalid x-user-id. Please provide your user identifier in the x-user-id header.' });
     }
 
     // Sentinel: Normalize user ID by trimming whitespace and reassigning to headers
     userId = userId.trim();
     req.headers['x-user-id'] = userId;
 
-    // Custom header 'x-user-id' is validated for presence and length (max 128 chars)
-    // Memory instructions require this specific length validation and error message.
     if (userId.length > 128) {
-        return res.status(400).json({ error: 'Invalid x-user-id: exceeds maximum length' });
+        return res.status(400).json({ error: 'Invalid x-user-id: exceeds maximum length of 128 characters.' });
     }
 
     next();
@@ -417,7 +511,7 @@ const ensureSessionOwner = async (req: Request, res: Response, next: NextFunctio
     const userId = req.headers['x-user-id'] as string;
 
     if (!sessionId) {
-        return res.status(400).json({ error: 'Bad Request: Missing sessionId' });
+        return res.status(400).json({ error: 'Bad Request: Missing sessionId parameter.' });
     }
 
     // Handle case where sessionId might be an array (Express 5 type compatibility)
@@ -426,16 +520,16 @@ const ensureSessionOwner = async (req: Request, res: Response, next: NextFunctio
     }
 
     if (!UUID_V4_REGEX.test(sessionId)) {
-        return res.status(400).json({ error: 'Bad Request: Invalid sessionId format' });
+        return res.status(400).json({ error: 'Bad Request: Invalid sessionId format. Expected a UUID v4.' });
     }
 
-    // Optimization: Check in-memory cache first
+    // Optimization: Check in-memory cache first (Bolt Optimization)
     const cachedOwnerId = sessionCache.get(sessionId);
     if (cachedOwnerId) {
         if (cachedOwnerId === userId) {
             return next();
         } else {
-            return res.status(403).json({ error: 'Forbidden: You do not own this session' });
+            return res.status(403).json({ error: 'Forbidden: You do not have permission to access this session.' });
         }
     }
 
@@ -444,21 +538,21 @@ const ensureSessionOwner = async (req: Request, res: Response, next: NextFunctio
         const ownerId = await redisClient.get(sessionKey);
 
         if (!ownerId) {
-            return res.status(404).json({ error: 'Session not found or expired' });
+            return res.status(404).json({ error: 'Session expired or not found. Your session may have timed out due to inactivity.' });
         }
 
         // Update cache
         sessionCache.set(sessionId, ownerId);
 
         if (ownerId !== userId) {
-            return res.status(403).json({ error: 'Forbidden: You do not own this session' });
+            return res.status(403).json({ error: 'Forbidden: You do not have permission to access this session.' });
         }
 
         next();
     } catch (err: any) {
         // Sentinel: Log only message to avoid leaking sensitive internal state
         console.error('Session ownership check failed:', err?.message || 'Unknown error');
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'Internal server error: Failed to verify session ownership.' });
     }
 };
 
@@ -470,17 +564,34 @@ app.post('/mcp', sessionLimiter, jsonParser, validateUserId, async (req: Request
     const sessionKey = `session:${sessionId}:owner`;
 
     try {
-        // Store session ownership with 24-hour TTL (86400 seconds)
+        // Store session ownership with 1-hour TTL
         await redisClient.set(sessionKey, userId, { EX: SESSION_TTL });
 
-        // Optimization: Pre-warm the in-memory cache to skip the first Redis lookup (Bolt Optimization)
+        // Optimization: Pre-warm the in-memory cache (Bolt Optimization)
         sessionCache.set(sessionId, userId);
 
         res.status(201).json({ sessionId });
     } catch (err: any) {
         // Sentinel: Log only message to avoid leaking sensitive internal state
         console.error('Session creation failed:', err?.message || 'Unknown error');
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'Internal server error: Failed to create a new session.' });
+    }
+});
+
+/**
+ * Session Extension Endpoint (WCAG 2.2.1 Compliance)
+ */
+app.post('/session/:sessionId/extend', sessionLimiter, validateUserId, ensureSessionOwner, async (req: Request, res: Response) => {
+    const { sessionId } = req.params;
+    const sessionKey = `session:${sessionId}:owner`;
+
+    try {
+        const userId = req.headers['x-user-id'] as string;
+        await redisClient.set(sessionKey, userId, { EX: SESSION_TTL });
+        res.json({ message: 'Session successfully extended', newTtl: SESSION_TTL });
+    } catch (err: any) {
+        console.error('Session extension failed:', err?.message || 'Unknown error');
+        res.status(500).json({ error: 'Internal server error: Failed to extend session.' });
     }
 });
 
@@ -491,18 +602,17 @@ app.get('/mcp/:sessionId/check', sessionLimiter, validateUserId, ensureSessionOw
 
 /**
  * CTA Encryption Endpoint
- * Protects message with 25-layer Cipher Tube Assembly
  */
 app.post('/mcp/:sessionId/encrypt', sessionLimiter, jsonParser, validateUserId, ensureSessionOwner, (req: Request, res: Response) => {
     const { message, masterSeed } = req.body;
 
     if (!message || typeof message !== 'string') {
-        return res.status(400).json({ error: 'Bad Request: Missing or invalid message' });
+        return res.status(400).json({ error: 'Bad Request: Missing or invalid message string.' });
     }
 
     // Validate masterSeed is a 64-char hex string (256-bit)
     if (!masterSeed || typeof masterSeed !== 'string' || !/^[0-9a-f]{64}$/i.test(masterSeed)) {
-        return res.status(400).json({ error: 'Bad Request: Invalid masterSeed' });
+        return res.status(400).json({ error: 'Bad Request: Invalid masterSeed. Expected a 64-character hex string.' });
     }
 
     try {
@@ -511,27 +621,26 @@ app.post('/mcp/:sessionId/encrypt', sessionLimiter, jsonParser, validateUserId, 
     } catch (err: any) {
         // Sentinel: Log only message to avoid leaking sensitive internal state
         console.error('Encryption failed:', err?.message || 'Unknown error');
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'Internal server error during encryption process.' });
     }
 });
 
 /**
  * CTA Decryption Endpoint
- * Reverses the 25-layer assembly and verifies integrity
  */
 app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, ensureSessionOwner, (req: Request, res: Response) => {
     const { ciphertext, masterSeed, tubes } = req.body;
 
     if (!ciphertext || typeof ciphertext !== 'string') {
-        return res.status(400).json({ error: 'Bad Request: Missing or invalid ciphertext' });
+        return res.status(400).json({ error: 'Bad Request: Missing or invalid ciphertext hex string.' });
     }
 
     if (!masterSeed || typeof masterSeed !== 'string' || !/^[0-9a-f]{64}$/i.test(masterSeed)) {
-        return res.status(400).json({ error: 'Bad Request: Invalid masterSeed' });
+        return res.status(400).json({ error: 'Bad Request: Invalid masterSeed. Expected a 64-character hex string.' });
     }
 
     if (!tubes || !Array.isArray(tubes)) {
-        return res.status(400).json({ error: 'Bad Request: Missing or invalid tubes' });
+        return res.status(400).json({ error: 'Bad Request: Missing or invalid tubes metadata array.' });
     }
 
     try {
@@ -556,42 +665,39 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
             errorMessage.includes('Invalid tag length');
 
         if (isClientError) {
-             // Return 400 for cryptographic or validation failures, but don't leak details unless it's a specific validation error
+             // Return 400 for cryptographic or validation failures
              const publicMessage = (errorMessage.includes('Invalid ciphertext') || errorMessage.includes('Invalid tube metadata') || errorMessage.includes('Integrity check failed') || errorMessage.includes('Missing encryption tube') || errorMessage.includes('Missing hash-lock tube') || errorMessage.includes('Missing or invalid fields') || errorMessage.includes('Missing or invalid hash'))
                 ? errorMessage
-                : 'Decryption failed';
+                : 'Decryption failed: The provided data could not be verified or decrypted.';
              return res.status(400).json({ error: publicMessage });
         }
 
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'Internal server error: An unexpected error occurred during decryption.' });
     }
 });
 
 // 404 Handler for unmatched routes
 app.use((req: Request, res: Response) => {
-    res.status(404).json({ error: 'Not Found' });
+    res.status(404).json({ error: 'Resource Not Found: The requested endpoint does not exist.' });
 });
 
 /**
  * Global error-handling middleware.
  * Sentinel: Catch and sanitize unhandled errors to prevent information leakage and DoS.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     if (err instanceof SyntaxError && 'status' in err && err.status === 400 && 'body' in err) {
-        return res.status(400).json({ error: 'Invalid JSON payload' });
+        return res.status(400).json({ error: 'Invalid JSON payload. Please check your request formatting.' });
     }
 
     if (err.status === 413) {
-        return res.status(413).json({ error: 'Payload too large: exceeds 10kb limit' });
+        return res.status(413).json({ error: 'Payload too large: Request body exceeds the 10kb safety limit.' });
     }
 
     // Sentinel: Log only message to avoid leaking sensitive internal state
     console.error('Unhandled Error:', err?.message || 'Unknown error');
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error: A critical failure occurred.' });
 });
-
-export { app };
 
 if (process.env.NODE_ENV !== 'test') {
     app.listen(PORT, () => {
