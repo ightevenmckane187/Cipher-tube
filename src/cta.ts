@@ -32,8 +32,8 @@ const AUDIT_LAYER_ENCRYPTION = Array.from({ length: NUM_ENCRYPTION_LAYERS }, (_,
 const AUDIT_DECRYPT_LAYER = Array.from({ length: NUM_ENCRYPTION_LAYERS }, (_, i) => `Decrypted AES-256-GCM layer ${i}`);
 const AUDIT_VERIFY_TUBE = Array.from({ length: NUM_INTEGRITY_TUBES }, (_, i) => `Verified hash-lock tube ${i}`);
 
-function deriveKey(master: Buffer, salt: Buffer, info: string | Buffer): Buffer {
-  return Buffer.from(crypto.hkdfSync('sha256', master, salt, info, 32));
+function deriveKey(master: Buffer, salt: Buffer, info: string | Buffer): ArrayBuffer {
+  return crypto.hkdfSync('sha256', master, salt, info, 32);
 }
 
 /**
@@ -90,13 +90,14 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
     const info = ENCRYPTION_INFOS[j] || `enc-${j}`;
     const key = deriveKey(masterSeed, salt, info);
 
-    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-    const update = cipher.update(current);
-    const final = cipher.final();
+    // Bolt Optimization: Use ArrayBuffer directly from deriveKey
+    const cipher = crypto.createCipheriv('aes-256-gcm', new Uint8Array(key), iv);
+    const ciphertext = cipher.update(current);
+    cipher.final(); // Must call final() before getAuthTag() even if it returns empty buffer
     const tag = cipher.getAuthTag();
 
-    // Bolt Optimization: Single Buffer.concat to reduce intermediate allocations
-    current = Buffer.concat([iv, tag, update, final]);
+    // Bolt Optimization: Single Buffer.concat without intermediate final() result (it's empty for GCM)
+    current = Buffer.concat([iv, tag, ciphertext]);
 
     tubes.push({
       layer: layerId,
@@ -162,18 +163,18 @@ export function decryptCipherTube(
 
   const audit: string[] = [];
 
-  // Bolt Optimization: Use a single loop to build the tube map, avoiding intermediate arrays
-  const tubeMap = new Map<number, Tube>();
+  // Bolt Optimization: Use a fixed-size array for O(1) lookups instead of a Map
+  const tubeArray = new Array<Tube>(NUM_INTEGRITY_TUBES + NUM_ENCRYPTION_LAYERS);
   for (const tube of tubes) {
     if (tube && typeof tube === 'object' && typeof tube.layer === 'number') {
-      tubeMap.set(tube.layer, tube);
+      tubeArray[tube.layer] = tube;
     }
   }
 
   // === Decrypt 13 encryption layers in reverse ===
   for (let j = NUM_ENCRYPTION_LAYERS - 1; j >= 0; j--) {
     const layerId = NUM_INTEGRITY_TUBES + j;
-    const tube = tubeMap.get(layerId);
+    const tube = tubeArray[layerId];
     if (!tube) throw new Error(`Missing encryption tube for layer ${layerId}`);
 
     // Sentinel: Validate tube fields
@@ -189,10 +190,12 @@ export function decryptCipherTube(
     const info = ENCRYPTION_INFOS[j] || `enc-${j}`;
     const key = deriveKey(masterSeed, salt, info);
 
-    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    // Bolt Optimization: Use ArrayBuffer key
+    const decipher = crypto.createDecipheriv('aes-256-gcm', new Uint8Array(key), iv);
     decipher.setAuthTag(tag);
 
-    current = Buffer.concat([decipher.update(encryptedData), decipher.final()]);
+    current = decipher.update(encryptedData);
+    decipher.final(); // Complete decryption state
     audit.push(AUDIT_DECRYPT_LAYER[j]);
   }
 
@@ -204,7 +207,7 @@ export function decryptCipherTube(
   const computedHashBuffer = (crypto as any).hash('sha512', current, 'buffer');
 
   for (let i = NUM_INTEGRITY_TUBES - 1; i >= 0; i--) {
-    const tube = tubeMap.get(i);
+    const tube = tubeArray[i];
     if (!tube) throw new Error(`Missing hash-lock tube ${i}`);
 
     if (typeof tube.hash !== 'string') {
