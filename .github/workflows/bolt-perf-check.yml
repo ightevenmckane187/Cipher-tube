@@ -1,0 +1,123 @@
+name: "Bolt · Performance Check"
+
+on:
+  pull_request:
+    branches: [main, "release/"]
+    paths: ["bolt/", "tube/", "crypto/", "benchmarks/", "perf/"]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+concurrency:
+  group: bolt-perf-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+env:
+  BENCHMARK_BASELINE: benchmarks/baseline.json
+  P99_THRESHOLD_PCT: 10
+  P95_THRESHOLD_PCT: 5
+  MEMORY_THRESHOLD_PCT: 15
+
+jobs:
+  tests:
+    name: "Unit & Integration Tests"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        pillar: [bolt, tube]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-env
+        with:
+          pillar: ${{ matrix.pillar }}
+      - run: make test-unit PILLAR=${{ matrix.pillar }}
+      - run: make test-integration PILLAR=${{ matrix.pillar }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.pillar }}
+          path: coverage/
+
+  benchmarks:
+    name: "Performance Benchmarks"
+    runs-on: ubuntu-latest
+    needs: tests
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-env
+        with:
+          pillar: bolt
+      - name: Start Tube Layer
+        run: |
+          docker compose -f docker-compose.bench.yml up -d
+          sleep 10
+      - name: Run benchmarks
+        run: make benchmark --output-format=json > benchmark-results.json
+      - name: Compare against baseline
+        run: |
+          python3 << 'PYEOF'
+          import json, sys, os
+          baseline_path = os.environ.get('BENCHMARK_BASELINE')
+          p99_t = int(os.environ.get('P99_THRESHOLD_PCT', 10))
+          p95_t = int(os.environ.get('P95_THRESHOLD_PCT', 5))
+          mem_t = int(os.environ.get('MEMORY_THRESHOLD_PCT', 15))
+          if not os.path.exists(baseline_path):
+              print("⚠️  No baseline — creating"); sys.exit(0)
+          with open(baseline_path) as f: baseline = json.load(f)
+          with open('benchmark-results.json') as f: results = json.load(f)
+          regressions, lines = [], ["| Metric | Baseline | Current | Delta | Status |", "|---|---|---|---|---|"]
+          for name, data in results.get('benchmarks', {}).items():
+              base = baseline.get('benchmarks', {}).get(name, {})
+              if not base: lines.append(f"| {name} | — | new | — | 🆕 |"); continue
+              for m in ['p50ms', 'p95ms', 'p99ms', 'memorymb', 'throughput_rps']:
+                  c, b = data.get(m), base.get(m)
+                  if c is None or b is None or b == 0: continue
+                  d = ((b - c) / b * 100) if m == 'throughput_rps' else ((c - b) / b * 100)
+                  t = p99_t if 'p99' in m else (p95_t if 'p95' in m else mem_t)
+                  s = '✅' if d <= t else '❌'
+                  if d > t: regressions.append(f"{name}/{m}: +{d:.1f}%")
+                  lines.append(f"| {name}/{m} | {b:.2f} | {c:.2f} | {'+' if d>0 else ''}{d:.1f}% | {s} |")
+          with open('benchmark-report.md', 'w') as f:
+              f.write(f"## ⚡ Bolt Performance Report\n\n" + "\n".join(lines) + "\n")
+              if regressions: f.write("\n### ❌ Regressions\n" + "".join(f"- {r}\n" for r in regressions))
+              else: f.write("\n### ✅ No Regressions\n")
+          if regressions: print(f"❌ {len(regressions)} regression(s)"); sys.exit(1)
+          PYEOF
+      - name: Post report
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: fs.readFileSync('benchmark-report.md', 'utf-8'),
+            });
+      - if: always()
+        run: docker compose -f docker-compose.bench.yml down -v
+
+  update-baseline:
+    name: "Update Baseline"
+    runs-on: ubuntu-latest
+    needs: benchmarks
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: benchmark-results
+      - run: |
+          cp benchmark-results.json "$BENCHMARK_BASELINE"
+          git config user.name "bolt-benchmark-bot"
+          git config user.email "bolt-bot@cipher-tube.dev"
+          git add "$BENCHMARK_BASELINE"
+          git diff --cached --quiet || git commit -m "perf(bolt): update baseline [skip ci]"
+          git push

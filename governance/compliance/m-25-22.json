@@ -1,0 +1,137 @@
+{
+  "$schema": "https://cipher-tube.dev/schemas/compliance-mapping-v1.json",
+  "_framework": "OMB M-25-22 — Federal Zero Trust Strategy",
+  "_version": "1.0.0",
+  "lastreviewed": "2026-04-27",
+  "reviewcadence": "quarterly",
+  "_description": "Maps Cipher-tube controls to OMB M-25-22 zero-trust maturity pillars. Each pillar defines target capabilities, Cipher-tube's implementing components, and current maturity level.",
+
+  "pillars": [
+    {
+      "id": "identity",
+      "name": "Identity",
+      "target": "Agency staff use enterprise-managed identities to access applications. Phishing-resistant MFA protects personnel from sophisticated online attacks.",
+      "maturity_level": "advanced",
+      "controls": [
+        {
+          "id": "ID-1",
+          "requirement": "Enterprise-managed identity for all users and services",
+          "ciphertubeimplementation": "All contributors authenticate via GitHub-managed identity with GPG/SSH-signed commits. Automated agents use Ed25519-signed tokens scoped to their pillar with TTL-based expiry.",
+          "implementingcomponents": ["governance/policies/trusttier.rego", "governance/policies/agent_boundary.rego", "governance-signed-commits.yml"],
+          "status": "implemented"
+        },
+        {
+          "id": "ID-2",
+          "requirement": "Phishing-resistant MFA for all users",
+          "ciphertubeimplementation": "GitHub organization enforces 2FA. Repository branch protection requires signed commits (GPG/SSH). Automated agents use cryptographic identity tokens — no password-based auth.",
+          "implementing_components": ["governance-signed-commits.yml"],
+          "status": "implemented",
+          "notes": "GitHub org 2FA enforcement configured at org level, not in repo code."
+        },
+        {
+          "id": "ID-3",
+          "requirement": "Identity lifecycle management with automated provisioning and deprovisioning",
+          "ciphertubeimplementation": "Trust-tier system manages contributor lifecycle (T0→T4). Agent credentials revocable via kill-switch by T3+. Quarterly drift detection suspends divergent agents. CODEOWNERS auto-assigns based on team membership.",
+          "implementingcomponents": ["CONTRIBUTING.md §Trust Tiers", "governance/policies/agentboundary.rego", "CODEOWNERS"],
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "devices",
+      "name": "Devices",
+      "target": "The agency maintains a complete inventory of every device it operates and can detect and respond to incidents on those devices.",
+      "maturity_level": "initial",
+      "controls": [
+        {
+          "id": "DV-1",
+          "requirement": "Complete device inventory and endpoint detection",
+          "ciphertubeimplementation": "CI runners are ephemeral GitHub-hosted containers — inventoried by workflow definition. Self-hosted runners (if any) must be registered in governance/infrastructure/runners.json.",
+          "implementing_components": [".github/workflows/"],
+          "status": "partial",
+          "notes": "Device pillar primarily applies to deployment environments. Cipher-tube CI uses ephemeral runners. Production deployment device controls are out of scope for this repository."
+        }
+      ]
+    },
+    {
+      "id": "networks",
+      "name": "Networks",
+      "target": "Agencies encrypt all DNS requests and HTTP traffic, and begin segmenting networks around applications.",
+      "maturity_level": "advanced",
+      "controls": [
+        {
+          "id": "NW-1",
+          "requirement": "Encrypt all traffic (DNS, HTTP) and segment networks",
+          "ciphertubeimplementation": "All inter-pillar communication encrypted via mTLS with TLS 1.3 enforcement. No TLS 1.2 fallback without explicit Sentinel-reviewed justification. Certificate pinning between pillars. Tube Layer segments network boundaries between Sentinel, Bolt, and Palette.",
+          "implementing_components": ["tube/", "crypto/"],
+          "status": "implemented"
+        },
+        {
+          "id": "NW-2",
+          "requirement": "Network micro-segmentation around applications",
+          "ciphertubeimplementation": "Pillar-based architecture provides logical segmentation. Cross-pillar calls must traverse the Tube Layer, which validates caller identity and trust tier at every boundary crossing. Dead-letter handling prevents lateral movement via failed messages.",
+          "implementingcomponents": ["tube/", "governance/policies/agentboundary.rego"],
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "applications",
+      "name": "Applications and Workloads",
+      "target": "Agencies treat all applications as internet-connected, routinely subject applications to rigorous testing, and welcome external vulnerability reports.",
+      "maturity_level": "advanced",
+      "controls": [
+        {
+          "id": "AW-1",
+          "requirement": "All applications treated as internet-connected with rigorous testing",
+          "ciphertubeimplementation": "Every PR undergoes SAST (CodeQL, Semgrep), SCA (dependency audit), secret detection (detect-secrets, TruffleHog), OPA policy evaluation, and pillar-specific testing (perf benchmarks, a11y audits). Minimum 80% line coverage for new code.",
+          "implementing_components": ["sentinel-security-scan.yml", "bolt-perf-check.yml", "palette-a11y-check.yml", "governance-policy-gate.yml"],
+          "status": "implemented"
+        },
+        {
+          "id": "AW-2",
+          "requirement": "Welcome external vulnerability reports with clear process",
+          "ciphertubeimplementation": "SECURITY.md defines responsible disclosure via GitHub Security Advisory, encrypted email, and private contact form. Safe harbor policy protects good-faith researchers. Response SLAs published (Critical ≤7d, High ≤14d, Medium ≤30d).",
+          "implementing_components": ["SECURITY.md"],
+          "status": "implemented"
+        },
+        {
+          "id": "AW-3",
+          "requirement": "Immutable workloads and infrastructure as code",
+          "ciphertubeimplementation": "Infrastructure defined via Docker Compose and Makefiles. CI pipelines are declarative YAML. Governance policies are version-controlled Rego files. Performance baselines committed to repo.",
+          "implementing_components": ["docker-compose*.yml", "Makefile", ".github/workflows/", "governance/policies/"],
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "data",
+      "name": "Data",
+      "target": "Agencies are on a clear, shared path to deploy protections that make use of thorough data categorization. Agencies take advantage of cloud security services to monitor access to sensitive data, and have implemented enterprise-wide logging and information sharing.",
+      "maturity_level": "advanced",
+      "controls": [
+        {
+          "id": "DA-1",
+          "requirement": "Data categorization and protection based on sensitivity",
+          "ciphertubeimplementation": "Safer-Tube checklist enforces PII/PHI masking in logs and telemetry. Data-minimization and retention policies referenced in compliance section. External inputs sanitized into DATACONTEXT — never SYSTEMINSTRUCTION.",
+          "implementingcomponents": ["sentinel/", "governance/policies/safertube_checklist.rego"],
+          "status": "implemented"
+        },
+        {
+          "id": "DA-2",
+          "requirement": "Enterprise-wide audit logging",
+          "ciphertubeimplementation": "Tamper-evident hash-chain audit ledger records all security-relevant actions. Logs are immutable, append-only, and integrity-verified by CI. Structured audit events include actor identity, action, target, timestamp, and outcome.",
+          "implementing_components": ["sentinel/audit/", "governance-signed-commits.yml"],
+          "status": "implemented"
+        },
+        {
+          "id": "DA-3",
+          "requirement": "Encryption of data at rest and in transit",
+          "ciphertubeimplementation": "AES-256-GCM for data at rest. TLS 1.3 for data in transit. Key material managed via designated secrets manager. Safer-Tube checklist items enforce both.",
+          "implementing_components": ["tube/crypto/", "sentinel/"],
+          "status": "implemented"
+        }
+      ]
+    }
+  ]
+}

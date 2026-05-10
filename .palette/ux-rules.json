@@ -1,0 +1,9 @@
+{
+  "rules": {
+    "color-contrast": "error",
+    "aria-label-required": "warn",
+    "touch-target-size": "warn",
+    "heading-order": "error",
+    "interactive-element-focus": "error"
+  }
+}

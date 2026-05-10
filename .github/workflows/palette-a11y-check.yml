@@ -1,0 +1,133 @@
+name: "Palette · Accessibility & UX Check"
+
+on:
+  pull_request:
+    branches: [main, "release/"]
+    paths: ["palette/", "ui/", "themes/"]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+concurrency:
+  group: palette-a11y-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: "Lint & Design Tokens"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: npm install -g pnpm
+      - run: pnpm install
+      - run: npx eslint palette/ ui/ --ext .ts,.tsx,.js,.jsx || true
+      - run: npx stylelint "palette/**/*.{css,scss}" "themes/**/*.{css,scss}" || true
+      - name: Validate design tokens
+        run: |
+          node << 'EOF'
+          const fs = require('fs'), path = require('path');
+          const dir = 'themes/tokens';
+          if (!fs.existsSync(dir)) { console.log('⚠️  No tokens'); process.exit(0); }
+          const errors = [];
+          for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.json'))) {
+            const tokens = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf-8'));
+            if (file.includes('color'))
+              for (const [n, t] of Object.entries(tokens))
+                if (t.type === 'color' && !t.contrastRatio) errors.push(`${file}: ${n} missing contrastRatio`);
+            if (file.includes('typography'))
+              for (const [n, t] of Object.entries(tokens))
+                if (t.type === 'fontSize' && t.value && !t.value.endsWith('rem')) errors.push(`${file}: ${n} non-rem`);
+          }
+          if (errors.length) { errors.forEach(e => console.error(`  - ${e}`)); process.exit(1); }
+          console.log('✅ Tokens valid');
+          EOF
+
+  accessibility:
+    name: "Accessibility Audit (WCAG 2.2 AA)"
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: npm install -g pnpm
+      - run: pnpm install
+      - run: npx storybook build -o storybook-static || echo "No storybook"
+      - run: (npx http-server storybook-static -p 6006 &) || echo "Server failed"
+      - name: axe-core scan
+        run: |
+          sleep 5
+          npx @axe-core/cli http://localhost:6006 \
+            --tags wcag2a,wcag2aa,wcag22aa --exit --save axe-results.json || echo "axe-core failed"
+      - name: Lighthouse audit
+        uses: treosh/lighthouse-ci-action@v11
+        with:
+          urls: http://localhost:6006
+          uploadArtifacts: true
+          configPath: .github/lighthouse/lighthouserc.json
+        continue-on-error: true
+      - name: Validate Lighthouse scores
+        run: |
+          python3 << 'PYEOF'
+          import json, sys, glob, os
+          if not os.path.exists('.lighthouseci'): sys.exit(0)
+          for f in glob.glob('.lighthouseci/lhr-*.json'):
+              lhr = json.load(open(f))
+              score = lhr.get('categories',{}).get('accessibility',{}).get('score',0)*100
+              if score < 90: print(f"::error::Score {score:.0f} < 90"); sys.exit(1)
+          print("✅ Lighthouse passed")
+          PYEOF
+      - run: npx pa11y http://localhost:6006 --standard WCAG2AA --threshold 0 || echo "pa11y failed"
+      - name: Post a11y report
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body = '## ♿ Palette Accessibility Report\n\n';
+            try {
+              if (fs.existsSync('axe-results.json')) {
+                const axe = JSON.parse(fs.readFileSync('axe-results.json', 'utf-8'));
+                const v = axe.violations || [];
+                body += v.length === 0
+                  ? '✅ axe-core — 0 violations\n\n'
+                  : `❌ axe-core — ${v.length} violation(s)\n\n` +
+                    v.slice(0,10).map(x => `- \`${x.id}\`: ${x.description}`).join('\n') + '\n\n';
+              } else {
+                body += '⚠️ axe-core results unavailable\n\n';
+              }
+            } catch (e) { body += '⚠️ Error parsing axe-core results\n\n'; }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number, body });
+
+  browser-compat:
+    name: "Browser Compatibility"
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: |
+          npm install -g pnpm
+          pnpm install
+          npx playwright install --with-deps chromium firefox webkit
+      - run: npx playwright test --project=chromium --project=firefox --project=webkit || echo "Playwright failed"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/

@@ -1,0 +1,227 @@
+{
+  "$schema": "https://cipher-tube.dev/schemas/compliance-mapping-v1.json",
+  "_framework": "OWASP Agentic AI Top 10 — 2025",
+  "_version": "1.0.0",
+  "lastreviewed": "2026-04-27",
+  "reviewcadence": "quarterly",
+  "_description": "Maps Cipher-tube controls to the OWASP Top 10 risks for Agentic AI systems. Each risk identifies Cipher-tube's mitigations, implementing components, and residual risk assessment.",
+
+  "risks": [
+    {
+      "id": "AAI-01",
+      "rank": 1,
+      "title": "Excessive Agency",
+      "description": "An agentic system performs actions beyond its intended scope, operating with more autonomy or privilege than necessary for its designated task.",
+      "ciphertubemitigations": [
+        "Automated agents restricted to permitted action set: read, analyze, comment, report.",
+        "Prohibited actions hard-coded in agentboundary.rego: merge, branchdelete, cimodify, governancemodify, promote, release.",
+        "Cross-pillar access denied by default — requires explicit T4 grant.",
+        "Trust-tier system (T0–T4) enforces least-privilege at every action boundary.",
+        "Kill-switch allows any T3+ maintainer to immediately revoke agent credentials."
+      ],
+      "implementing_components": [
+        "governance/policies/agent_boundary.rego",
+        "governance/policies/trust_tier.rego",
+        "CONTRIBUTING.md §Automated Agent Governance"
+      ],
+      "status": "mitigated",
+      "residual_risk": "low",
+      "notes": "Agents cannot take any irreversible action. All agent outputs are advisory — human maintainers make final decisions."
+    },
+    {
+      "id": "AAI-02",
+      "rank": 2,
+      "title": "Prompt Injection (Direct & Indirect)",
+      "description": "Malicious instructions injected into agent inputs to manipulate behavior, bypass controls, or exfiltrate data.",
+      "ciphertubemitigations": [
+        "Safer-Tube checklist enforces: all external inputs validated, sanitized, and placed in DATA_CONTEXT.",
+        "Explicit prohibition: no external data injected into SYSTEM_INSTRUCTION or policy-evaluation paths.",
+        "OPA policies evaluate structured input schemas — not raw text prompts.",
+        "Sentinel SAST scans detect injection patterns (SQL, NoSQL, GraphQL, command injection).",
+        "Parameterized queries enforced — no string concatenation for data access."
+      ],
+      "implementing_components": [
+        "governance/policies/safertubechecklist.rego",
+        "sentinel-security-scan.yml",
+        "CONTRIBUTING.md §Safer-Tube Security Checklist"
+      ],
+      "status": "mitigated",
+      "residual_risk": "medium",
+      "notes": "Continuous monitoring via SAST and manual review. Indirect injection via dependencies mitigated by allowlist and SCA scanning."
+    },
+    {
+      "id": "AAI-03",
+      "rank": 3,
+      "title": "Insecure Tool/Function Calling",
+      "description": "Agent invokes external tools or functions without proper validation, authentication, or authorization, leading to unintended side effects.",
+      "ciphertubemitigations": [
+        "All inter-pillar calls require mTLS + Ed25519 token validation.",
+        "Agent actions scoped to designated pillar — cross-pillar calls require explicit grant.",
+        "Tube Layer validates caller identity and trust tier at every boundary crossing.",
+        "OPA policies enforce action-level authorization before execution.",
+        "Dead-letter handling prevents cascading failures from rejected calls."
+      ],
+      "implementing_components": [
+        "tube/",
+        "governance/policies/agent_boundary.rego",
+        "governance/policies/crosspillarreview.rego"
+      ],
+      "status": "mitigated",
+      "residual_risk": "low",
+      "notes": "Agents cannot call destructive functions. All agent-initiated calls are logged to the audit ledger."
+    },
+    {
+      "id": "AAI-04",
+      "rank": 4,
+      "title": "Privilege Escalation via Agent",
+      "description": "An agent exploits trust relationships to gain higher privileges than intended, performing actions reserved for more trusted roles.",
+      "ciphertubemitigations": [
+        "Trust-tier enforcement (trust_tier.rego) validates actor tier against required tier for every action.",
+        "Automated agents cannot perform merge, governance, promote, or ci_config actions — regardless of granted tier.",
+        "T2 agents restricted to their own pillar for approve/triage actions.",
+        "Self-approval prohibited across all tiers.",
+        "Trust-tier promotions require unanimous T4 consensus."
+      ],
+      "implementing_components": [
+        "governance/policies/trust_tier.rego",
+        "governance/policies/agent_boundary.rego",
+        "governance/policies/crosspillarreview.rego"
+      ],
+      "status": "mitigated",
+      "residual_risk": "low",
+      "notes": "Privilege escalation paths blocked at policy level. Quarterly drift detection identifies agents operating outside baseline."
+    },
+    {
+      "id": "AAI-05",
+      "rank": 5,
+      "title": "Insufficient Agent Authentication & Authorization",
+      "description": "Weak or missing identity verification allows unauthorized agents to perform privileged actions or impersonate trusted agents.",
+      "ciphertubemitigations": [
+        "Every automated agent authenticates via Ed25519-signed identity tokens.",
+        "Tokens include pillar scope and TTL expiry — expired tokens rejected.",
+        "agent_boundary.rego validates token signature format (must start with 'ed25519:').",
+        "Contributors authenticate via GitHub identity with GPG/SSH-signed commits.",
+        "Unsigned commits rejected by CI pipeline."
+      ],
+      "implementing_components": [
+        "governance/policies/agent_boundary.rego",
+        "governance-signed-commits.yml",
+        "CONTRIBUTING.md §Automated Agent Governance"
+      ],
+      "status": "mitigated",
+      "residual_risk": "low",
+      "notes": "No password-based or API-key-only authentication for agents. All agent identities are cryptographically verifiable."
+    },
+    {
+      "id": "AAI-06",
+      "rank": 6,
+      "title": "Inadequate Logging & Monitoring of Agent Actions",
+      "description": "Insufficient observability into agent decisions and actions prevents detection of anomalous behavior, policy violations, or security incidents.",
+      "ciphertubemitigations": [
+        "All agent actions logged to tamper-evident hash-chain audit ledger.",
+        "Audit entries are immutable and append-only — verified by CI.",
+        "Safer-Tube checklist requires: security-relevant actions emit structured audit events.",
+        "Log entries validated to not contain secrets, tokens, or unmasked PII.",
+        "New alert rules required for anomalous patterns introduced by changes.",
+        "Quarterly drift detection compares agent behavior to policy baselines."
+      ],
+      "implementing_components": [
+        "sentinel/audit/",
+        "governance-signed-commits.yml",
+        "governance/policies/safertubechecklist.rego",
+        "CONTRIBUTING.md §Automated Agent Governance"
+      ],
+      "status": "mitigated",
+      "residual_risk": "low",
+      "notes": "Hash-chain integrity verified on every merge. Drift threshold set at 5% divergence."
+    },
+    {
+      "id": "AAI-07",
+      "rank": 7,
+      "title": "Unsafe Output Handling",
+      "description": "Agent outputs are consumed by downstream systems without validation, leading to injection, data corruption, or unintended state changes.",
+      "ciphertubemitigations": [
+        "Agent outputs are advisory — no automated agent can merge or execute irreversible actions.",
+        "Cross-pillar message serialization enforced at the Tube Layer with schema validation.",
+        "Output from Palette agents (UI rendering) undergoes axe-core and Lighthouse audits.",
+        "Sentinel SAST scans detect XSS, injection, and unsafe output patterns.",
+        "OPA policies validate structured outputs against expected schemas."
+      ],
+      "implementing_components": [
+        "tube/",
+        "sentinel-security-scan.yml",
+        "palette-a11y-check.yml"
+      ],
+      "status": "mitigated",
+      "residual_risk": "medium",
+      "notes": "Residual risk from complex UI rendering chains. Continuous a11y and SAST scanning mitigates."
+    },
+    {
+      "id": "AAI-08",
+      "rank": 8,
+      "title": "Lack of Human Oversight",
+      "description": "Agentic systems operate without meaningful human review, making consequential decisions or taking irreversible actions autonomously.",
+      "ciphertubemitigations": [
+        "No automated agent can merge PRs — only T3+ human maintainers.",
+        "Cross-pillar review ensures multiple human reviewers from different pillars.",
+        "Minimum 2 human approvals for standard PRs; 3 for security-sensitive PRs.",
+        "48-hour review window for governance and security changes.",
+        "Post-merge verification with auto-revert on failure.",
+        "Kill-switch allows immediate human intervention on any agent."
+      ],
+      "implementing_components": [
+        "CONTRIBUTING.md §PR Workflow",
+        "governance/policies/crosspillarreview.rego",
+        "governance/policies/safertubechecklist.rego"
+      ],
+      "status": "mitigated",
+      "residual_risk": "low",
+      "notes": "Human-in-the-loop enforced at every consequential decision point. Agents analyze and recommend; humans decide and execute."
+    },
+    {
+      "id": "AAI-09",
+      "rank": 9,
+      "title": "Supply Chain Vulnerabilities in Agent Components",
+      "description": "Compromised or vulnerable dependencies, plugins, or agent components introduce security risks into the agentic system.",
+      "ciphertubemitigations": [
+        "Approved dependency allowlist (governance/allowed-deps.json) with explicit block list and CVE justifications.",
+        "Automated SCA scanning (npm/pip/cargo audit) on every PR.",
+        "Lock file integrity verification — drift is a blocking CI failure.",
+        "License compliance scanning blocks incompatible licenses.",
+        "Dependabot/Renovate monitors transitive dependencies continuously.",
+        "New dependencies require Sentinel maintainer security review + 48-hour cool-down."
+      ],
+      "implementing_components": [
+        "governance/allowed-deps.json",
+        "sentinel-security-scan.yml",
+        "CONTRIBUTING.md §Safer-Tube Security Checklist"
+      ],
+      "status": "mitigated",
+      "residual_risk": "medium",
+      "notes": "Zero-day supply chain attacks remain a residual risk. Mitigated by defense-in-depth: allowlist + SCA + lock file integrity + signed commits."
+    },
+    {
+      "id": "AAI-10",
+      "rank": 10,
+      "title": "Uncontrolled Agent Drift",
+      "description": "Agent behavior gradually diverges from intended policies due to environmental changes, updated models, or configuration drift, without detection.",
+      "ciphertubemitigations": [
+        "Quarterly drift detection re-evaluates all automated agents.",
+        "Agents exceeding 5% policy baseline divergence are automatically suspended pending review.",
+        "Policy-as-code (OPA Rego) provides deterministic, version-controlled policy enforcement.",
+        "Performance baselines tracked and compared on every merge (bolt-perf-check.yml).",
+        "Configuration managed as infrastructure-as-code (Docker Compose, Makefiles).",
+        "Compliance mappings reviewed quarterly."
+      ],
+      "implementing_components": [
+        "CONTRIBUTING.md §Automated Agent Governance",
+        "governance/policies/",
+        "bolt-perf-check.yml",
+        "benchmarks/baseline.json"
+      ],
+      "status": "mitigated",
+      "residual_risk": "low",
+      "notes": "Drift detection cadence (quarterly) balances detection speed with operational overhead. Critical agents may warrant monthly review."
+    }
+  ]
+}

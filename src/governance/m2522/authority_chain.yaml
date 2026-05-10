@@ -1,0 +1,124 @@
+version: 1.0.0
+framework: M-25-22
+owner: jesse
+description: >
+  Mapping of Cipher-tube’s modular architecture (Sentinel, Bolt, Palette)
+  to OMB M-25-22 federal AI acquisition, governance, and lifecycle controls.
+
+roles:
+  saop:
+    name: Senior Agency Official for Privacy
+    permissions:
+      - approve_privacy_review
+      - sign_high_impact_ai
+      - verify_data_rights
+  ciso:
+    name: Chief Information Security Officer
+    permissions:
+      - approve_security_controls
+      - sign_ato_conditions
+      - continuous_monitoring
+  civil_rights_officer:
+    name: Civil Rights Officer
+    permissions:
+      - approve_civil_rights_review
+      - bias_evaluation
+      - sign_high_impact_ai
+  contracting_officer:
+    name: Contracting Officer
+    permissions:
+      - sign_solicitation
+      - execute_award
+      - vendor_enforcement
+  program_manager:
+    name: Program Manager
+    permissions:
+      - define_requirements
+      - lifecycle_oversight
+      - drift_reporting
+
+lifecycle_gates:
+  requirements_identification:
+    sentinel_bindings:
+      - highimpactai_classification
+      - privacycivilrights_review
+    required_signatures:
+      - program_manager
+    required_artifacts:
+      - requirements_canvas
+  market_research:
+    sentinel_bindings:
+      - evaluation_policies
+    required_signatures:
+      - program_manager
+    required_artifacts:
+      - vendor_sandbox_runs
+  solicitation_development:
+    sentinel_bindings:
+      - clause_library
+    required_signatures:
+      - contracting_officer
+      - saop
+    required_artifacts:
+      - solicitation_package
+  source_selection:
+    sentinel_bindings:
+      - scoring_models
+    required_signatures:
+      - contracting_officer
+      - program_manager
+    required_artifacts:
+      - decision_trails
+  contract_administration:
+    sentinel_bindings:
+      - ato_conditions
+    required_signatures:
+      - ciso
+      - program_manager
+    required_artifacts:
+      - monitoring_pipelines
+      - incident_logging
+  closeout_transition:
+    sentinel_bindings:
+      - exitartifactrequirements
+    required_signatures:
+      - program_manager
+      - contracting_officer
+    required_artifacts:
+      - portability_validation
+
+governance_controls:
+  high_impact_ai:
+    conditions:
+      - impacts_rights
+      - impacts_safety
+      - significant_federal_operations
+    mandatory_signatures:
+      - saop
+      - ciso
+      - civil_rights_officer
+    mandatory_artifacts:
+      - privacy_impact_assessment
+      - security_risk_assessment
+      - civil_rights_review
+  vendor_lockin_prevention:
+    mandatory_artifacts:
+      - portability_plan
+      - data_rights_manifesto
+
+escalation_paths:
+  drift_detected:
+    trigger: performance_drift_exceeds_threshold
+    notify:
+      - program_manager
+      - ciso
+  privacy_breach:
+    trigger: unauthorized_data_access
+    notify:
+      - saop
+      - ciso
+  civil_rights_violation:
+    trigger: bias_detection_alert
+    notify:
+      - civil_rights_officer
+      - saop

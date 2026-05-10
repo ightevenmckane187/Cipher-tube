@@ -1,0 +1,62 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicknisi/lighthouse-ci/main/packages/utils/src/lighthouserc-schema.json",
+  "ci": {
+    "collect": {
+      "numberOfRuns": 3,
+      "startServerCommand": "npx http-server ./palette/dist -p 8080 -s",
+      "startServerReadyPattern": "Available on",
+      "url": [
+        "http://localhost:8080/"
+      ],
+      "settings": {
+        "preset": "desktop",
+        "onlyCategories": [
+          "accessibility",
+          "performance",
+          "best-practices"
+        ],
+        "skipAudits": [
+          "uses-http2"
+        ]
+      }
+    },
+    "assert": {
+      "assertions": {
+        "categories:accessibility": [
+          "error",
+          { "minScore": 0.90, "aggregationMethod": "median-run" }
+        ],
+        "categories:performance": [
+          "warn",
+          { "minScore": 0.80, "aggregationMethod": "median-run" }
+        ],
+        "categories:best-practices": [
+          "warn",
+          { "minScore": 0.85, "aggregationMethod": "median-run" }
+        ],
+        "color-contrast": "error",
+        "document-title": "error",
+        "html-has-lang": "error",
+        "image-alt": "error",
+        "link-name": "error",
+        "meta-viewport": "error",
+        "tabindex": "error",
+        "target-size": "warn",
+        "heading-order": "warn",
+        "label": "error",
+        "button-name": "error",
+        "aria-allowed-attr": "error",
+        "aria-hidden-body": "error",
+        "aria-required-attr": "error",
+        "aria-roles": "error",
+        "aria-valid-attr-value": "error",
+        "aria-valid-attr": "error",
+        "bypass": "warn",
+        "focus-traps": "warn"
+      }
+    },
+    "upload": {
+      "target": "temporary-public-storage"
+    }
+  }
+}
