@@ -432,6 +432,7 @@ app.post('/mcp', sessionLimiter, jsonParser, validateUserId, async (req: Request
     const userId = req.headers['x-user-id'] as string;
 
     const sessionId = crypto.randomUUID();
+    const sessionKey = `session:${sessionId}:owner`;
     try {
         // Store session ownership with 24-hour TTL (86400 seconds)
         await redisClient.set(sessionKey, userId, { EX: SESSION_TTL });
