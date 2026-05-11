@@ -43,7 +43,7 @@ export class AuthorityChainValidator {
           throw new Error(`Lifecycle gate ${gateId} is missing required field: ${field}`);
         }
         if (!Array.isArray((gate as any)[field])) {
-          throw new Error(`Lifecycle gate ${gateId} field ${field} must be an array`);
+          throw new Error(`Lifecycle gate ${gateId} ${field} must be an array`);
         }
       }
 

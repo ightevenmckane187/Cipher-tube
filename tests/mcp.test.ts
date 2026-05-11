@@ -35,7 +35,7 @@ describe('MCP Session Management', () => {
       expect(redisMock.set).toHaveBeenCalledWith(
         expect.stringContaining(response.body.sessionId),
         'user123',
-        { EX: 86400 }
+        { EX: 3600 }
       );
     });
 

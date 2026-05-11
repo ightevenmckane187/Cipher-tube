@@ -54,8 +54,8 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
   let entropyOffset = 0;
 
   // === 12 Hash-Lock Tubes (Integrity) ===
-  // Bolt Optimization: Use high-performance one-shot hashing
-  const integrityHash = (crypto as any).hash('sha512', current, 'hex');
+  // Bolt Optimization: Use high-performance hashing
+  const integrityHash = crypto.createHash('sha512').update(current).digest('hex');
 
   // Bolt Optimization: Convert entropy pool to hex once to avoid repeated conversions in loops
   const entropyHex = entropyPool.toString('hex');
@@ -116,7 +116,7 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
     audit: {
       whatHappened: audit,
       timestamp: new Date().toISOString(),
-      seedHash: (crypto as any).hash('sha256', masterSeed, 'hex')
+      seedHash: crypto.createHash('sha256').update(masterSeed).digest('hex')
     }
   };
 }
@@ -200,8 +200,8 @@ export function decryptCipherTube(
   const hashCache = new Map<string, Buffer>();
 
   // === Verify 12 hash-lock tubes in reverse ===
-  // Bolt Optimization: Hoist SHA-512 hash calculation using one-shot API
-  const computedHashBuffer = (crypto as any).hash('sha512', current, 'buffer');
+  // Bolt Optimization: Hoist SHA-512 hash calculation
+  const computedHashBuffer = crypto.createHash('sha512').update(current).digest();
 
   for (let i = NUM_INTEGRITY_TUBES - 1; i >= 0; i--) {
     const tube = tubeMap.get(i);
