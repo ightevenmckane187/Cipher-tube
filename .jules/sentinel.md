@@ -42,3 +42,8 @@
 **Vulnerability:** Potential Denial of Service (DoS) and logic bypass via malformed manifest objects.
 **Learning:** In JavaScript/TypeScript, `typeof [] === 'object'`, which can lead to unexpected behavior or crashes in logic that expects plain objects but receives arrays. This is particularly critical in governance engines where manifests control security gates.
 **Prevention:** Always use `!Array.isArray(obj) && typeof obj === 'object'` to verify non-array objects and explicitly check `Array.isArray()` for nested collections before iteration.
+
+## 2026-06-10 - Synchronized Cache Expiration for Session Integrity
+**Vulnerability:** Potential session expiration bypass via stale in-memory cache.
+**Learning:** When using a multi-layer caching strategy (e.g., LRU cache + Redis), updating the global SESSION_TTL only in Redis leaves the in-memory cache with the old (longer) TTL, potentially allowing sessions to persist beyond the intended limit if the user hits the same server instance.
+**Prevention:** Always synchronize the 'ttl' property of in-memory caches (like LRUCache) with the primary database TTL to ensure consistent policy enforcement across all layers of the optimization stack.
