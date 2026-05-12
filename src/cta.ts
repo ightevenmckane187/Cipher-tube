@@ -150,11 +150,6 @@ export function decryptCipherTube(
 
   let current = Buffer.from(ciphertextHex, 'hex');
 
-  // Sentinel: Structural validation of the tubes array
-  if (tubes.some(tube => tube === null || typeof tube !== 'object')) {
-    throw new Error('Invalid tube metadata: All tubes must be non-null objects');
-  }
-
   // Sentinel: Basic length check. 13 layers * (12 IV + 16 TAG) = 364 bytes min
   if (current.length < 364) {
     throw new Error('Invalid ciphertext: Too short for 13 encryption layers');
@@ -163,9 +158,13 @@ export function decryptCipherTube(
   const audit: string[] = [];
 
   // Bolt Optimization: Use a single loop to build the tube map, avoiding intermediate arrays
+  // and merging structural validation to reduce passes over the tubes array.
   const tubeMap = new Map<number, Tube>();
   for (const tube of tubes) {
-    if (tube && typeof tube === 'object' && typeof tube.layer === 'number') {
+    if (tube === null || typeof tube !== 'object') {
+      throw new Error('Invalid tube metadata: All tubes must be non-null objects');
+    }
+    if (typeof tube.layer === 'number') {
       tubeMap.set(tube.layer, tube);
     }
   }
@@ -192,7 +191,11 @@ export function decryptCipherTube(
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(tag);
 
-    current = Buffer.concat([decipher.update(encryptedData), decipher.final()]);
+    const decryptedUpdate = decipher.update(encryptedData);
+    const decryptedFinal = decipher.final();
+
+    // Bolt Optimization: Gate Buffer.concat to skip it if decryptedFinal is empty (common in AES-GCM)
+    current = decryptedFinal.length === 0 ? decryptedUpdate : Buffer.concat([decryptedUpdate, decryptedFinal]);
     audit.push(AUDIT_DECRYPT_LAYER[j]);
   }
 
