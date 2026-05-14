@@ -42,3 +42,8 @@
 **Vulnerability:** Potential Denial of Service (DoS) and logic bypass via malformed manifest objects.
 **Learning:** In JavaScript/TypeScript, `typeof [] === 'object'`, which can lead to unexpected behavior or crashes in logic that expects plain objects but receives arrays. This is particularly critical in governance engines where manifests control security gates.
 **Prevention:** Always use `!Array.isArray(obj) && typeof obj === 'object'` to verify non-array objects and explicitly check `Array.isArray()` for nested collections before iteration.
+
+## 2026-06-15 - Generic Decryption Error Messages
+**Vulnerability:** Information leakage via specific cryptographic error messages (e.g., "Invalid tube metadata", "Missing encryption tube").
+**Learning:** Returning detailed validation errors for complex cryptographic payloads can act as an oracle for attackers or reveal internal structural requirements that should remain opaque.
+**Prevention:** Map all client-side cryptographic and structural validation errors to a single, generic "Decryption failed" message for public responses, while maintaining detailed logs for internal observability.
