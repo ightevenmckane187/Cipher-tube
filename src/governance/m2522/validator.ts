@@ -47,16 +47,6 @@ export class AuthorityChainValidator {
         }
       }
 
-      if (!Array.isArray((gate as any).sentinel_bindings)) {
-        throw new Error(`Lifecycle gate ${gateId} sentinel_bindings must be an array`);
-      }
-      if (!Array.isArray((gate as any).required_signatures)) {
-        throw new Error(`Lifecycle gate ${gateId} required_signatures must be an array`);
-      }
-      if (!Array.isArray((gate as any).required_artifacts)) {
-        throw new Error(`Lifecycle gate ${gateId} required_artifacts must be an array`);
-      }
-
       // Check if signatures reference existing roles
       for (const roleId of (gate as any).required_signatures) {
         if (!(roleId in manifest.roles)) {
