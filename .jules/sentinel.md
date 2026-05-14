@@ -47,3 +47,8 @@
 **Vulnerability:** Information leakage via specific cryptographic error messages (e.g., "Invalid tube metadata", "Missing encryption tube").
 **Learning:** Returning detailed validation errors for complex cryptographic payloads can act as an oracle for attackers or reveal internal structural requirements that should remain opaque.
 **Prevention:** Map all client-side cryptographic and structural validation errors to a single, generic "Decryption failed" message for public responses, while maintaining detailed logs for internal observability.
+
+## 2026-06-20 - Prototype Bypass in Governance Manifest Validation
+**Vulnerability:** Governance manifest validation could be bypassed using built-in object properties (e.g., "toString") when using the "in" operator or direct property access.
+**Learning:** In JavaScript, the "in" operator and direct property access check the entire prototype chain. If a manifest specifies a role named "toString", and the validator checks if "toString" exists in the roles object using "roleId in manifest.roles", it will return true even if the role is not explicitly defined in the manifest.
+**Prevention:** Always use "Object.prototype.hasOwnProperty.call(obj, prop)" to verify that a property exists directly on an object, especially when dealing with user-supplied keys in security-critical validation logic.

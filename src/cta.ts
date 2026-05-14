@@ -158,13 +158,13 @@ export function decryptCipherTube(
   const audit: string[] = [];
 
   // Bolt Optimization: Use a fixed-size array for O(1) lookups instead of a Map
-  const tubeLookup: Tube[] = new Array(100);
+  // Salts and hashes are pre-converted to Buffers to avoid repeated conversion overhead.
+  const tubePool: { tube: Tube; salt: Buffer | null; hash: Buffer | null }[] = new Array(101);
+
   for (const tube of tubes) {
-    if (tube && typeof tube === 'object' && typeof tube.layer === 'number') {
-      tubeLookup[tube.layer] = tube;
-    }
+    if (!tube || typeof tube !== 'object' || typeof tube.layer !== 'number') continue;
     const layer = tube.layer;
-    if (typeof layer !== 'number' || layer < 0 || layer > 100) continue;
+    if (layer < 0 || layer > 100) continue;
 
     tubePool[layer] = {
       tube,
@@ -176,8 +176,9 @@ export function decryptCipherTube(
   // === Decrypt 13 encryption layers in reverse ===
   for (let j = NUM_ENCRYPTION_LAYERS - 1; j >= 0; j--) {
     const layerId = NUM_INTEGRITY_TUBES + j;
-    const tube = tubeLookup[layerId];
-    if (!tube) throw new Error(`Missing encryption tube for layer ${layerId}`);
+    const entry = tubePool[layerId];
+    if (!entry || !entry.tube) throw new Error(`Missing encryption tube for layer ${layerId}`);
+    const tube = entry.tube;
 
     // Sentinel: Validate tube fields
     if (typeof tube.salt !== 'string' || typeof tube.iv !== 'string' || typeof tube.tag !== 'string') {
@@ -203,14 +204,16 @@ export function decryptCipherTube(
   }
 
   // === Verify 12 hash-lock tubes in reverse ===
-  // Bolt Optimization: Hoist SHA-512 hash calculation using one-shot API
-  const computedHashBuffer = (crypto as any).hash('sha512', current, 'buffer');
+  // Bolt Optimization: Hoist SHA-512 hash calculation.
+  // Using createHash for compatibility with Node.js LTS (v20).
+  const computedHashBuffer = crypto.createHash('sha512').update(current).digest();
   let lastHash: string | undefined;
   let lastVerified = false;
 
   for (let i = NUM_INTEGRITY_TUBES - 1; i >= 0; i--) {
-    const tube = tubeLookup[i];
-    if (!tube) throw new Error(`Missing hash-lock tube ${i}`);
+    const entry = tubePool[i];
+    if (!entry || !entry.tube) throw new Error(`Missing hash-lock tube ${i}`);
+    const tube = entry.tube;
 
     if (typeof tube.hash !== 'string') {
       throw new Error(`Invalid tube metadata for hash-lock ${i}: Missing hash`);
@@ -222,8 +225,8 @@ export function decryptCipherTube(
       continue;
     }
 
-    // Bolt Optimization: Use Buffers directly and cache them to avoid redundant hex conversions
-    let expectedBuffer = hashCache.get(tube.hash);
+    // Bolt Optimization: Use pre-converted Buffers to avoid redundant hex conversions
+    const expectedBuffer = entry.hash;
     if (!expectedBuffer) {
       throw new Error(`Invalid tube metadata for hash-lock ${i}: Missing hash`);
     }
