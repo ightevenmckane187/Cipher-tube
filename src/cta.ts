@@ -95,8 +95,8 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
     const final = cipher.final();
     const tag = cipher.getAuthTag();
 
-    // Bolt Optimization: Single Buffer.concat to reduce intermediate allocations
-    current = Buffer.concat([iv, tag, update, final]);
+    // Bolt Optimization: Avoid Buffer.concat if final is empty (common for GCM)
+    current = final.length > 0 ? Buffer.concat([iv, tag, update, final]) : Buffer.concat([iv, tag, update]);
 
     tubes.push({
       layer: layerId,
@@ -157,13 +157,11 @@ export function decryptCipherTube(
 
   const audit: string[] = [];
 
-  // Bolt Optimization: Use a fixed-size array for O(1) layer lookups and pre-convert
-  // hex strings to Buffers once to avoid redundant allocations in decryption loops.
-  const tubePool = new Array(101);
-  for (let i = 0; i < tubes.length; i++) {
-    const tube = tubes[i];
-    if (tube === null || typeof tube !== 'object') {
-      throw new Error('Invalid tube metadata: All tubes must be non-null objects');
+  // Bolt Optimization: Use a fixed-size array for O(1) lookups instead of a Map
+  const tubeLookup: Tube[] = new Array(100);
+  for (const tube of tubes) {
+    if (tube && typeof tube === 'object' && typeof tube.layer === 'number') {
+      tubeLookup[tube.layer] = tube;
     }
     const layer = tube.layer;
     if (typeof layer !== 'number' || layer < 0 || layer > 100) continue;
@@ -178,9 +176,8 @@ export function decryptCipherTube(
   // === Decrypt 13 encryption layers in reverse ===
   for (let j = NUM_ENCRYPTION_LAYERS - 1; j >= 0; j--) {
     const layerId = NUM_INTEGRITY_TUBES + j;
-    const entry = tubePool[layerId];
-    if (!entry) throw new Error(`Missing encryption tube for layer ${layerId}`);
-    const tube = entry.tube;
+    const tube = tubeLookup[layerId];
+    if (!tube) throw new Error(`Missing encryption tube for layer ${layerId}`);
 
     // Sentinel: Validate tube fields
     if (typeof tube.salt !== 'string' || typeof tube.iv !== 'string' || typeof tube.tag !== 'string') {
@@ -198,25 +195,35 @@ export function decryptCipherTube(
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(tag);
 
-    // Bolt Optimization: Only use Buffer.concat if decipher.final() actually returns data (rare in GCM)
-    const update = decipher.update(encryptedData);
-    const final = decipher.final();
-    current = final.length > 0 ? Buffer.concat([update, final]) : update;
-
+    const decUpdate = decipher.update(encryptedData);
+    const decFinal = decipher.final();
+    // Bolt Optimization: Avoid Buffer.concat if decFinal is empty
+    current = decFinal.length > 0 ? Buffer.concat([decUpdate, decFinal]) : decUpdate;
     audit.push(AUDIT_DECRYPT_LAYER[j]);
   }
 
   // === Verify 12 hash-lock tubes in reverse ===
-  // Bolt Optimization: Use high-performance one-shot hashing if available
-  const computedHashBuffer = (crypto as any).hash
-    ? (crypto as any).hash('sha512', current, 'buffer')
-    : crypto.createHash('sha512').update(current).digest();
+  // Bolt Optimization: Hoist SHA-512 hash calculation using one-shot API
+  const computedHashBuffer = (crypto as any).hash('sha512', current, 'buffer');
+  let lastHash: string | undefined;
+  let lastVerified = false;
 
   for (let i = NUM_INTEGRITY_TUBES - 1; i >= 0; i--) {
-    const entry = tubePool[i];
-    if (!entry) throw new Error(`Missing hash-lock tube ${i}`);
+    const tube = tubeLookup[i];
+    if (!tube) throw new Error(`Missing hash-lock tube ${i}`);
 
-    const expectedBuffer = entry.hash;
+    if (typeof tube.hash !== 'string') {
+      throw new Error(`Invalid tube metadata for hash-lock ${i}: Missing hash`);
+    }
+
+    // Bolt Optimization: Short-circuit if this hash was already verified in the previous layer
+    if (tube.hash === lastHash && lastVerified) {
+      audit.push(AUDIT_VERIFY_TUBE[i]);
+      continue;
+    }
+
+    // Bolt Optimization: Use Buffers directly and cache them to avoid redundant hex conversions
+    let expectedBuffer = hashCache.get(tube.hash);
     if (!expectedBuffer) {
       throw new Error(`Invalid tube metadata for hash-lock ${i}: Missing hash`);
     }
@@ -226,6 +233,8 @@ export function decryptCipherTube(
       throw new Error(`Integrity check failed: Hash-lock tube ${i} mismatch`);
     }
 
+    lastHash = tube.hash;
+    lastVerified = true;
     audit.push(AUDIT_VERIFY_TUBE[i]);
   }
 

@@ -112,7 +112,7 @@ describe('Security Validation', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain('Invalid ciphertext');
+      expect(response.body.error).toBe('Decryption failed');
     });
 
     it('should return 400 for invalid hex in ciphertext', async () => {
@@ -126,7 +126,7 @@ describe('Security Validation', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain('Invalid ciphertext');
+      expect(response.body.error).toBe('Decryption failed');
     });
 
     it('should return 400 for missing tube fields', async () => {
@@ -140,7 +140,7 @@ describe('Security Validation', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain('Invalid tube metadata');
+      expect(response.body.error).toBe('Decryption failed');
     });
 
     it('should return 400 for malformed tubes array (null element)', async () => {
@@ -154,7 +154,7 @@ describe('Security Validation', () => {
           });
 
         expect(response.status).toBe(400);
-        expect(response.body.error).toContain('Invalid tube metadata: All tubes must be non-null objects');
+        expect(response.body.error).toBe('Decryption failed');
       });
 
     it('should return 400 for missing or invalid fields in encryption tube', async () => {
@@ -170,7 +170,7 @@ describe('Security Validation', () => {
           });
 
         expect(response.status).toBe(400);
-        expect(response.body.error).toContain('Invalid tube metadata');
+        expect(response.body.error).toBe('Decryption failed');
     });
 
     it('should return 400 for invalid layer indexing', async () => {
@@ -186,7 +186,7 @@ describe('Security Validation', () => {
           });
 
         expect(response.status).toBe(400);
-        expect(response.body.error).toContain('Missing encryption tube');
+        expect(response.body.error).toBe('Decryption failed');
     });
   });
 });
