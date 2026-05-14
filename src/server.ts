@@ -271,6 +271,9 @@ app.get('/', (req: Request, res: Response) => {
                 .input-group label { font-size: 0.875rem; font-weight: 500; }
                 .input-group input { background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 8px 12px; border-radius: 6px; font-size: 0.875rem; width: 100%; max-width: 300px; }
                 .input-group input:focus { outline: 2px solid var(--primary); border-color: transparent; }
+                .counter-container { display: flex; justify-content: space-between; max-width: 300px; align-items: baseline; }
+                #user-id-counter { font-size: 0.75rem; opacity: 0.7; }
+                #user-id-counter.near-limit { color: #d63031; opacity: 1; font-weight: bold; }
             </style>
         </head>
         <body>
@@ -293,8 +296,11 @@ app.get('/', (req: Request, res: Response) => {
                 </div>
                 <h2>Quick Start</h2>
                 <div class="input-group">
-                    <label for="user-id-input">Customize your User ID:</label>
-                    <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false">
+                    <div class="counter-container">
+                        <label for="user-id-input">Customize your User ID:</label>
+                        <span id="user-id-counter" aria-live="polite">0 / 128</span>
+                    </div>
+                    <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter">
                 </div>
                 <p>To get started, create a session via the API:</p>
                 <div class="code-container">
@@ -343,11 +349,20 @@ app.get('/', (req: Request, res: Response) => {
                 const copyText = document.getElementById('copy-text');
                 const curlCommand = document.getElementById('curl-command');
                 const userIdInput = document.getElementById('user-id-input');
+                const userIdCounter = document.getElementById('user-id-counter');
 
                 function updateCurlCommand() {
                     const currentOrigin = window.location.origin;
                     const userId = userIdInput.value.trim() || 'demo-user';
                     curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: \${userId}"\`;
+
+                    const length = userIdInput.value.length;
+                    userIdCounter.textContent = \`\${length} / 128\`;
+                    if (length >= 120) {
+                        userIdCounter.classList.add('near-limit');
+                    } else {
+                        userIdCounter.classList.remove('near-limit');
+                    }
                 }
 
                 userIdInput.addEventListener('input', updateCurlCommand);
