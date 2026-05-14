@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 3000;
 // In-memory cache for session ownership lookups (Bolt Optimization)
 export const sessionCache = new LRUCache<string, string>({
     max: 1000,
-    ttl: 5000, // 5 seconds
+    ttl: 3600 * 1000, // 1 hour (Cipher-Tube compliance)
 });
 
 const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
