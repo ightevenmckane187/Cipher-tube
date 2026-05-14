@@ -20,7 +20,7 @@ export const sessionCache = new LRUCache<string, string>({
 
 const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-const SESSION_TTL = 86400; // 24 hours in seconds
+const SESSION_TTL = 3600; // 1 hour in seconds
 
 // Rate limiter for general API operations
 const apiLimiter = rateLimit({
@@ -455,7 +455,7 @@ app.post('/mcp', sessionLimiter, jsonParser, validateUserId, async (req: Request
     const sessionId = crypto.randomUUID();
     const sessionKey = `session:${sessionId}:owner`;
     try {
-        // Store session ownership with 24-hour TTL (86400 seconds)
+        // Store session ownership with security-compliant TTL (3600 seconds)
         await redisClient.set(sessionKey, userId, { EX: SESSION_TTL });
 
         // Optimization: Pre-warm the in-memory cache to skip the first Redis lookup (Bolt Optimization)
@@ -538,11 +538,8 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
             errorMessage.includes('Invalid tag length');
 
         if (isClientError) {
-             // Return 400 for cryptographic or validation failures, but don't leak details unless it's a specific validation error
-             const publicMessage = (errorMessage.includes('Invalid ciphertext') || errorMessage.includes('Invalid tube metadata') || errorMessage.includes('Integrity check failed') || errorMessage.includes('Missing encryption tube') || errorMessage.includes('Missing hash-lock tube') || errorMessage.includes('Missing or invalid fields') || errorMessage.includes('Missing or invalid hash'))
-                ? errorMessage
-                : 'Decryption failed';
-             return res.status(400).json({ error: publicMessage });
+             // Sentinel: Return 400 for all client-side crypto/validation errors with a generic message to prevent info leakage
+             return res.status(400).json({ error: 'Decryption failed' });
         }
 
         res.status(500).json({ error: 'Internal server error' });
