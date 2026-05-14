@@ -17,3 +17,7 @@
 ## 2026-05-13 - Optimized Decryption and Hashing Strategy
 **Learning:** For small, fixed-range integer keys (e.g., 0-100), a pre-allocated array is significantly faster than a `Map` for lookups. In Node.js 21.7+, `crypto.hash()` is a one-shot API that outperforms `createHash().update().digest()` by avoiding object overhead, but it should be used with a fallback for compatibility with older LTS versions. Avoiding `Buffer.concat` when the second buffer is empty (common in AES-GCM `final()` calls) prevents unnecessary memory copies.
 **Action:** Prefer arrays for indexed lookups; use feature detection for high-performance crypto APIs; avoid redundant buffer concatenations.
+
+## 2026-05-20 - Optimized Hashing and Metadata Processing in CTA
+**Learning:** Using the one-shot `crypto.hash()` API available in Node.js 22.22.1 provides a measurable performance gain over the streaming `createHash()` API by reducing object overhead. Pre-parsing hex-encoded metadata (salts, hashes) into Buffers during an initial O(1) array-backed lookup pass avoids redundant parsing inside hot decryption loops, further improving efficiency.
+**Action:** Prefer one-shot hashing APIs where available; pre-convert string metadata to Buffers before entering high-frequency loops.
