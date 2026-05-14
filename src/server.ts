@@ -20,7 +20,7 @@ export const sessionCache = new LRUCache<string, string>({
 
 const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-const SESSION_TTL = 86400; // 24 hours in seconds
+const SESSION_TTL = 3600; // 1 hour in seconds (Cipher-Tube compliance)
 
 // Rate limiter for general API operations
 const apiLimiter = rateLimit({
@@ -432,8 +432,9 @@ app.post('/mcp', sessionLimiter, jsonParser, validateUserId, async (req: Request
     const userId = req.headers['x-user-id'] as string;
 
     const sessionId = crypto.randomUUID();
+    const sessionKey = `session:${sessionId}:owner`;
     try {
-        // Store session ownership with 24-hour TTL (86400 seconds)
+        // Store session ownership with TTL defined by SESSION_TTL
         await redisClient.set(sessionKey, userId, { EX: SESSION_TTL });
 
         // Optimization: Pre-warm the in-memory cache to skip the first Redis lookup (Bolt Optimization)
