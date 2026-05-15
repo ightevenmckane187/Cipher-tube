@@ -9,6 +9,12 @@ export interface Tube {
   tag?: string;
 }
 
+interface TubeEntry {
+  tube: Tube;
+  salt: Buffer | null;
+  hash: Buffer | null;
+}
+
 export interface CipherTubeResult {
   ciphertext: string;
   tubes: Tube[];
@@ -24,13 +30,42 @@ const NUM_INTEGRITY_TUBES = 12;
 const NUM_ENCRYPTION_LAYERS = 13;
 
 // Bolt Optimization: Pre-compute HKDF info buffers for up to 100 layers
-const ENCRYPTION_INFOS = Array.from({ length: 100 }, (_, i) => Buffer.from(`enc-${i}`));
+// Use manual for loop for faster initialization than Array.from
+const ENCRYPTION_INFOS: Buffer[] = new Array(100);
+for (let i = 0; i < 100; i++) {
+  ENCRYPTION_INFOS[i] = Buffer.from(`enc-${i}`);
+}
 
 // Bolt Optimization: Pre-compute audit log strings to avoid repeated interpolations
-const AUDIT_TUBE_INTEGRITY = Array.from({ length: NUM_INTEGRITY_TUBES }, (_, i) => `Tube ${i}: SHA-512 hash lock computed for integrity`);
-const AUDIT_LAYER_ENCRYPTION = Array.from({ length: NUM_ENCRYPTION_LAYERS }, (_, i) => `Layer ${NUM_INTEGRITY_TUBES + i}: AES-256-GCM encryption applied`);
-const AUDIT_DECRYPT_LAYER = Array.from({ length: NUM_ENCRYPTION_LAYERS }, (_, i) => `Decrypted AES-256-GCM layer ${i}`);
-const AUDIT_VERIFY_TUBE = Array.from({ length: NUM_INTEGRITY_TUBES }, (_, i) => `Verified hash-lock tube ${i}`);
+const AUDIT_TUBE_INTEGRITY: string[] = new Array(NUM_INTEGRITY_TUBES);
+for (let i = 0; i < NUM_INTEGRITY_TUBES; i++) {
+  AUDIT_TUBE_INTEGRITY[i] = `Tube ${i}: SHA-512 hash lock computed for integrity`;
+}
+
+const AUDIT_LAYER_ENCRYPTION: string[] = new Array(NUM_ENCRYPTION_LAYERS);
+for (let i = 0; i < NUM_ENCRYPTION_LAYERS; i++) {
+  AUDIT_LAYER_ENCRYPTION[i] = `Layer ${NUM_INTEGRITY_TUBES + i}: AES-256-GCM encryption applied`;
+}
+
+const AUDIT_DECRYPT_LAYER: string[] = new Array(NUM_ENCRYPTION_LAYERS);
+for (let i = 0; i < NUM_ENCRYPTION_LAYERS; i++) {
+  AUDIT_DECRYPT_LAYER[i] = `Decrypted AES-256-GCM layer ${i}`;
+}
+
+const AUDIT_VERIFY_TUBE: string[] = new Array(NUM_INTEGRITY_TUBES);
+for (let i = 0; i < NUM_INTEGRITY_TUBES; i++) {
+  AUDIT_VERIFY_TUBE[i] = `Verified hash-lock tube ${i}`;
+}
+
+/**
+ * Bolt Optimization: High-performance one-shot hashing with fallback for older Node versions.
+ */
+function fastHash(algorithm: string, data: crypto.BinaryLike): Buffer {
+  if (typeof (crypto as any).hash === 'function') {
+    return (crypto as any).hash(algorithm, data, 'buffer');
+  }
+  return crypto.createHash(algorithm).update(data).digest();
+}
 
 function deriveKey(master: Buffer, salt: Buffer, info: string | Buffer): ArrayBuffer {
   return crypto.hkdfSync('sha256', master, salt, info, 32);
@@ -54,8 +89,8 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
   let entropyOffset = 0;
 
   // === 12 Hash-Lock Tubes (Integrity) ===
-  // Bolt Optimization: Use standard hashing for compatibility
-  const integrityHash = crypto.createHash('sha512').update(current).digest('hex');
+  // Bolt Optimization: Use fastHash for one-shot performance
+  const integrityHash = fastHash('sha512', current).toString('hex');
 
   // Bolt Optimization: Convert entropy pool to hex once to avoid repeated conversions in loops
   const entropyHex = entropyPool.toString('hex');
@@ -74,7 +109,6 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
     });
 
     audit.push(AUDIT_TUBE_INTEGRITY[i]);
-    // IMPORTANT: Do NOT replace current with hash → data remains recoverable
   }
 
   // === 13 AES-256-GCM Encryption Layers ===
@@ -117,17 +151,13 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
     audit: {
       whatHappened: audit,
       timestamp: new Date().toISOString(),
-      seedHash: crypto.createHash('sha256').update(masterSeed).digest('hex')
+      seedHash: fastHash('sha256', masterSeed).toString('hex')
     }
   };
 }
 
 /**
  * Decrypts and verifies the full Cipher Tube
- *
- * BOLT OPTIMIZATION:
- * Used Map-based lookup for tubes instead of Array.find() to reduce complexity from O(L*N) to O(L).
- * Where L is the number of layers (25) and N is the number of tubes (25).
  */
 export function decryptCipherTube(
   ciphertextHex: string,
@@ -179,6 +209,7 @@ export function decryptCipherTube(
     if (!entry) throw new Error(`Missing encryption tube for layer ${layerId}`);
     const tube = entry.tube;
 
+    const tube = entry.tube;
     // Sentinel: Validate tube fields
     if (typeof tube.salt !== 'string' || typeof tube.iv !== 'string' || typeof tube.tag !== 'string') {
       throw new Error(`Invalid tube metadata for layer ${layerId}: Missing salt, iv, or tag`);
@@ -215,12 +246,13 @@ export function decryptCipherTube(
     if (!entry) throw new Error(`Missing hash-lock tube ${i}`);
     const tube = entry.tube;
 
-    if (typeof tube.hash !== 'string') {
+    const tube = entry.tube;
+    if (typeof tube.hash !== 'string' || !entry.hash) {
       throw new Error(`Invalid tube metadata for hash-lock ${i}: Missing hash`);
     }
 
     // Bolt Optimization: Short-circuit if this hash was already verified in the previous layer
-    if (tube.hash === lastHash && lastVerified) {
+    if (tube.hash === lastHashHex && lastVerified) {
       audit.push(AUDIT_VERIFY_TUBE[i]);
       continue;
     }
@@ -235,7 +267,7 @@ export function decryptCipherTube(
       throw new Error(`Integrity check failed: Hash-lock tube ${i} mismatch`);
     }
 
-    lastHash = tube.hash;
+    lastHashHex = tube.hash;
     lastVerified = true;
     audit.push(AUDIT_VERIFY_TUBE[i]);
   }
