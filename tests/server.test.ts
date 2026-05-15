@@ -26,12 +26,15 @@ describe('Server Security and Health', () => {
 
   it('should have security headers from helmet', async () => {
     const response = await request(app).get('/health');
-
-    // Check for some common helmet headers
     expect(response.headers['x-dns-prefetch-control']).toBe('off');
     expect(response.headers['x-frame-options']).toBe('DENY');
     expect(response.headers['x-content-type-options']).toBe('nosniff');
-    expect(response.headers['strict-transport-security']).toBeDefined();
+    expect(response.headers['strict-transport-security']).toContain('max-age=31536000');
+    expect(response.headers['strict-transport-security']).toContain('includeSubDomains');
+    expect(response.headers['strict-transport-security']).toContain('preload');
+    expect(response.headers['content-security-policy']).toContain("base-uri 'none'");
+    expect(response.headers['content-security-policy']).toContain("form-action 'self'");
+    expect(response.headers['content-security-policy']).toContain("frame-ancestors 'none'");
   });
 
   it('should NOT have x-powered-by header', async () => {
@@ -58,6 +61,7 @@ describe('Server Security and Health', () => {
     // Mock redis for subsequent check
     redisMock.get.mockResolvedValueOnce(userId);
 
+    redisMock.get.mockResolvedValue(userId);
     const checkOk = await request(app).get(`/mcp/${sid}/check`).set('x-user-id', userId);
     expect(checkOk.status).toBe(200);
 
@@ -71,16 +75,13 @@ describe('Server Security and Health', () => {
   });
 
   it('should reject large JSON payloads', async () => {
-    // Create a payload larger than 10kb
     const largePayload = {
       data: 'a'.repeat(11 * 1024)
     };
-
     const response = await request(app)
-      .post('/mcp') // Route with JSON parser
+      .post('/mcp')
       .set('x-user-id', 'test-user')
       .send(largePayload);
-
     expect(response.status).toBe(413);
   });
 });
