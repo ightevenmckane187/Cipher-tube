@@ -32,8 +32,8 @@ const AUDIT_LAYER_ENCRYPTION = Array.from({ length: NUM_ENCRYPTION_LAYERS }, (_,
 const AUDIT_DECRYPT_LAYER = Array.from({ length: NUM_ENCRYPTION_LAYERS }, (_, i) => `Decrypted AES-256-GCM layer ${i}`);
 const AUDIT_VERIFY_TUBE = Array.from({ length: NUM_INTEGRITY_TUBES }, (_, i) => `Verified hash-lock tube ${i}`);
 
-function deriveKey(master: Buffer, salt: Buffer, info: string | Buffer): Buffer {
-  return Buffer.from(crypto.hkdfSync('sha256', master, salt, info, 32));
+function deriveKey(master: Buffer, salt: Buffer, info: string | Buffer): ArrayBuffer {
+  return crypto.hkdfSync('sha256', master, salt, info, 32);
 }
 
 /**
@@ -90,9 +90,10 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
     const info = ENCRYPTION_INFOS[j] || `enc-${j}`;
     const key = deriveKey(masterSeed, salt, info);
 
-    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-    const update = cipher.update(current);
-    const final = cipher.final();
+    // Bolt Optimization: Use ArrayBuffer directly from deriveKey
+    const cipher = crypto.createCipheriv('aes-256-gcm', new Uint8Array(key), iv);
+    const ciphertext = cipher.update(current);
+    cipher.final(); // Must call final() before getAuthTag() even if it returns empty buffer
     const tag = cipher.getAuthTag();
 
     // Bolt Optimization: Avoid Buffer.concat if final is empty (common for GCM)
@@ -192,7 +193,8 @@ export function decryptCipherTube(
     const info = ENCRYPTION_INFOS[j] || `enc-${j}`;
     const key = deriveKey(masterSeed, salt, info);
 
-    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    // Bolt Optimization: Use ArrayBuffer key
+    const decipher = crypto.createDecipheriv('aes-256-gcm', new Uint8Array(key), iv);
     decipher.setAuthTag(tag);
 
     const decUpdate = decipher.update(encryptedData);
