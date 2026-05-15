@@ -48,6 +48,9 @@ export class AuthorityChainValidator {
       }
 
       // Check if signatures reference existing roles
+      if (!Array.isArray((gate as any).required_signatures)) {
+        throw new Error(`Lifecycle gate ${gateId} required_signatures must be an array`);
+      }
       for (const roleId of (gate as any).required_signatures) {
         if (!Object.prototype.hasOwnProperty.call(manifest.roles, roleId)) {
           throw new Error(`Lifecycle gate ${gateId} references non-existent role: ${roleId}`);
@@ -68,6 +71,9 @@ export class AuthorityChainValidator {
     }
     if (!Array.isArray(hiAi.mandatory_signatures)) {
       throw new Error('mandatory_signatures must be an array');
+    }
+    if (!Array.isArray(hiAi.mandatory_signatures)) {
+      throw new Error('governance_controls.high_impact_ai.mandatory_signatures must be an array');
     }
     for (const roleId of hiAi.mandatory_signatures) {
       if (!Object.prototype.hasOwnProperty.call(manifest.roles, roleId)) {
