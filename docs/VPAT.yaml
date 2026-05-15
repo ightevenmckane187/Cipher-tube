@@ -1,0 +1,24 @@
+vpat:
+  version: "2.4"
+  product: "Cipher-Tube"
+  release: "1.5.0"
+  wcag_conformance:
+    level: "AA"
+    criteria:
+      - id: "1.1.1"
+        name: "Non-text Content"
+        status: "Supports"
+      - id: "2.1.1"
+        name: "Keyboard"
+        status: "Supports"
+      - id: "2.2.1"
+        name: "Timing Adjustable"
+        status: "Partially Supports"
+      - id: "4.1.2"
+        name: "Name, Role, Value"
+        status: "Partially Supports"
+  section_508:
+    chapter_3:
+      status: "Substantial Conformance"
+    chapter_6:
+      status: "Partial Conformance"
