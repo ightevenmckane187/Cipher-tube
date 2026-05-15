@@ -132,8 +132,8 @@ export function buildCipherTube(
 
     // Bolt Optimization: Use ArrayBuffer directly from deriveKey
     const cipher = crypto.createCipheriv('aes-256-gcm', new Uint8Array(key), iv);
-    const ciphertext = cipher.update(current);
-    cipher.final(); // Must call final() before getAuthTag() even if it returns empty buffer
+    const update = cipher.update(current);
+    const final = cipher.final(); // Must call final() before getAuthTag() even if it returns empty buffer
     const tag = cipher.getAuthTag();
 
     // Bolt Optimization: Avoid Buffer.concat if final is empty (common for GCM)
@@ -219,7 +219,6 @@ export function decryptCipherTube(
     if (!entry) throw new Error(`Missing encryption tube for layer ${layerId}`);
     const tube = entry.tube;
 
-    const tube = entry.tube;
     // Sentinel: Validate tube fields
     if (
       typeof tube.salt !== "string" ||
@@ -262,13 +261,12 @@ export function decryptCipherTube(
     if (!entry) throw new Error(`Missing hash-lock tube ${i}`);
     const tube = entry.tube;
 
-    const tube = entry.tube;
     if (typeof tube.hash !== 'string' || !entry.hash) {
       throw new Error(`Invalid tube metadata for hash-lock ${i}: Missing hash`);
     }
 
     // Bolt Optimization: Short-circuit if this hash was already verified in the previous layer
-    if (tube.hash === lastHashHex && lastVerified) {
+    if (tube.hash === lastHash && lastVerified) {
       audit.push(AUDIT_VERIFY_TUBE[i]);
       continue;
     }
@@ -286,7 +284,7 @@ export function decryptCipherTube(
       throw new Error(`Integrity check failed: Hash-lock tube ${i} mismatch`);
     }
 
-    lastHashHex = tube.hash;
+    lastHash = tube.hash;
     lastVerified = true;
     audit.push(AUDIT_VERIFY_TUBE[i]);
   }
