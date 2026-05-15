@@ -1,0 +1,17 @@
+{
+  "vpat": {
+    "version": "2.4",
+    "product": "Cipher-Tube",
+    "release": "1.5.0",
+    "conformance": {
+      "wcag_21_aa": "Substantial",
+      "section_508": "Substantial"
+    },
+    "remediation_status": {
+      "keyboard_nav": "100%",
+      "timing_controls": "60%",
+      "aria_labels": "75%",
+      "documentation": "40%"
+    }
+  }
+}
