@@ -154,7 +154,7 @@ describe('Security Validation', () => {
           });
 
         expect(response.status).toBe(400);
-        expect(response.body.error).toContain('Missing encryption tube');
+        expect(response.body.error).toContain('Invalid tube metadata: All tubes must be non-null objects');
       });
 
     it('should return 400 for missing or invalid fields in encryption tube', async () => {
