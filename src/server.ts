@@ -96,6 +96,8 @@ app.use(
 // Serve accessible documentation (WCAG 602.3 compliance)
 app.use('/docs', express.static(path.join(__dirname, '../docs')));
 
+app.use(apiLimiter); // Sentinel: Apply global rate limiting before expensive operations
+
 export const redisClient: RedisClientType = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
 });
