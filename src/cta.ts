@@ -1,8 +1,8 @@
-import crypto from 'crypto';
+import crypto from "crypto";
 
 export interface Tube {
   layer: number;
-  type: 'hash-lock' | 'aes-256-gcm';
+  type: "hash-lock" | "aes-256-gcm";
   salt: string;
   hash?: string;
   iv?: string;
@@ -18,7 +18,7 @@ interface TubeEntry {
 export interface CipherTubeResult {
   ciphertext: string;
   tubes: Tube[];
-  hashChain?: string[];           // optional, for extra verification
+  hashChain?: string[]; // optional, for extra verification
   audit: {
     whatHappened: string[];
     timestamp: string;
@@ -76,7 +76,10 @@ function deriveKey(master: Buffer, salt: Buffer, info: string | Buffer): ArrayBu
  * - 12 Hash-Lock Tubes (integrity verification only)
  * - 13 AES-256-GCM Encryption Layers
  */
-export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTubeResult {
+export function buildCipherTube(
+  plaintext: Buffer,
+  masterSeed: Buffer,
+): CipherTubeResult {
   let current = plaintext;
   const tubes: Tube[] = [];
   const audit: string[] = [];
@@ -84,7 +87,10 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
 
   // Bolt Optimization: Consolidate entropy generation.
   // NUM_INTEGRITY_TUBES * 16B (salt) + NUM_ENCRYPTION_LAYERS * 16B (salt) + NUM_ENCRYPTION_LAYERS * 12B (iv)
-  const entropyNeeded = (NUM_INTEGRITY_TUBES * 16) + (NUM_ENCRYPTION_LAYERS * 16) + (NUM_ENCRYPTION_LAYERS * 12);
+  const entropyNeeded =
+    NUM_INTEGRITY_TUBES * 16 +
+    NUM_ENCRYPTION_LAYERS * 16 +
+    NUM_ENCRYPTION_LAYERS * 12;
   const entropyPool = crypto.randomBytes(entropyNeeded);
   let entropyOffset = 0;
 
@@ -145,7 +151,7 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
   }
 
   return {
-    ciphertext: current.toString('hex'),
+    ciphertext: current.toString("hex"),
     tubes,
     hashChain,
     audit: {
@@ -162,28 +168,32 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
 export function decryptCipherTube(
   ciphertextHex: string,
   masterSeed: Buffer,
-  tubes: Tube[]
+  tubes: Tube[],
 ) {
   // Sentinel: Validate hex input and even length
   if (!/^[0-9a-f]*$/i.test(ciphertextHex) || ciphertextHex.length % 2 !== 0) {
-    throw new Error('Invalid ciphertext: Not a valid hex string or invalid length');
+    throw new Error(
+      "Invalid ciphertext: Not a valid hex string or invalid length",
+    );
   }
 
   // Sentinel: Validate masterSeed length (256-bit entropy required)
   if (masterSeed.length !== 32) {
-    throw new Error('Invalid masterSeed: Must be exactly 32 bytes');
+    throw new Error("Invalid masterSeed: Must be exactly 32 bytes");
   }
 
   // Sentinel: Limit tubes array size to prevent DoS via resource exhaustion
   if (!Array.isArray(tubes) || tubes.length > 100) {
-    throw new Error('Invalid tubes metadata: Missing, invalid, or too many layers');
+    throw new Error(
+      "Invalid tubes metadata: Missing, invalid, or too many layers",
+    );
   }
 
-  let current = Buffer.from(ciphertextHex, 'hex');
+  let current = Buffer.from(ciphertextHex, "hex");
 
   // Sentinel: Basic length check. 13 layers * (12 IV + 16 TAG) = 364 bytes min
   if (current.length < 364) {
-    throw new Error('Invalid ciphertext: Too short for 13 encryption layers');
+    throw new Error("Invalid ciphertext: Too short for 13 encryption layers");
   }
 
   const audit: string[] = [];
@@ -211,8 +221,14 @@ export function decryptCipherTube(
 
     const tube = entry.tube;
     // Sentinel: Validate tube fields
-    if (typeof tube.salt !== 'string' || typeof tube.iv !== 'string' || typeof tube.tag !== 'string') {
-      throw new Error(`Invalid tube metadata for layer ${layerId}: Missing salt, iv, or tag`);
+    if (
+      typeof tube.salt !== "string" ||
+      typeof tube.iv !== "string" ||
+      typeof tube.tag !== "string"
+    ) {
+      throw new Error(
+        `Invalid tube metadata for layer ${layerId}: Missing salt, iv, or tag`,
+      );
     }
 
     const iv = current.subarray(0, 12);
@@ -263,7 +279,10 @@ export function decryptCipherTube(
     }
 
     // Sentinel: Use timingSafeEqual to prevent potential timing attacks on integrity checks
-    if (computedHashBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(computedHashBuffer, expectedBuffer)) {
+    if (
+      computedHashBuffer.length !== expectedBuffer.length ||
+      !crypto.timingSafeEqual(computedHashBuffer, expectedBuffer)
+    ) {
       throw new Error(`Integrity check failed: Hash-lock tube ${i} mismatch`);
     }
 
@@ -273,11 +292,11 @@ export function decryptCipherTube(
   }
 
   return {
-    plaintext: current.toString('utf8'),
+    plaintext: current.toString("utf8"),
     audit: {
       whatHappened: audit,
       success: true,
-      timestamp: new Date().toISOString()
-    }
+      timestamp: new Date().toISOString(),
+    },
   };
 }
