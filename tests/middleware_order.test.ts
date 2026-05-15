@@ -1,33 +1,60 @@
 import request from 'supertest';
+
+// Mock express-rate-limit before importing app
+jest.mock('express-rate-limit', () => {
+    const actual = jest.requireActual('express-rate-limit');
+    return {
+        ...actual,
+        __esModule: true,
+        default: jest.fn((options) => {
+            return actual.rateLimit({
+                ...options,
+                max: 10,
+                windowMs: 15 * 60 * 1000
+            });
+        }),
+        rateLimit: jest.fn((options) => {
+            return actual.rateLimit({
+                ...options,
+                max: 10,
+                windowMs: 15 * 60 * 1000
+            });
+        })
+    };
+});
+
 import { app } from '../src/server';
 
-describe('Middleware Order Verification', () => {
-  it('should have security headers on 429 responses', async () => {
-    // Trigger rate limit on apiLimiter (limit is 1000, so we might need a lot of requests)
-    // Actually, we can just check if helmet is after apiLimiter in the source.
-    // Or we can mock rateLimit to trigger immediately.
+// Mock Redis client to avoid connection issues
+jest.mock('redis', () => {
+  const mRedis = {
+    on: jest.fn(),
+    connect: jest.fn().mockResolvedValue(null),
+    set: jest.fn().mockResolvedValue('OK'),
+    get: jest.fn(),
+  };
+  return {
+    createClient: jest.fn(() => mRedis),
+  };
+});
 
-    // Instead of hitting the real rate limit, let's just observe the middleware order in src/server.ts
-    // Global middleware:
-    // app.use(apiLimiter) is at line 55
-    // app.use(helmet) is at line 60
-
-    // This confirms that if apiLimiter triggers, helmet hasn't run yet.
-
-    const sessionId = '550e8400-e29b-41d4-4716-446655440000';
-    for (let i = 0; i < 100; i++) {
-        await request(app)
-            .get(`/mcp/${sessionId}/check`)
-            .set('x-user-id', 'user-id');
+describe('Middleware Order Security', () => {
+  it('should include core security headers but NOT CSP in 429 rate-limited responses from global limiter', async () => {
+    // Hit root endpoint which only has global middleware
+    // Limit is mocked to 10
+    for (let i = 0; i < 10; i++) {
+        await request(app).get('/');
     }
 
-    const response = await request(app)
-        .get(`/mcp/${sessionId}/check`)
-        .set('x-user-id', 'user-id');
+    const response = await request(app).get('/');
 
     expect(response.status).toBe(429);
-    // If helmet is AFTER apiLimiter, these headers might be missing on 429
+
+    // Core security headers should be present (applied BEFORE apiLimiter)
     expect(response.headers['x-frame-options']).toBe('DENY');
-    expect(response.headers['x-content-type-options']).toBe('nosniff');
-  }, 20000);
+    expect(response.headers['strict-transport-security']).toBeDefined();
+
+    // CSP should NOT be present on 429 because it's applied AFTER apiLimiter
+    expect(response.headers['content-security-policy']).toBeUndefined();
+  });
 });
