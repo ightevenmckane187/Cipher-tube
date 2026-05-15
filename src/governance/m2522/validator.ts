@@ -8,7 +8,7 @@ export class AuthorityChainValidator {
 
     const requiredRootFields = ['version', 'framework', 'owner', 'roles', 'lifecycle_gates', 'governance_controls', 'escalation_paths'];
     for (const field of requiredRootFields) {
-      if (!(field in manifest)) {
+      if (!Object.prototype.hasOwnProperty.call(manifest, field)) {
         throw new Error(`Missing required root field: ${field}`);
       }
     }
@@ -21,7 +21,7 @@ export class AuthorityChainValidator {
       if (typeof role !== 'object' || role === null || Array.isArray(role)) {
         throw new Error(`Role ${roleId} must be an object`);
       }
-      if (!('name' in role) || !('permissions' in role)) {
+      if (!Object.prototype.hasOwnProperty.call(role, 'name') || !Object.prototype.hasOwnProperty.call(role, 'permissions')) {
         throw new Error(`Role ${roleId} is missing required fields`);
       }
       if (!Array.isArray((role as any).permissions)) {
@@ -39,27 +39,17 @@ export class AuthorityChainValidator {
       }
       const requiredGateFields = ['sentinel_bindings', 'required_signatures', 'required_artifacts'];
       for (const field of requiredGateFields) {
-        if (!(field in gate)) {
+        if (!Object.prototype.hasOwnProperty.call(gate, field)) {
           throw new Error(`Lifecycle gate ${gateId} is missing required field: ${field}`);
         }
         if (!Array.isArray((gate as any)[field])) {
-          throw new Error(`Lifecycle gate ${gateId} field ${field} must be an array`);
+          throw new Error(`Lifecycle gate ${gateId} ${field} must be an array`);
         }
-      }
-
-      if (!Array.isArray((gate as any).sentinel_bindings)) {
-        throw new Error(`Lifecycle gate ${gateId} sentinel_bindings must be an array`);
-      }
-      if (!Array.isArray((gate as any).required_signatures)) {
-        throw new Error(`Lifecycle gate ${gateId} required_signatures must be an array`);
-      }
-      if (!Array.isArray((gate as any).required_artifacts)) {
-        throw new Error(`Lifecycle gate ${gateId} required_artifacts must be an array`);
       }
 
       // Check if signatures reference existing roles
       for (const roleId of (gate as any).required_signatures) {
-        if (!(roleId in manifest.roles)) {
+        if (!Object.prototype.hasOwnProperty.call(manifest.roles, roleId)) {
           throw new Error(`Lifecycle gate ${gateId} references non-existent role: ${roleId}`);
         }
       }
@@ -80,7 +70,7 @@ export class AuthorityChainValidator {
       throw new Error('mandatory_signatures must be an array');
     }
     for (const roleId of hiAi.mandatory_signatures) {
-      if (!(roleId in manifest.roles)) {
+      if (!Object.prototype.hasOwnProperty.call(manifest.roles, roleId)) {
         throw new Error(`High Impact AI mandatory signatures reference non-existent role: ${roleId}`);
       }
     }
