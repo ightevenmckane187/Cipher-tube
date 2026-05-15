@@ -21,3 +21,7 @@
 ## 2026-05-20 - Optimized Hashing and Metadata Processing in CTA
 **Learning:** Using the one-shot `crypto.hash()` API available in Node.js 22.22.1 provides a measurable performance gain over the streaming `createHash()` API by reducing object overhead. Pre-parsing hex-encoded metadata (salts, hashes) into Buffers during an initial O(1) array-backed lookup pass avoids redundant parsing inside hot decryption loops, further improving efficiency.
 **Action:** Prefer one-shot hashing APIs where available; pre-convert string metadata to Buffers before entering high-frequency loops.
+
+## 2026-05-25 - Entropy-to-Hex Optimization and Redundancy Cleanup
+**Learning:** Using `buffer.toString('hex', start, end)` is significantly faster than converting a large buffer to a full hex string and then using `.substring()`, as it avoids a massive string allocation. Additionally, removing duplicate middleware and redundant UI elements improves both backend throughput and frontend clarity.
+**Action:** Use specific buffer range conversions for hex strings; always audit middleware chains and UI templates for accidental duplication.
