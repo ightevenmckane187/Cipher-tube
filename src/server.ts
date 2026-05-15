@@ -176,6 +176,39 @@ app.get('/', (req: Request, res: Response) => {
                 #theme-toggle:hover {
                     background-color: var(--border-color);
                 }
+                .header-container {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .status-text {
+                    color: var(--success);
+                }
+                .input-group {
+                    margin-bottom: 1.5rem;
+                }
+                label {
+                    display: block;
+                    font-size: 0.875rem;
+                    font-weight: 500;
+                    margin-bottom: 0.5rem;
+                }
+                #user-id-input {
+                    background: var(--bg-color);
+                    border: 1px solid var(--border-color);
+                    color: var(--text-color);
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                    font-size: 1rem;
+                    width: 100%;
+                    max-width: 300px;
+                    transition: border-color 0.2s;
+                }
+                #user-id-input:focus {
+                    outline: none;
+                    border-color: var(--primary);
+                    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+                }
                 #theme-toggle:focus-visible {
                     outline: 2px solid var(--primary);
                     outline-offset: 2px;
@@ -269,7 +302,7 @@ app.get('/', (req: Request, res: Response) => {
         <body>
             <a class="skip-link" href="#main-content">Skip to content</a>
             <main id="main-content">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="header-container">
                     <h1>Cipher Tube Assembly</h1>
                     <button id="theme-toggle" aria-label="Switch Theme" aria-pressed="false">
                         <span id="theme-icon" aria-hidden="true"></span>
@@ -280,17 +313,28 @@ app.get('/', (req: Request, res: Response) => {
                 <div role="status" aria-live="polite">
                     <p>
                         <span class="status-dot" aria-hidden="true"></span>
-                        <strong>Status:</strong> <span style="color: var(--success);">Online</span>
+                        <strong>Status:</strong> <span class="status-text">Online</span>
                     </p>
                 </div>
                 <h2>Quick Start</h2>
-                <p>To get started, create a session via the API:</p>
+                <p>To get started, customize your User ID and create a session via the API:</p>
+                <div class="input-group">
+                    <label for="user-id-input">User ID</label>
+                    <input
+                        type="text"
+                        id="user-id-input"
+                        placeholder="demo-user"
+                        maxlength="128"
+                        spellcheck="false"
+                        autocomplete="off"
+                    >
+                </div>
                 <div class="code-container">
                     <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard">
                         <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
                         <svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
                         <span id="copy-text" aria-live="polite">Copy</span>
-                        <kbd aria-hidden="true" style="margin-left: 4px; font-size: 0.7rem; opacity: 0.8; border: 1px solid rgba(255,255,255,0.3); padding: 1px 4px; border-radius: 3px;">(c)</kbd>
+                        <kbd class="kb-shortcut" aria-hidden="true">(c)</kbd>
                     </button>
                     <pre tabindex="0" role="region" aria-label="Terminal command example"><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
                 </div>
@@ -330,10 +374,18 @@ app.get('/', (req: Request, res: Response) => {
                 const copyButton = document.getElementById('copy-curl');
                 const copyText = document.getElementById('copy-text');
                 const curlCommand = document.getElementById('curl-command');
+                const userIdInput = document.getElementById('user-id-input');
 
-                // Dynamically update the example with the current origin
-                const currentOrigin = window.location.origin;
-                curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: demo-user"\`;
+                function updateCommand() {
+                    const userId = userIdInput.value.trim() || 'demo-user';
+                    const currentOrigin = window.location.origin;
+                    curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: \${userId}"\`;
+                }
+
+                userIdInput.addEventListener('input', updateCommand);
+
+                // Initial update
+                updateCommand();
 
                 copyButton.addEventListener('click', async () => {
                     try {
@@ -354,6 +406,7 @@ app.get('/', (req: Request, res: Response) => {
                 });
 
                 window.addEventListener('keydown', (e) => {
+                    if (e.ctrlKey || e.metaKey || e.altKey) return;
                     if (e.key === 'c' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
                         const btn = document.getElementById('copy-curl');
                         if (btn) btn.click();
@@ -432,6 +485,7 @@ app.post('/mcp', sessionLimiter, jsonParser, validateUserId, async (req: Request
     const userId = req.headers['x-user-id'] as string;
 
     const sessionId = crypto.randomUUID();
+    const sessionKey = `session:${sessionId}:owner`;
     try {
         // Store session ownership with 24-hour TTL (86400 seconds)
         await redisClient.set(sessionKey, userId, { EX: SESSION_TTL });
