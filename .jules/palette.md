@@ -21,3 +21,7 @@
 ## 2026-05-06 - [Keyboard Discoverability and Theme-Agnostic Animations]
 **Learning:** For web applications with keyboard shortcuts, providing a visual hint (like a `<kbd>` tag) directly on the interactive element (e.g., a "Copy" button) significantly improves power-user discoverability. Additionally, using theme-aware CSS variables for animation glow effects and `transparent` for fade-out stops ensures visual consistency across Light and Dark modes without hardcoded color leaks.
 **Action:** Always pair keyboard listeners with visual UI hints (e.g., `<kbd>(key)</kbd>`). Use CSS variables for all animation color properties to ensure theme compatibility and avoid visual regressions when switching modes.
+
+## 2026-05-15 - [Real-time Input Validation and Feedback]
+**Learning:** For text inputs with a hard `maxlength` limit, users often feel frustrated when the browser simply stops accepting input without warning. Adding a live character counter provides immediate feedback and sets clear expectations, especially when paired with visual cues for "near-limit" states.
+**Action:** Implement a live character counter associated via `aria-describedby` and `aria-live="polite"` for any field with a length constraint. Use a visual warning state (e.g., a `.near-limit` class) when the user is close to the maximum character count.

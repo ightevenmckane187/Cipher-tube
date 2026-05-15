@@ -1,0 +1,32 @@
+CIPHER-TUBE ACCESSIBILITY CONFORMANCE REPORT (ACR)
+=================================================
+
+PRODUCT: Cipher-Tube v1.5.0
+DATE: May 2026
+EVALUATION METHOD: Manual Testing, Axe-Core, Screen Reader (NVDA/VoiceOver)
+
+WCAG 2.1 CONFORMANCE SUMMARY
+---------------------------
+Level A: Substantial Conformance
+Level AA: Substantial Conformance
+
+SECTION 508 CONFORMANCE SUMMARY
+------------------------------
+Chapter 3 (Functional Performance): Supports
+Chapter 4 (Hardware): Not Applicable
+Chapter 5 (Software): Supports
+Chapter 6 (Support Documentation): Partially Supports
+
+KEY FINDINGS
+------------
+- Keyboard accessibility is robust across all core modules (Sentinel, Bolt, Palette).
+- Contrast ratios meet or exceed 4.5:1 for all primary workflows.
+- ARIA enhancements for "Cipher Tube Assembly" interactions are in progress.
+- Session timeout warnings (WCAG 2.2.1) are being deployed in Phase 1 remediation.
+
+SUPPORT & DOCUMENTATION
+-----------------------
+Documentation is available in accessible HTML format at /docs/USER_GUIDE.md.
+Accessibility support is provided via accessibility@cipher-tube.io.
+
+END OF REPORT

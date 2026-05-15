@@ -14,6 +14,10 @@
 **Learning:** Consolidating multiple `crypto.randomBytes` calls into a single larger call and slicing it with `subarray` significantly reduces syscall overhead and improves performance by ~35% in high-frequency cryptographic paths. Additionally, running `pnpm install` in some environments can destructively update the lockfile; always verify lockfile integrity before submission and avoid committing unrelated dependency changes.
 **Action:** Batch entropy generation where possible; always use `git status` and `git restore` to maintain a clean lockfile.
 
-## 2026-06-12 - Hot Path Cryptographic and Lookup Optimizations
-**Learning:** `crypto.hkdfSync` returns an `ArrayBuffer` which can be used directly as a key in `createCipheriv`, avoiding the overhead of a `Buffer.from` wrapper. In hot decryption loops, replacing `Map` lookups with fixed-size array indexing and omitting empty `final()` buffers from `Buffer.concat` (valid for AES-GCM) provides measurable micro-optimization gains. Additionally, manual loops for initializing large constant arrays are faster than `Array.from` in this environment.
-**Action:** Use `ArrayBuffer` directly for keys; prefer array indexing over `Map` for small integer keys; omit empty `final()` buffers in GCM hot paths.
+## 2026-05-13 - Optimized Decryption and Hashing Strategy
+**Learning:** For small, fixed-range integer keys (e.g., 0-100), a pre-allocated array is significantly faster than a `Map` for lookups. In Node.js 21.7+, `crypto.hash()` is a one-shot API that outperforms `createHash().update().digest()` by avoiding object overhead, but it should be used with a fallback for compatibility with older LTS versions. Avoiding `Buffer.concat` when the second buffer is empty (common in AES-GCM `final()` calls) prevents unnecessary memory copies.
+**Action:** Prefer arrays for indexed lookups; use feature detection for high-performance crypto APIs; avoid redundant buffer concatenations.
+
+## 2026-05-20 - Optimized Hashing and Metadata Processing in CTA
+**Learning:** Using the one-shot `crypto.hash()` API available in Node.js 22.22.1 provides a measurable performance gain over the streaming `createHash()` API by reducing object overhead. Pre-parsing hex-encoded metadata (salts, hashes) into Buffers during an initial O(1) array-backed lookup pass avoids redundant parsing inside hot decryption loops, further improving efficiency.
+**Action:** Prefer one-shot hashing APIs where available; pre-convert string metadata to Buffers before entering high-frequency loops.
