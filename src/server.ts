@@ -247,11 +247,21 @@ app.get('/', (req: Request, res: Response) => {
                 .copy-button:hover { background: rgba(255, 255, 255, 0.2); }
                 .copy-button:focus-visible { outline: 2px solid var(--primary); }
                 .kb-shortcut {
-                    opacity: 0.6;
+                    margin-left: 4px;
+                    opacity: 0.8;
                     font-size: 0.7rem;
                     background: rgba(255, 255, 255, 0.1);
-                    padding: 0 4px;
+                    padding: 1px 4px;
                     border-radius: 3px;
+                    border: 1px solid rgba(255, 255, 255, 0.3);
+                }
+                .header-container {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .status-text {
+                    color: var(--success);
                 }
                 @media (max-width: 480px) {
                     .kb-shortcut { display: none; }
