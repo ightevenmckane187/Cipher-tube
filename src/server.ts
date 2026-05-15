@@ -13,9 +13,10 @@ const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
+// Sentinel: TTL reduced to 5s to ensure fast propagation of session revocations
 export const sessionCache = new LRUCache<string, string>({
     max: 1000,
-    ttl: 3600 * 1000, // 1 hour (Cipher-Tube compliance)
+    ttl: 5 * 1000, // 5 seconds (Fast propagation)
 });
 
 const UUID_V4_REGEX =
