@@ -75,6 +75,9 @@ export class AuthorityChainValidator {
     if (!Array.isArray(hiAi.mandatory_signatures)) {
       throw new Error('governance_controls.high_impact_ai.mandatory_signatures must be an array');
     }
+    if (!Array.isArray(hiAi.mandatory_signatures)) {
+      throw new Error('high_impact_ai.mandatory_signatures must be an array');
+    }
     for (const roleId of hiAi.mandatory_signatures) {
       if (!Object.prototype.hasOwnProperty.call(manifest.roles, roleId)) {
         throw new Error(`High Impact AI mandatory signatures reference non-existent role: ${roleId}`);
