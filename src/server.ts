@@ -3,6 +3,7 @@ import { createClient, RedisClientType } from "redis";
 import helmet from "helmet";
 import dotenv from "dotenv";
 import crypto from "crypto";
+import path from "path";
 import rateLimit from "express-rate-limit";
 import { LRUCache } from "lru-cache";
 import { buildCipherTube, decryptCipherTube } from "./cta";
@@ -758,11 +759,6 @@ app.post(
   },
 );
 
-// 404 Handler for unmatched routes
-app.use((req: Request, res: Response) => {
-  res.status(404).json({ error: "Not Found" });
-});
-
 /**
  * Global error-handling middleware.
  * Sentinel: Catch and sanitize unhandled errors to prevent information leakage and DoS.
@@ -786,6 +782,11 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   // Sentinel: Log only message to avoid leaking sensitive internal state
   console.error("Unhandled Error:", err?.message || "Unknown error");
   res.status(500).json({ error: "Internal server error" });
+});
+
+// 404 Handler for unmatched routes
+app.use((req: Request, res: Response) => {
+  res.status(404).json({ error: "Not Found" });
 });
 
 export { app };
