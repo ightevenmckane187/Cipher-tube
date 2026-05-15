@@ -32,8 +32,8 @@ const AUDIT_LAYER_ENCRYPTION = Array.from({ length: NUM_ENCRYPTION_LAYERS }, (_,
 const AUDIT_DECRYPT_LAYER = Array.from({ length: NUM_ENCRYPTION_LAYERS }, (_, i) => `Decrypted AES-256-GCM layer ${i}`);
 const AUDIT_VERIFY_TUBE = Array.from({ length: NUM_INTEGRITY_TUBES }, (_, i) => `Verified hash-lock tube ${i}`);
 
-function deriveKey(master: Buffer, salt: Buffer, info: string | Buffer): Buffer {
-  return Buffer.from(crypto.hkdfSync('sha256', master, salt, info, 32));
+function deriveKey(master: Buffer, salt: Buffer, info: string | Buffer): ArrayBuffer {
+  return crypto.hkdfSync('sha256', master, salt, info, 32);
 }
 
 /**
@@ -90,9 +90,10 @@ export function buildCipherTube(plaintext: Buffer, masterSeed: Buffer): CipherTu
     const info = ENCRYPTION_INFOS[j] || `enc-${j}`;
     const key = deriveKey(masterSeed, salt, info);
 
-    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-    const update = cipher.update(current);
-    const final = cipher.final();
+    // Bolt Optimization: Use ArrayBuffer directly from deriveKey
+    const cipher = crypto.createCipheriv('aes-256-gcm', new Uint8Array(key), iv);
+    const ciphertext = cipher.update(current);
+    cipher.final(); // Must call final() before getAuthTag() even if it returns empty buffer
     const tag = cipher.getAuthTag();
 
     // Bolt Optimization: Avoid Buffer.concat if final is empty (common for GCM)
@@ -158,9 +159,7 @@ export function decryptCipherTube(
   const audit: string[] = [];
 
   // Bolt Optimization: Use a fixed-size array for O(1) lookups instead of a Map
-  // Salts and hashes are pre-converted to Buffers to avoid repeated conversion overhead.
   const tubePool: { tube: Tube; salt: Buffer | null; hash: Buffer | null }[] = new Array(101);
-
   for (const tube of tubes) {
     if (!tube || typeof tube !== 'object' || typeof tube.layer !== 'number') continue;
     const layer = tube.layer;
@@ -177,7 +176,7 @@ export function decryptCipherTube(
   for (let j = NUM_ENCRYPTION_LAYERS - 1; j >= 0; j--) {
     const layerId = NUM_INTEGRITY_TUBES + j;
     const entry = tubePool[layerId];
-    if (!entry || !entry.tube) throw new Error(`Missing encryption tube for layer ${layerId}`);
+    if (!entry) throw new Error(`Missing encryption tube for layer ${layerId}`);
     const tube = entry.tube;
 
     // Sentinel: Validate tube fields
@@ -189,11 +188,13 @@ export function decryptCipherTube(
     const tag = current.subarray(12, 28);
     const encryptedData = current.subarray(28);
 
-    const salt = entry.salt!;
+    const salt = entry.salt;
+    if (!salt) throw new Error(`Invalid tube metadata for layer ${layerId}: Missing salt`);
     const info = ENCRYPTION_INFOS[j] || `enc-${j}`;
     const key = deriveKey(masterSeed, salt, info);
 
-    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    // Bolt Optimization: Use ArrayBuffer key
+    const decipher = crypto.createDecipheriv('aes-256-gcm', new Uint8Array(key), iv);
     decipher.setAuthTag(tag);
 
     const decUpdate = decipher.update(encryptedData);
@@ -204,15 +205,14 @@ export function decryptCipherTube(
   }
 
   // === Verify 12 hash-lock tubes in reverse ===
-  // Bolt Optimization: Hoist SHA-512 hash calculation.
-  // Using createHash for compatibility with Node.js LTS (v20).
+  // Bolt Optimization: Use standard hashing for compatibility with Node.js LTS versions
   const computedHashBuffer = crypto.createHash('sha512').update(current).digest();
   let lastHash: string | undefined;
   let lastVerified = false;
 
   for (let i = NUM_INTEGRITY_TUBES - 1; i >= 0; i--) {
     const entry = tubePool[i];
-    if (!entry || !entry.tube) throw new Error(`Missing hash-lock tube ${i}`);
+    if (!entry) throw new Error(`Missing hash-lock tube ${i}`);
     const tube = entry.tube;
 
     if (typeof tube.hash !== 'string') {
@@ -225,10 +225,9 @@ export function decryptCipherTube(
       continue;
     }
 
-    // Bolt Optimization: Use pre-converted Buffers to avoid redundant hex conversions
     const expectedBuffer = entry.hash;
     if (!expectedBuffer) {
-      throw new Error(`Invalid tube metadata for hash-lock ${i}: Missing hash`);
+      throw new Error(`Invalid tube metadata for hash-lock ${i}: Missing hash buffer`);
     }
 
     // Sentinel: Use timingSafeEqual to prevent potential timing attacks on integrity checks
