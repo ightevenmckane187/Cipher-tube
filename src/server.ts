@@ -15,12 +15,12 @@ const PORT = process.env.PORT || 3000;
 // In-memory cache for session ownership lookups (Bolt Optimization)
 export const sessionCache = new LRUCache<string, string>({
     max: 1000,
-    ttl: 5000, // 5 seconds
+    ttl: 3600 * 1000, // 1 hour (Cipher-Tube compliance)
 });
 
 const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-const SESSION_TTL = 86400; // 24 hours in seconds
+const SESSION_TTL = 3600; // 1 hour in seconds
 
 // Rate limiter for general API operations
 const apiLimiter = rateLimit({
@@ -274,6 +274,13 @@ app.get('/', (req: Request, res: Response) => {
                 .check-icon { display: none; color: #2ecc71; }
                 .copy-button.copied .copy-icon { display: none; }
                 .copy-button.copied .check-icon { display: block; }
+                .header-container { display: flex; justify-content: space-between; align-items: center; }
+                .status-text { color: var(--success); font-weight: bold; }
+                .kb-hint { margin-left: 4px; font-size: 0.7rem; opacity: 0.8; border: 1px solid rgba(255, 255, 255, 0.3); padding: 1px 4px; border-radius: 3px; font-family: inherit; }
+                .input-group { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+                .input-group label { font-size: 0.875rem; font-weight: 500; }
+                .input-group input { background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 8px 12px; border-radius: 6px; font-size: 0.875rem; width: 100%; max-width: 300px; }
+                .input-group input:focus { outline: 2px solid var(--primary); border-color: transparent; }
             </style>
         </head>
         <body>
@@ -284,7 +291,7 @@ app.get('/', (req: Request, res: Response) => {
                     <button id="theme-toggle" aria-label="Switch Theme" aria-pressed="false" aria-keyshortcuts="t">
                         <span id="theme-icon" aria-hidden="true"></span>
                         <span id="theme-text">Switch to Dark</span>
-                        <kbd class="kb-shortcut" aria-hidden="true">(t)</kbd>
+                        <kbd aria-hidden="true" class="kb-hint">(t)</kbd>
                     </button>
                 </div>
                 <p>Welcome to the performance-optimized session management service.</p>
@@ -295,13 +302,17 @@ app.get('/', (req: Request, res: Response) => {
                     </p>
                 </div>
                 <h2>Quick Start</h2>
+                <div class="input-group">
+                    <label for="user-id-input">Customize your User ID:</label>
+                    <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false">
+                </div>
                 <p>To get started, create a session via the API:</p>
                 <div class="code-container">
                     <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard" aria-keyshortcuts="c">
                         <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
                         <svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
                         <span id="copy-text" aria-live="polite">Copy</span>
-                        <kbd class="kb-shortcut" aria-hidden="true">(c)</kbd>
+                        <kbd aria-hidden="true" class="kb-hint">(c)</kbd>
                     </button>
                     <pre tabindex="0" role="region" aria-label="Terminal command example"><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
                 </div>
@@ -341,10 +352,16 @@ app.get('/', (req: Request, res: Response) => {
                 const copyButton = document.getElementById('copy-curl');
                 const copyText = document.getElementById('copy-text');
                 const curlCommand = document.getElementById('curl-command');
+                const userIdInput = document.getElementById('user-id-input');
 
-                // Dynamically update the example with the current origin
-                const currentOrigin = window.location.origin;
-                curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: demo-user"\`;
+                function updateCurlCommand() {
+                    const currentOrigin = window.location.origin;
+                    const userId = userIdInput.value.trim() || 'demo-user';
+                    curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: \${userId}"\`;
+                }
+
+                userIdInput.addEventListener('input', updateCurlCommand);
+                updateCurlCommand();
 
                 copyButton.addEventListener('click', async () => {
                     try {
@@ -365,15 +382,12 @@ app.get('/', (req: Request, res: Response) => {
                 });
 
                 window.addEventListener('keydown', (e) => {
-                    if (e.ctrlKey || e.metaKey || e.altKey) return;
                     if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
-
+                    if (e.ctrlKey || e.metaKey || e.altKey) return;
                     if (e.key === 'c') {
-                        const btn = document.getElementById('copy-curl');
-                        if (btn) btn.click();
+                        document.getElementById('copy-curl')?.click();
                     } else if (e.key === 't') {
-                        const btn = document.getElementById('theme-toggle');
-                        if (btn) btn.click();
+                        document.getElementById('theme-toggle')?.click();
                     }
                 });
             </script>
@@ -449,8 +463,9 @@ app.post('/mcp', sessionLimiter, jsonParser, validateUserId, async (req: Request
     const userId = req.headers['x-user-id'] as string;
 
     const sessionId = crypto.randomUUID();
+    const sessionKey = `session:${sessionId}:owner`;
     try {
-        // Store session ownership with 24-hour TTL (86400 seconds)
+        // Store session ownership with security-compliant TTL (3600 seconds)
         await redisClient.set(sessionKey, userId, { EX: SESSION_TTL });
 
         // Optimization: Pre-warm the in-memory cache to skip the first Redis lookup (Bolt Optimization)
@@ -533,11 +548,8 @@ app.post('/mcp/:sessionId/decrypt', sessionLimiter, jsonParser, validateUserId, 
             errorMessage.includes('Invalid tag length');
 
         if (isClientError) {
-             // Return 400 for cryptographic or validation failures, but don't leak details unless it's a specific validation error
-             const publicMessage = (errorMessage.includes('Invalid ciphertext') || errorMessage.includes('Invalid tube metadata') || errorMessage.includes('Integrity check failed') || errorMessage.includes('Missing encryption tube') || errorMessage.includes('Missing hash-lock tube') || errorMessage.includes('Missing or invalid fields') || errorMessage.includes('Missing or invalid hash'))
-                ? errorMessage
-                : 'Decryption failed';
-             return res.status(400).json({ error: publicMessage });
+             // Sentinel: Return 400 for all client-side crypto/validation errors with a generic message to prevent info leakage
+             return res.status(400).json({ error: 'Decryption failed' });
         }
 
         res.status(500).json({ error: 'Internal server error' });
