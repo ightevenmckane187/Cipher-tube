@@ -205,6 +205,39 @@ app.get("/", (req: Request, res: Response) => {
                 #theme-toggle:hover {
                     background-color: var(--border-color);
                 }
+                .header-container {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .status-text {
+                    color: var(--success);
+                }
+                .input-group {
+                    margin-bottom: 1.5rem;
+                }
+                label {
+                    display: block;
+                    font-size: 0.875rem;
+                    font-weight: 500;
+                    margin-bottom: 0.5rem;
+                }
+                #user-id-input {
+                    background: var(--bg-color);
+                    border: 1px solid var(--border-color);
+                    color: var(--text-color);
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                    font-size: 1rem;
+                    width: 100%;
+                    max-width: 300px;
+                    transition: border-color 0.2s;
+                }
+                #user-id-input:focus {
+                    outline: none;
+                    border-color: var(--primary);
+                    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+                }
                 #theme-toggle:focus-visible {
                     outline: 2px solid var(--primary);
                     outline-offset: 2px;
