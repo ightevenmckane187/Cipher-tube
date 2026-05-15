@@ -7,34 +7,32 @@ jest.mock('redis', () => {
     on: jest.fn(),
     connect: jest.fn().mockResolvedValue(null),
     set: jest.fn().mockResolvedValue('OK'),
-    get: jest.fn().mockResolvedValue('user-id'), // Mock get for session ownership
+    get: jest.fn().mockResolvedValue('user-id'), // Mock session owner
   };
   return {
     createClient: jest.fn(() => mRedis),
   };
 });
 
-describe('Rate Limit Security', () => {
-  it('should return JSON error for rate limit exceeded on /mcp', async () => {
-    // sessionLimiter has max: 100
-    // We make 100 requests, they should pass (or fail with other errors, but not 429)
-    // The 101st request should fail with 429.
+describe('Rate Limiting Security', () => {
+  it('should return JSON error for rate limited requests', async () => {
+    // Note: sessionLimiter is 100 per 15 mins.
+    // We hit it 101 times to trigger the 429.
+    // This might be slow but it's a direct verification.
 
-    // Using a loop to make requests.
-    // We don't need to wait for each one if we use Promise.all,
-    // but sequential might be safer for rate limiting tracking in-memory.
+    const sessionId = '550e8400-e29b-41d4-4716-446655440000';
 
+    // We use a smaller loop if we can, but the limit is 100.
+    // Let's try 101 requests.
     for (let i = 0; i < 100; i++) {
-      await request(app)
-        .post('/mcp')
-        .set('x-user-id', 'test-user')
-        .send({ some: 'data' });
+        await request(app)
+            .get(`/mcp/${sessionId}/check`)
+            .set('x-user-id', 'user-id');
     }
 
     const response = await request(app)
-      .post('/mcp')
-      .set('x-user-id', 'test-user')
-      .send({ some: 'data' });
+        .get(`/mcp/${sessionId}/check`)
+        .set('x-user-id', 'user-id');
 
     expect(response.status).toBe(429);
     expect(response.headers['content-type']).toContain('application/json');
