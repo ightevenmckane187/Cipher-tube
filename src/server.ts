@@ -9,7 +9,7 @@ import { buildCipherTube, decryptCipherTube } from "./cta";
 
 dotenv.config();
 
-const app: Application = express();
+export const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
@@ -93,6 +93,9 @@ app.use(
   }),
 );
 
+// Serve accessible documentation (WCAG 602.3 compliance)
+app.use('/docs', express.static(path.join(__dirname, '../docs')));
+
 export const redisClient: RedisClientType = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
 });
@@ -126,6 +129,7 @@ app.get("/", (req: Request, res: Response) => {
                     --bg-color: #ffffff;
                     --text-color: #1d1d1f;
                     --border-color: #ccc;
+                    --error: #d93025;
                 }
                 [data-theme='dark'] {
                     --bg-color: #121212;
@@ -133,6 +137,7 @@ app.get("/", (req: Request, res: Response) => {
                     --border-color: #333;
                     --success: #2ecc71;
                     --success-glow: rgba(46, 204, 113, 0.4);
+                    --error: #f28b82;
                 }
                 body {
                     font-family: system-ui, -apple-system, sans-serif;
@@ -144,7 +149,7 @@ app.get("/", (req: Request, res: Response) => {
                     color: var(--text-color);
                     transition: background-color 0.3s, color 0.3s;
                 }
-                h1 { color: var(--primary); }
+                h1, h2, h3 { color: var(--primary); }
                 .skip-link {
                     position: absolute;
                     top: -40px;
@@ -170,6 +175,10 @@ app.get("/", (req: Request, res: Response) => {
                 @media (prefers-reduced-motion: reduce) {
                     .status-dot {
                         animation: none;
+                    }
+                    * {
+                        transition: none !important;
+                        animation: none !important;
                     }
                 }
                 @keyframes pulse {
@@ -208,7 +217,7 @@ app.get("/", (req: Request, res: Response) => {
                 footer { margin-top: 4rem; font-size: 0.875rem; border-top: 1px solid var(--border-color); padding-top: 1rem; }
                 a { color: var(--primary); text-decoration: none; }
                 a:hover { text-decoration: underline; }
-                a:focus-visible, #theme-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+                a:focus-visible, #theme-toggle:focus-visible, .copy-button:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
                 .code-container {
                     position: relative;
                     margin: 1rem 0;
@@ -225,18 +234,6 @@ app.get("/", (req: Request, res: Response) => {
                     padding: 8px 12px;
                     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
                 }
-                .terminal-dots {
-                    display: flex;
-                    gap: 6px;
-                }
-                .dot {
-                    width: 12px;
-                    height: 12px;
-                    border-radius: 50%;
-                }
-                .dot-red { background: #ff5f56; }
-                .dot-yellow { background: #ffbd2e; }
-                .dot-green { background: #27c93f; }
                 pre {
                     margin: 0;
                     padding: 1rem;
@@ -306,6 +303,19 @@ app.get("/", (req: Request, res: Response) => {
         </head>
         <body>
             <a class="skip-link" href="#main-content">Skip to content</a>
+            <header role="banner">
+                <nav aria-label="Main Navigation">
+                     <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: bold; color: var(--primary);">Cipher Tube</span>
+                        <button id="theme-toggle" aria-label="Switch Theme" aria-pressed="false" aria-keyshortcuts="t">
+                            <span id="theme-icon" aria-hidden="true"></span>
+                            <span id="theme-text">Switch to Dark</span>
+                            <kbd aria-hidden="true" class="kb-shortcut">(t)</kbd>
+                        </button>
+                    </div>
+                </nav>
+            </header>
+
             <main id="main-content">
                 <div class="header-container">
                     <h1>Cipher Tube Assembly</h1>
@@ -341,11 +351,21 @@ app.get("/", (req: Request, res: Response) => {
                     <pre tabindex="0" role="region" aria-label="Terminal command example"><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
                 </div>
             </main>
-            <footer>
+
+            <div id="timeout-banner" role="alert" aria-live="assertive">
+                <span>Session expires in 1 minute.</span>
+                <button id="extend-session-btn">Extend Session</button>
+            </div>
+
+            <footer role="contentinfo">
                 <nav aria-label="Footer navigation">
-                    <a href="/health">Health Check</a>
+                    <a href="/health">Health Check</a> |
+                    <a href="/docs/USER_GUIDE.md">User Guide</a> |
+                    <a href="/docs/ACCESSIBILITY.md">Accessibility Statement</a>
                 </nav>
+                <p>&copy; 2026 Cipher Tube Assembly</p>
             </footer>
+
             <script nonce="${res.locals.nonce}">
                 const themeToggle = document.getElementById('theme-toggle');
                 const themeText = document.getElementById('theme-text');
@@ -357,8 +377,6 @@ app.get("/", (req: Request, res: Response) => {
                     themeIcon.textContent = isDark ? '☀️' : '🌙';
                     themeToggle.setAttribute('aria-pressed', isDark);
                     themeToggle.setAttribute('aria-label', isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode');
-
-                    // Force re-evaluation of styles if needed (some browsers might need this)
                     document.documentElement.setAttribute('data-theme', theme);
                 }
 
@@ -367,8 +385,6 @@ app.get("/", (req: Request, res: Response) => {
                 themeToggle.addEventListener('click', () => {
                     const currentTheme = document.documentElement.getAttribute('data-theme');
                     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-
-                    document.documentElement.setAttribute('data-theme', newTheme);
                     localStorage.setItem('theme', newTheme);
                     updateUI(newTheme);
                 });
@@ -401,19 +417,18 @@ app.get("/", (req: Request, res: Response) => {
                         await navigator.clipboard.writeText(curlCommand.textContent);
                         copyButton.classList.add('copied');
                         copyButton.setAttribute('aria-label', 'Command copied to clipboard');
-                        const originalText = copyText.textContent;
                         copyText.textContent = 'Copied!';
-
                         setTimeout(() => {
                             copyButton.classList.remove('copied');
                             copyButton.setAttribute('aria-label', 'Copy command to clipboard');
-                            copyText.textContent = originalText;
+                            copyText.textContent = 'Copy';
                         }, 2000);
                     } catch (err) {
                         console.error('Failed to copy: ', err);
                     }
                 });
 
+                // Global Shortcuts
                 window.addEventListener('keydown', (e) => {
                     if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
                     if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -423,6 +438,57 @@ app.get("/", (req: Request, res: Response) => {
                         document.getElementById('theme-toggle')?.click();
                     }
                 });
+
+                // Session Timeout Simulation
+                let timeoutWarning;
+                let currentSessionId = null;
+                const SESSION_DURATION = 3600 * 1000;
+                const WARNING_TIME = 60 * 1000;
+
+                function resetTimer() {
+                    if (timeoutWarning) clearTimeout(timeoutWarning);
+                    document.getElementById('timeout-banner').style.display = 'none';
+
+                    timeoutWarning = setTimeout(() => {
+                        document.getElementById('timeout-banner').style.display = 'flex';
+                    }, SESSION_DURATION - WARNING_TIME);
+                }
+
+                document.getElementById('extend-session-btn').addEventListener('click', async () => {
+                    try {
+                        if (currentSessionId) {
+                            const response = await fetch('/session/' + currentSessionId + '/extend', {
+                                method: 'POST',
+                                headers: { 'x-user-id': 'demo-user' }
+                            });
+                            if (response.ok) {
+                                resetTimer();
+                                alert('Session successfully extended!');
+                            } else {
+                                alert('Failed to extend session. Please login again.');
+                            }
+                        } else {
+                            resetTimer();
+                            alert('Session timer reset (Demo Mode)');
+                        }
+                    } catch (err) {
+                        console.error('Extension failed:', err);
+                        alert('A network error occurred.');
+                    }
+                });
+
+                // Intercept session creation to track ID for extension
+                const originalFetch = window.fetch;
+                window.fetch = async (...args) => {
+                    const response = await originalFetch(...args);
+                    if (typeof args[0] === 'string' && args[0].includes('/mcp') && args[1]?.method === 'POST') {
+                        const data = await response.clone().json();
+                        if (data.sessionId) currentSessionId = data.sessionId;
+                    }
+                    return response;
+                };
+
+                resetTimer();
             </script>
         </body>
         </html>
@@ -544,7 +610,6 @@ app.get(
 
 /**
  * CTA Encryption Endpoint
- * Protects message with 25-layer Cipher Tube Assembly
  */
 app.post(
   "/mcp/:sessionId/encrypt",
@@ -586,7 +651,6 @@ app.post(
 
 /**
  * CTA Decryption Endpoint
- * Reverses the 25-layer assembly and verifies integrity
  */
 app.post(
   "/mcp/:sessionId/decrypt",
@@ -654,7 +718,7 @@ app.post(
              return res.status(400).json({ error: returnedMessage });
         }
 
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'Internal server error: An unexpected error occurred during decryption.' });
     }
   },
 );
@@ -668,7 +732,6 @@ app.use((req: Request, res: Response) => {
  * Global error-handling middleware.
  * Sentinel: Catch and sanitize unhandled errors to prevent information leakage and DoS.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   if (
     err instanceof SyntaxError &&
