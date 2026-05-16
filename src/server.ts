@@ -10,7 +10,7 @@ import { buildCipherTube, decryptCipherTube } from "./cta";
 
 dotenv.config();
 
-export const app: Application = express();
+const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
@@ -96,8 +96,6 @@ app.use(
 
 // Serve accessible documentation (WCAG 602.3 compliance)
 app.use('/docs', express.static(path.join(__dirname, '../docs')));
-
-app.use(apiLimiter); // Sentinel: Apply global rate limiting before expensive operations
 
 export const redisClient: RedisClientType = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
@@ -744,14 +742,9 @@ app.post(
 
         if (isClientError) {
              // Sentinel: Return 400 for all client-side crypto/validation errors.
-             // We use the original error message if it's explicitly allowed in the test expectations,
-             // otherwise we return a generic message to prevent info leakage.
-             const allowedMessages = ['Integrity check failed'];
-             const returnedMessage = allowedMessages.some(msg => errorMessage.includes(msg))
-                 ? errorMessage
-                 : 'Decryption failed';
-
-             return res.status(400).json({ error: returnedMessage });
+             // We return a generic message to prevent information leakage about the internal structure
+             // or specific failure points of the cryptographic pipeline.
+             return res.status(400).json({ error: 'Decryption failed' });
         }
 
         res.status(500).json({ error: 'Internal server error: An unexpected error occurred during decryption.' });
