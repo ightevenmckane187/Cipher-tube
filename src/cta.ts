@@ -9,11 +9,6 @@ export interface Tube {
   tag?: string;
 }
 
-interface TubeEntry {
-  tube: Tube;
-  salt: Buffer | null;
-  hash: Buffer | null;
-}
 
 export interface CipherTubeResult {
   ciphertext: string;
@@ -98,11 +93,8 @@ export function buildCipherTube(
   // Bolt Optimization: Use fastHash for one-shot performance
   const integrityHash = fastHash('sha512', current).toString('hex');
 
-  // Bolt Optimization: Convert entropy pool to hex once to avoid repeated conversions in loops
-  const entropyHex = entropyPool.toString('hex');
-
   for (let i = 0; i < NUM_INTEGRITY_TUBES; i++) {
-    const saltHex = entropyHex.substring(entropyOffset * 2, entropyOffset * 2 + 32);
+    const saltHex = entropyPool.toString('hex', entropyOffset, entropyOffset + 16);
     entropyOffset += 16;
 
     hashChain.push(integrityHash);
@@ -121,10 +113,10 @@ export function buildCipherTube(
   for (let j = 0; j < NUM_ENCRYPTION_LAYERS; j++) {
     const layerId = NUM_INTEGRITY_TUBES + j;
     const salt = entropyPool.subarray(entropyOffset, entropyOffset + 16);
-    const saltHex = entropyHex.substring(entropyOffset * 2, entropyOffset * 2 + 32);
+    const saltHex = entropyPool.toString('hex', entropyOffset, entropyOffset + 16);
     entropyOffset += 16;
     const iv = entropyPool.subarray(entropyOffset, entropyOffset + 12);
-    const ivHex = entropyHex.substring(entropyOffset * 2, entropyOffset * 2 + 24);
+    const ivHex = entropyPool.toString('hex', entropyOffset, entropyOffset + 12);
     entropyOffset += 12;
 
     const info = ENCRYPTION_INFOS[j] || `enc-${j}`;
@@ -251,8 +243,8 @@ export function decryptCipherTube(
   }
 
   // === Verify 12 hash-lock tubes in reverse ===
-  // Bolt Optimization: Use standard hashing for compatibility with Node.js LTS versions
-  const computedHashBuffer = crypto.createHash('sha512').update(current).digest();
+  // Bolt Optimization: Use fastHash for one-shot performance
+  const computedHashBuffer = fastHash('sha512', current);
   let lastHash: string | undefined;
   let lastVerified = false;
 
