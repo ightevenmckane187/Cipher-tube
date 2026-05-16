@@ -8,6 +8,7 @@ jest.mock('redis', () => {
     connect: jest.fn().mockResolvedValue(null),
     set: jest.fn().mockResolvedValue('OK'),
     get: jest.fn(),
+    expire: jest.fn().mockResolvedValue(1),
     quit: jest.fn().mockResolvedValue('OK'),
   };
   return {
@@ -92,5 +93,21 @@ describe('Session Ownership API', () => {
             .set('x-user-id', userId);
 
         expect(checkRes.status).toBe(404);
+    });
+
+    it('should allow the owner to extend their session', async () => {
+        const sessionId = '550e8400-e29b-41d4-8716-446655440000';
+        redisMock.get.mockResolvedValueOnce(userId);
+
+        const res = await request(app)
+            .post(`/session/${sessionId}/extend`)
+            .set('x-user-id', userId);
+
+        expect(res.status).toBe(200);
+        expect(res.body.message).toBe('Session extended successfully');
+        expect(redisMock.expire).toHaveBeenCalledWith(
+            expect.stringContaining(sessionId),
+            3600
+        );
     });
 });
