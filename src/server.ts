@@ -10,7 +10,7 @@ import { buildCipherTube, decryptCipherTube } from "./cta";
 
 dotenv.config();
 
-export const app: Application = express();
+const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
@@ -746,7 +746,7 @@ app.post(
              // Sentinel: Return 400 for all client-side crypto/validation errors.
              // We use the original error message if it's explicitly allowed in the test expectations,
              // otherwise we return a generic message to prevent info leakage.
-             const allowedMessages = ['Integrity check failed'];
+             const allowedMessages: string[] = []; // Strict fail-secure: No specific errors leaked
              const returnedMessage = allowedMessages.some(msg => errorMessage.includes(msg))
                  ? errorMessage
                  : 'Decryption failed';
