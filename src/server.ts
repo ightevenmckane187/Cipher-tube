@@ -393,7 +393,7 @@ app.get("/", (req: Request, res: Response) => {
                 <button id="extend-session-btn">Extend Session</button>
             </div>
 
-            <footer role="contentinfo">
+            <footer>
                 <nav aria-label="Footer navigation">
                     <a href="/health">Health Check</a> |
                     <a href="/docs/USER_GUIDE.md">User Guide</a> |
@@ -746,10 +746,7 @@ app.post(
              // Sentinel: Return 400 for all client-side crypto/validation errors.
              // We use the original error message if it's explicitly allowed in the test expectations,
              // otherwise we return a generic message to prevent info leakage.
-             const allowedMessages = ['Integrity check failed'];
-             const returnedMessage = allowedMessages.some(msg => errorMessage.includes(msg))
-                 ? errorMessage
-                 : 'Decryption failed';
+             const returnedMessage = 'Decryption failed';
 
              return res.status(400).json({ error: returnedMessage });
         }
@@ -789,7 +786,6 @@ app.use((req: Request, res: Response) => {
   res.status(404).json({ error: "Not Found" });
 });
 
-export { app };
 
 if (process.env.NODE_ENV !== "test") {
   app.listen(PORT, () => {
