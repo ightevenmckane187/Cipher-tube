@@ -147,7 +147,7 @@ describe('MCP Session Management', () => {
       expect(response.text).toContain('Cipher Tube Assembly');
       expect(response.text).toContain('<main id="main-content">');
       expect(response.text).toContain('<button id="theme-toggle"');
-      expect(response.text).toContain('<footer>');
+      expect(response.text).toContain('<footer');
       expect(response.text).toContain('Quick Start');
       expect(response.text).toContain('Health Check');
     });

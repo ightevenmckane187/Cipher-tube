@@ -492,10 +492,11 @@ app.get("/", (req: Request, res: Response) => {
 
                 document.getElementById('extend-session-btn').addEventListener('click', async () => {
                     try {
+                        const userId = userIdInput.value.trim() || 'demo-user';
                         if (currentSessionId) {
                             const response = await fetch('/session/' + currentSessionId + '/extend', {
                                 method: 'POST',
-                                headers: { 'x-user-id': 'demo-user' }
+                                headers: { 'x-user-id': userId }
                             });
                             if (response.ok) {
                                 resetTimer();
@@ -634,6 +635,35 @@ app.post(
   },
 );
 
+/**
+ * Session Extension Endpoint
+ * Sentinel: Allows frontend-driven session extensions, guarded by security middleware.
+ */
+app.post(
+  "/session/:sessionId/extend",
+  sessionLimiter,
+  validateUserId,
+  ensureSessionOwner,
+  async (req: Request, res: Response) => {
+    let { sessionId } = req.params;
+
+    if (Array.isArray(sessionId)) {
+      sessionId = sessionId[0];
+    }
+
+    try {
+      await redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL);
+      res.json({ message: "Session extended successfully" });
+    } catch (err: any) {
+      console.error(
+        "Session extension failed:",
+        err?.message || "Unknown error",
+      );
+      res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
 app.get(
   "/mcp/:sessionId/check",
   sessionLimiter,
@@ -744,14 +774,8 @@ app.post(
 
         if (isClientError) {
              // Sentinel: Return 400 for all client-side crypto/validation errors.
-             // We use the original error message if it's explicitly allowed in the test expectations,
-             // otherwise we return a generic message to prevent info leakage.
-             const allowedMessages = ['Integrity check failed'];
-             const returnedMessage = allowedMessages.some(msg => errorMessage.includes(msg))
-                 ? errorMessage
-                 : 'Decryption failed';
-
-             return res.status(400).json({ error: returnedMessage });
+             // We return a generic message to prevent info leakage.
+             return res.status(400).json({ error: 'Decryption failed' });
         }
 
         res.status(500).json({ error: 'Internal server error: An unexpected error occurred during decryption.' });
@@ -788,8 +812,6 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 app.use((req: Request, res: Response) => {
   res.status(404).json({ error: "Not Found" });
 });
-
-export { app };
 
 if (process.env.NODE_ENV !== "test") {
   app.listen(PORT, () => {
