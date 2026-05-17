@@ -1,411 +1,160 @@
-# Cipher-tube
+***
 
-## Comprehensive Enhancements
+# Cipher Tube Assembly & Session Service
 
-### Federal OS Integration
-- Details on how the application integrates with Federal Operating Systems, including prerequisites and configuration steps.
+This repository combines two main pieces:
 
-### Deployment Guides
-- Step-by-step instructions for deploying the application in various environments (e.g., cloud, local servers).
+- A Redis + Express service that enforces per‑user session ownership and basic monitoring.  
+- Design and reference material for the **Cipher Tube Assembly (CTA)**, a multi‑layer cryptographic architecture.
 
-### CI/CD Information
-- Information about continuous integration and continuous deployment processes supported by this project, including tools and configurations used.
+## Features
 
-### Cross-Platform Support
-- Explanation of how the application supports different platforms, along with system requirements for each platform.
+- Per‑user session ownership stored in Redis (`session:{sessionId}:owner`).  
+- Middleware to ensure only the owning user can use a session.  
+- Redis utilities to inspect and monitor live sessions.  
+- Documentation and LaTeX/IEEE whitepaper templates for the Cipher Tube Assembly.
 
-## Getting Started
-- Installation instructions and requirements for running the application.
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<!-- Playables SDK -->
-<script>// Playables SDK v1.0.0
-// Game lifecycle bridge: rAF-based game-ready detection + event communication
-(function() {
-  'use strict';
+## Prerequisites
 
-  // Idempotency: skip if already initialized (e.g., server-side injection
-  // followed by client-side inject-javascript via the Bloks webview component).
-  if (window.playablesSDK) return;
+- Node.js (LTS, e.g. 18+).  
+- Redis running locally (or accessible via `REDIS_URL`).  
+- npm or pnpm/yarn for dependencies.
 
-  var HANDLER_NAME = 'playablesGameEventHandler';
-  var ANDROID_BRIDGE_NAME = '_MetaPlayablesBridge';
-  var RAF_FRAME_THRESHOLD = 3;
+## Installation
 
-  var gameReadySent = false;
-  var firstInteractionSent = false;
-  var errorSent = false;
-  var frameCount = 0;
-  var originalRAF = window.requestAnimationFrame;
+```bash
+npm install
+# or
+npm install @redis/client express dotenv
+```
 
-  // --- Transport Layer ---
+## Configuration
 
-  function hasIOSBridge() {
-    return !!(window.webkit &&
-              window.webkit.messageHandlers &&
-              window.webkit.messageHandlers[HANDLER_NAME]);
-  }
+Create a `.env` file in the project root:
 
-  function hasAndroidBridge() {
-    return !!(window[ANDROID_BRIDGE_NAME] &&
-              typeof window[ANDROID_BRIDGE_NAME].postEvent === 'function');
-  }
+```env
+REDIS_URL=redis://localhost:6379
+BASE_URI=http://localhost:3232
+```
 
-  function isInIframe() {
-    return !!(window.parent && window.parent !== window);
-  }
+Adjust values as needed for your environment.
 
-  function sendEvent(eventName, payload) {
-    var message = {
-      type: eventName,
-      payload: payload || {},
-      timestamp: Date.now()
-    };
+## Running the Server
 
-    if (hasIOSBridge()) {
-      try {
-        window.webkit.messageHandlers[HANDLER_NAME].postMessage(message);
-      } catch (e) { /* ignore */ }
-      return;
-    }
+If you are using the single‑file TypeScript server example (e.g. `server.ts`):
 
-    if (hasAndroidBridge()) {
-    try {
-      var p = payload || {};
-      p.__secureToken = window.__fbAndroidBridgeAuthToken || '';
-      p.timestamp = message.timestamp;
-      window[ANDROID_BRIDGE_NAME].postEvent(
-        eventName,
-        JSON.stringify(p)
-      );
-    } catch (e) { /* ignore */ }
-    return;
-  }
+```bash
+# Dev run (example)
+npm run dev
 
-    if (isInIframe()) {
-      try {
-        window.parent.postMessage(message, '*');
-      } catch (e) { /* ignore */ }
-      return;
-    }
-  }
+# Or with tsx directly
+npx tsx server.ts
+```
 
-  // --- rAF Game-Ready Detection ---
+The server listens on the port defined in `BASE_URI` (default `http://localhost:3232`).
 
-  function onFrame() {
-    if (gameReadySent) return;
+## Session API
 
-    frameCount++;
-    if (frameCount >= RAF_FRAME_THRESHOLD) {
-      gameReadySent = true;
-      sendEvent('game_ready', {
-        frame_count: frameCount,
-        detected_at: Date.now()
-      });
-      return;
-    }
+### Create a Session
 
-    originalRAF.call(window, onFrame);
-  }
+`POST /mcp`
 
-  if (originalRAF) {
-    window.requestAnimationFrame = function(callback) {
-      if (!gameReadySent) {
-        return originalRAF.call(window, function(timestamp) {
-          frameCount++;
-          if (frameCount >= RAF_FRAME_THRESHOLD && !gameReadySent) {
-            gameReadySent = true;
-            sendEvent('game_ready', {
-              frame_count: frameCount,
-              detected_at: Date.now()
-            });
-          }
-          callback(timestamp);
-        });
-      }
-      return originalRAF.call(window, callback);
-    };
-  }
+- Auth: user id taken from header `x-user-id` (or from your auth middleware, depending on your setup).  
+- Response:
 
-  // --- First User Interaction Detection ---
+```json
+{
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
 
-  function setupFirstInteractionDetection() {
-    var events = ['touchstart', 'mousedown', 'keydown'];
+The server stores:
 
-    function onFirstInteraction() {
-      if (firstInteractionSent) return;
-      firstInteractionSent = true;
-      sendEvent('user_interaction_start', null);
+```text
+session:{sessionId}:owner -> userId
+```
 
-      for (var i = 0; i < events.length; i++) {
-        document.removeEventListener(events[i], onFirstInteraction, true);
-      }
-    }
+### Check Session Ownership
 
-    for (var i = 0; i < events.length; i++) {
-      document.addEventListener(events[i], onFirstInteraction, true);
-    }
-  }
+`GET /mcp/:sessionId/check`
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setupFirstInteractionDetection);
-  } else {
-    setupFirstInteractionDetection();
-  }
+- Requires `x-user-id` header.  
+- Returns `200` only if the calling user owns the session.
 
-  // --- Auto Error Capture ---
+### Ownership Enforcement Middleware
 
-  window.addEventListener('error', function(event) {
-    if (errorSent) return;
-    errorSent = true;
-    sendEvent('error', {
-      message: event.message || 'Unknown error',
-      source: event.filename || '',
-      lineno: event.lineno || 0,
-      colno: event.colno || 0,
-      auto_captured: true
-    });
-  });
+Routes that use `ensureSessionOwner` will:
 
-  window.addEventListener('unhandledrejection', function(event) {
-    if (errorSent) return;
-    errorSent = true;
-    var reason = event.reason;
-    sendEvent('error', {
-      message: (reason instanceof Error) ? reason.message : String(reason),
-      type: 'unhandled_promise_rejection',
-      auto_captured: true
-    });
-  });
+- Return `401` if no user id is present.  
+- Return `400` if `sessionId` is missing.  
+- Return `403` if the user does not own the session.
 
-  // --- Public API ---
+## Redis CLI Helpers
 
-  window.playablesSDK = {
-    complete: function(score) {
-      sendEvent('game_ended', {
-        score: score,
-        completed: true
-      });
-    },
+Quick commands for inspecting sessions:
 
-    error: function(message) {
-      if (errorSent) return;
-      errorSent = true;
-      sendEvent('error', {
-        message: message || 'Unknown error',
-        auto_captured: false
-      });
-    },
+```bash
+# List all session owners
+redis-cli KEYS "session:*:owner"
 
-    sendEvent: function(eventName, payload) {
-      if (!eventName || typeof eventName !== 'string') return;
-      sendEvent(eventName, payload);
-    }
-  };
+# Check one session
+redis-cli GET "session:{sessionId}:owner"
 
-  // Kick off rAF detection in case no game code calls rAF immediately
-  if (originalRAF) {
-    originalRAF.call(window, onFrame);
-  }
-})();</script>
-<script>window.Intl=window.Intl||{};Intl.t=function(s){return(Intl._locale&&Intl._locale[s])||s;};</script>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cipher Tube v1.5.0 - Accessible User Guide</title>
-    <style>
-        :root {
-            --text: #1a1a1a;
-            --bg: #ffffff;
-            --link: #0066cc;
-            --focus: #ff6b00;
-            --code-bg: #f5f5f5;
-            --border: #d0d0d0;
-        }
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --text: #e0e0e0;
-                --bg: #1a1a1a;
-                --link: #4da6ff;
-                --focus: #ffaa00;
-                --code-bg: #2a2a2a;
-                --border: #404040;
-            }
-        }
-        @media (prefers-reduced-motion: reduce) {
-            * { animation: none !important; transition: none !important; }
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            line-height: 1.6;
-            color: var(--text);
-            background: var(--bg);
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        a { color: var(--link); }
-        a:focus, button:focus, [tabindex]:focus {
-            outline: 3px solid var(--focus);
-            outline-offset: 2px;
-        }
-        .skip-link {
-            position: absolute;
-            top: -40px;
-            left: 0;
-            background: var(--focus);
-            color: var(--bg);
-            padding: 8px;
-            text-decoration: none;
-            z-index: 100;
-        }
-        .skip-link:focus { top: 0; }
-        h1, h2, h3 { line-height: 1.3; }
-        code, pre {
-            font-family: "Courier New", Courier, monospace;
-            background: var(--code-bg);
-            padding: 2px 6px;
-            border-radius: 3px;
-            border: 1px solid var(--border);
-        }
-        pre {
-            padding: 12px;
-            overflow-x: auto;
-            display: block;
-        }
-        nav ul { list-style: none; padding: 0; }
-        nav li { margin: 8px 0; }
-        .notice {
-            border-left: 4px solid var(--link);
-            padding: 12px;
-            background: var(--code-bg);
-            margin: 16px 0;
-        }
-        header, nav, main, section, footer { display: block; }
-        .sr-only {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0,0,0,0);
-            border: 0;
-        }
-    </style>
-</head>
-<body>
-    <a href="#main" class="skip-link">Skip to main content</a>
-    
-    <header role="banner">
-        <h1>Cipher Tube Assembly & Session Service v1.5.0</h1>
-        <p><strong>User Guide - Accessible Edition</strong></p>
-        <p>Conforms to Section 508 602.3 and WCAG 2.1 Level AA</p>
-    </header>
+# See if a session has active subscribers
+redis-cli PUBSUB NUMSUB "mcp:shttp:toserver:{sessionId}"
 
-    <nav role="navigation" aria-label="Table of Contents">
-        <h2 id="toc">Table of Contents</h2>
-        <ul>
-            <li><a href="#getting-started">1. Getting Started</a></li>
-            <li><a href="#authentication">2. Authentication</a></li>
-            <li><a href="#assembling">3. Assembling a Cipher Tube</a></li>
-            <li><a href="#session-mgmt">4. Session Management</a></li>
-            <li><a href="#decrypting">5. Decrypting CTAs</a></li>
-            <li><a href="#errors">6. Error Handling</a></li>
-            <li><a href="#a11y">7. Accessibility Features</a></li>
-            <li><a href="#support">8. Support</a></li>
-        </ul>
-    </nav>
+# Monitor live session-related commands
+redis-cli MONITOR | grep "session:"
+```
 
-    <main id="main" role="main">
-        <section id="getting-started" aria-labelledby="getting-started-h">
-            <h2 id="getting-started-h">1. Getting Started</h2>
-            <p>Cipher Tube provides secure cryptographic session management via REST API. All operations require an API key and user ID.</p>
-            <p>This documentation is fully keyboard navigable. Use Tab to move between links and buttons. Press Enter to activate.</p>
-        </section>
+## Tests
 
-        <section id="authentication" aria-labelledby="auth-h">
-            <h2 id="auth-h">2. Authentication</h2>
-            <p>All requests must include two HTTP headers:</p>
-            <ul>
-                <li><strong>X-API-Key</strong>: Your secret API key. Contact your administrator if you need one.</li>
-                <li><strong>x-user-id</strong>: Your UUID v4 identifier. Required as of v1.5.0 for IDOR protection per <a href="#pr-19">PR #19</a>.</li>
-            </ul>
-            <h3 id="auth-example">Example Request</h3>
-            <pre><code>curl -H "X-API-Key: YOUR_KEY" \
-     -H "x-user-id: 550e8400-e29b-41d4-a716-446655440000" \
-     https://api.ciphertube.example.com/health</code></pre>
-        </section>
+If you use the example Jest tests for header‑based auth and Redis ownership:
 
-        <section id="assembling" aria-labelledby="assembling-h">
-            <h2 id="assembling-h">3. Assembling a Cipher Tube</h2>
-            <p><code>POST /assemble</code> creates a new encrypted session.</p>
-            <h3 id="assemble-body">Request Body</h3>
-            <pre><code>{
-  "payload": {},
-  "ttl": 3600
-}</code></pre>
-            <p>Response includes <code>session_id</code> and <code>tube</code>. Store the tube securely. The session expires after <code>ttl</code> seconds.</p>
-            <div class="notice" role="note" aria-label="Keyboard tip">
-                <strong>Keyboard tip:</strong> Focus on the code blocks and press Ctrl+C or Cmd+C to copy.
-            </div>
-        </section>
+```bash
+npm test -- --testNamePattern="Session Ownership"
+npm test -- --testNamePattern="User Session Isolation"
+```
 
-        <section id="session-mgmt" aria-labelledby="session-h">
-            <h2 id="session-h">4. Session Management</h2>
-            <p>Use <code>GET /session/{session_id}/status</code> to check session state. Sessions are cached for fast lookup.</p>
-            <p><strong>Timeout Warning:</strong> You will receive a warning 60 seconds before expiration. You can extend the session at any time.</p>
-        </section>
+These tests typically:
 
-        <section id="decrypting" aria-labelledby="decrypt-h">
-            <h2 id="decrypt-h">5. Decrypting CTAs</h2>
-            <p><code>POST /cta/decrypt</code> decrypts a Cipher Tube Assembly. Send the <code>tube</code> value from the assemble response.</p>
-        </section>
+- Create a session as one user.  
+- Confirm the same user can access it.  
+- Confirm a different user receives `403`.
 
-        <section id="errors" aria-labelledby="errors-h">
-            <h2 id="errors-h">6. Error Handling</h2>
-            <p>All errors are returned as JSON with descriptive text. We do not rely on color alone to indicate errors.</p>
-            <h3 id="error-format">Error Format</h3>
-            <pre><code>{
-  "error": {
-    "code": "INVALID_USER_ID",
-    "message": "x-user-id header required",
-    "request_id": "uuid"
-  }
-}</code></pre>
-            <p>Provide the <code>request_id</code> when contacting support.</p>
-        </section>
+## Cipher Tube Assembly (CTA)
 
-        <section id="a11y" aria-labelledby="a11y-h">
-            <h2 id="a11y-h">7. Accessibility Features</h2>
-            <p>Cipher Tube v1.5.0 conforms to WCAG 2.1 Level AA and Section 508.</p>
-            <ul>
-                <li><strong>Keyboard Navigation</strong>: All functions operable without a mouse. Logical tab order. No keyboard traps.</li>
-                <li><strong>Screen Reader Support</strong>: ARIA labels, roles, and landmarks. Status changes are announced.</li>
-                <li><strong>Focus Indicators</strong>: Visible 3px focus outline on all controls. Meets WCAG 2.4.7.</li>
-                <li><strong>Timing Adjustable</strong>: Session timeouts can be extended. Warning at 60 seconds remaining per WCAG 2.2.1.</li>
-                <li><strong>Error Identification</strong>: Errors described in text per WCAG 3.3.1. No 500 errors on malformed input.</li>
-                <li><strong>Color Contrast</strong>: Minimum 4.5:1 ratio for text. Meets WCAG 1.4.3.</li>
-                <li><strong>Reduced Motion</strong>: Respects <code>prefers-reduced-motion</code> setting.</li>
-                <li><strong>Zoom</strong>: Text resizes up to 200% without loss of functionality per WCAG 1.4.4.</li>
-            </ul>
-            <p>This page was tested with NVDA, JAWS, VoiceOver, and keyboard-only navigation.</p>
-        </section>
+This repo also contains:
 
-        <section id="support" aria-labelledby="support-h">
-            <h2 id="support-h">8. Support and Feedback</h2>
-            <p>To report accessibility barriers or request this document in alternate formats:</p>
-            <address>
-                <strong>Email:</strong> <a href="mailto:accessibility@cipher-tube.io">accessibility@cipher-tube.io</a><br>
-                <strong>Phone:</strong> <a href="tel:+15550100199">(555) 010-0199</a><br>
-                <strong>TTY:</strong> 711
-            </address>
-            <p>We respond to accessibility requests within 2 business days per Section 508 603.3.</p>
-        </section>
-    </main>
+- A technical concept for **Cipher Tube Assembly**:  
+  12 hash‑lock tubes (integrity layers) and 13 encryption layers wrapped in an outer "What Happened" audit envelope.  
+- LaTeX and IEEE‑style templates to generate a whitepaper PDF.  
+- Pseudocode describing the build (encryption) and verify (decryption) phases.
 
-    <footer role="contentinfo">
-        <p><small>Cipher Tube v1.5.0 | Last updated: 2026-05-09 | <a href="/accessibility">Accessibility Statement</a> | <a href="/vpat">VPAT 2.4 ACR</a></small></p>
-    </footer>
-</body>
-</html>
+The CTA material can be used as a reference design for future cryptographic modules or for research/publishing.
+
+## License and Attribution
+
+Unless otherwise noted:
+
+- **Cipher Tube Assembly** design and documentation  
+  © 2025 Jesse Mckane Gonzales.  
+  Licensed under **Creative Commons Attribution–ShareAlike 4.0 International (CC BY‑SA 4.0)**.
+
+For code in this repository, you can adapt or replace the license section with your preferred software license (MIT, Apache‑2.0, etc.).
+
+***
+
+If you tell which files you actually have in your repo (names/paths), a more tailored README can reference them directly.
+
+Citations:
+[1] ReadMe Template (MS Word) https://klariti.com/readme-template-ms-word/
+[2] README template guide - The Good Docs Project https://www.thegooddocsproject.dev/template/readme
+[3] Make a README https://www.makeareadme.com
+[4] README Files for Internal Projects - InCycle Software https://blogs.incyclesoftware.com/readme-files-for-internal-projects
+[5] README Template - InnerSource Patterns https://patterns.innersourcecommons.org/appendix/extras/readme-template
+[6] othneildrew/Best-README-Template: An awesome ... - GitHub https://github.com/othneildrew/Best-README-Template
+[7] Writing READMEs for Research Data - Cornell Data Services https://data.research.cornell.edu/data-management/sharing/readme/
+[8] How to Structure Your README File – README Template Example https://www.freecodecamp.org/news/how-to-structure-your-readme-file/
+[9] Does anyone also know of a good template that follows some sort of ... https://www.reddit.com/r/technicalwriting/comments/wz996u/does_anyone-also-know-of-a-good-template-that/
+[10] README Files - Harvard Biomedical Data Management https://datamanagement.hms.harvard.edu/collect-analyze/documentation-metadata/readme-files
