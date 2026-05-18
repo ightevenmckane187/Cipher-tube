@@ -251,8 +251,8 @@ export function decryptCipherTube(
   }
 
   // === Verify 12 hash-lock tubes in reverse ===
-  // Bolt Optimization: Use standard hashing for compatibility with Node.js LTS versions
-  const computedHashBuffer = crypto.createHash('sha512').update(current).digest();
+  // Bolt Optimization: Use fastHash for one-shot performance when available
+  const computedHashBuffer = fastHash('sha512', current);
   let lastHash: string | undefined;
   let lastVerified = false;
 

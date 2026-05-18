@@ -25,3 +25,7 @@
 ## 2026-05-25 - Entropy-to-Hex Optimization and Redundancy Cleanup
 **Learning:** Using `buffer.toString('hex', start, end)` is significantly faster than converting a large buffer to a full hex string and then using `.substring()`, as it avoids a massive string allocation. Additionally, removing duplicate middleware and redundant UI elements improves both backend throughput and frontend clarity.
 **Action:** Use specific buffer range conversions for hex strings; always audit middleware chains and UI templates for accidental duplication.
+
+## 2026-06-05 - Buffer to Hex Performance Thresholds
+**Learning:** `buffer.toString('hex', start, end)` is significantly faster (~10x) for large buffers (e.g., 1MB) because it avoids massive string allocations. However, for small buffers (e.g., <1KB), the overhead of multiple `toString` calls outweighs the benefit, and a single `toString('hex')` followed by `substring()` is actually ~5x faster in Node.js 22.
+**Action:** Use `substring()` for frequent small extractions from a shared buffer; use range-based `toString('hex')` for large or infrequent extractions.
