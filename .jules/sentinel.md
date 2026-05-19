@@ -52,3 +52,8 @@
 **Vulnerability:** Governance manifest validation could be bypassed using built-in object properties (e.g., "toString") when using the "in" operator or direct property access.
 **Learning:** In JavaScript, the "in" operator and direct property access check the entire prototype chain. If a manifest specifies a role named "toString", and the validator checks if "toString" exists in the roles object using "roleId in manifest.roles", it will return true even if the role is not explicitly defined in the manifest.
 **Prevention:** Always use "Object.prototype.hasOwnProperty.call(obj, prop)" to verify that a property exists directly on an object, especially when dealing with user-supplied keys in security-critical validation logic.
+
+## 2026-06-25 - Mock-Compatible Activity Refresh
+**Vulnerability:** Session expiration during active use (UX risk) and potential for stale sessions if TTL is not refreshed.
+**Learning:** Implementing sliding sessions via `redisClient.expire` can break existing test suites if the Redis mock doesn't implement all methods. Wrapping these calls in type checks ensures security logic doesn't crash the app in limited environments.
+**Prevention:** Always verify the existence of optional dependency methods (like `redisClient.expire`) before invocation in middleware, especially when dealing with diverse mock implementations in tests.
