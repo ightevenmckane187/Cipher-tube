@@ -52,3 +52,8 @@
 **Vulnerability:** Governance manifest validation could be bypassed using built-in object properties (e.g., "toString") when using the "in" operator or direct property access.
 **Learning:** In JavaScript, the "in" operator and direct property access check the entire prototype chain. If a manifest specifies a role named "toString", and the validator checks if "toString" exists in the roles object using "roleId in manifest.roles", it will return true even if the role is not explicitly defined in the manifest.
 **Prevention:** Always use "Object.prototype.hasOwnProperty.call(obj, prop)" to verify that a property exists directly on an object, especially when dealing with user-supplied keys in security-critical validation logic.
+
+## 2026-07-01 - Activity Refresh Priority over Cache Consistency
+**Vulnerability:** Stale session persistence and bypass of revocation via optimized sliding sessions.
+**Learning:** While 'sliding sessions' (refreshing TTL on use) improve UX, performing the `redis.expire` call *before* ownership verification or relying solely on a long-lived in-memory cache could allow revoked sessions to persist.
+**Prevention:** Always perform ownership verification (via Redis or a short-lived cache) *before* refreshing the session TTL. Ensure the in-memory cache has a significantly shorter TTL (e.g., 5s) than the session itself to ensure fast propagation of security events.

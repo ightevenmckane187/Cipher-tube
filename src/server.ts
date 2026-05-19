@@ -493,9 +493,10 @@ app.get("/", (req: Request, res: Response) => {
                 document.getElementById('extend-session-btn').addEventListener('click', async () => {
                     try {
                         if (currentSessionId) {
+                            const userId = userIdInput.value.trim() || 'demo-user';
                             const response = await fetch('/session/' + currentSessionId + '/extend', {
                                 method: 'POST',
-                                headers: { 'x-user-id': 'demo-user' }
+                                headers: { 'x-user-id': userId }
                             });
                             if (response.ok) {
                                 resetTimer();
@@ -587,7 +588,15 @@ const ensureSessionOwner = async (
 
   const cachedOwnerId = sessionCache.get(sessionId);
   if (cachedOwnerId) {
-    if (cachedOwnerId === userId) return next();
+    if (cachedOwnerId === userId) {
+        // Sentinel: Activity Refresh (Sliding Session) for cache hits
+        if (typeof redisClient.expire === 'function') {
+            redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL).catch(err =>
+                console.error('Failed to refresh session TTL (cache hit):', err.message)
+            );
+        }
+        return next();
+    }
     return res.status(403).json({ error: "Forbidden" });
   }
 
@@ -596,6 +605,14 @@ const ensureSessionOwner = async (
     if (!ownerId) return res.status(404).json({ error: "Session not found" });
     sessionCache.set(sessionId, ownerId);
     if (ownerId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+    // Sentinel: Activity Refresh (Sliding Session) for Redis hits
+    if (typeof redisClient.expire === 'function') {
+        redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL).catch(err =>
+            console.error('Failed to refresh session TTL (redis hit):', err.message)
+        );
+    }
+
     next();
   } catch (err: any) {
     console.error(
@@ -641,6 +658,21 @@ app.get(
   ensureSessionOwner,
   (req: Request, res: Response) => {
     res.json({ message: "Session ownership verified", status: "owned" });
+  },
+);
+
+/**
+ * Session Extension Endpoint
+ * Sentinel: Provides a dedicated endpoint for manual session renewal
+ */
+app.post(
+  "/session/:sessionId/extend",
+  sessionLimiter,
+  validateUserId,
+  ensureSessionOwner,
+  (req: Request, res: Response) => {
+    // Sliding session logic is already handled by ensureSessionOwner middleware
+    res.json({ message: "Session successfully extended" });
   },
 );
 
@@ -744,14 +776,8 @@ app.post(
 
         if (isClientError) {
              // Sentinel: Return 400 for all client-side crypto/validation errors.
-             // We use the original error message if it's explicitly allowed in the test expectations,
-             // otherwise we return a generic message to prevent info leakage.
-             const allowedMessages = ['Integrity check failed'];
-             const returnedMessage = allowedMessages.some(msg => errorMessage.includes(msg))
-                 ? errorMessage
-                 : 'Decryption failed';
-
-             return res.status(400).json({ error: returnedMessage });
+             // We return a strictly generic message to prevent implementation detail leakage.
+             return res.status(400).json({ error: 'Decryption failed' });
         }
 
         res.status(500).json({ error: 'Internal server error: An unexpected error occurred during decryption.' });
@@ -763,7 +789,7 @@ app.post(
  * Global error-handling middleware.
  * Sentinel: Catch and sanitize unhandled errors to prevent information leakage and DoS.
  */
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
   if (
     err instanceof SyntaxError &&
     "status" in err &&
@@ -788,8 +814,6 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 app.use((req: Request, res: Response) => {
   res.status(404).json({ error: "Not Found" });
 });
-
-export { app };
 
 if (process.env.NODE_ENV !== "test") {
   app.listen(PORT, () => {
