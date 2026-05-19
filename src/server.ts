@@ -10,7 +10,7 @@ import { buildCipherTube, decryptCipherTube } from "./cta";
 
 dotenv.config();
 
-export const app: Application = express();
+const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
@@ -335,6 +335,41 @@ app.get("/", (req: Request, res: Response) => {
                 .counter-container { display: flex; justify-content: space-between; max-width: 300px; align-items: baseline; }
                 #user-id-counter { font-size: 0.75rem; opacity: 0.7; }
                 #user-id-counter.near-limit { color: #d63031; opacity: 1; font-weight: bold; }
+                #timeout-banner {
+                    position: fixed;
+                    bottom: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: var(--bg-color);
+                    border: 2px solid var(--primary);
+                    padding: 0.75rem 1.25rem;
+                    border-radius: 12px;
+                    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+                    z-index: 1000;
+                    display: none;
+                    align-items: center;
+                    gap: 1rem;
+                    min-width: 320px;
+                    animation: slideUp 0.3s ease-out;
+                }
+                @keyframes slideUp {
+                    from { transform: translate(-50%, 100%); opacity: 0; }
+                    to { transform: translate(-50%, 0); opacity: 1; }
+                }
+                .banner-content { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 1rem; }
+                #extend-session-btn {
+                    background: var(--primary);
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 0.875rem;
+                    font-weight: 600;
+                    transition: transform 0.1s;
+                }
+                #extend-session-btn:active { transform: scale(0.95); }
+                .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
             </style>
         </head>
         <body>
@@ -388,9 +423,12 @@ app.get("/", (req: Request, res: Response) => {
                 </div>
             </main>
 
-            <div id="timeout-banner" role="alert" aria-live="assertive">
-                <span>Session expires in 1 minute.</span>
-                <button id="extend-session-btn">Extend Session</button>
+            <div id="timeout-banner" role="alert" aria-live="polite">
+                <div class="banner-content">
+                    <span id="session-timer">Session expires in 60s</span>
+                    <button id="extend-session-btn" aria-label="Extend your current session">Extend Session</button>
+                    <span id="session-announcer" class="sr-only" aria-live="polite"></span>
+                </div>
             </div>
 
             <footer role="contentinfo">
@@ -477,39 +515,87 @@ app.get("/", (req: Request, res: Response) => {
 
                 // Session Timeout Simulation
                 let timeoutWarning;
+                let countdownInterval;
                 let currentSessionId = null;
                 const SESSION_DURATION = 3600 * 1000;
                 const WARNING_TIME = 60 * 1000;
 
+                const banner = document.getElementById('timeout-banner');
+                const timerDisplay = document.getElementById('session-timer');
+                const announcer = document.getElementById('session-announcer');
+                const extendBtn = document.getElementById('extend-session-btn');
+
                 function resetTimer() {
                     if (timeoutWarning) clearTimeout(timeoutWarning);
-                    document.getElementById('timeout-banner').style.display = 'none';
+                    if (countdownInterval) clearInterval(countdownInterval);
+                    banner.style.display = 'none';
+                    extendBtn.textContent = 'Extend Session';
+                    extendBtn.disabled = false;
 
                     timeoutWarning = setTimeout(() => {
-                        document.getElementById('timeout-banner').style.display = 'flex';
+                        startCountdown();
                     }, SESSION_DURATION - WARNING_TIME);
                 }
 
-                document.getElementById('extend-session-btn').addEventListener('click', async () => {
+                function startCountdown() {
+                    let remaining = 60;
+                    banner.style.display = 'flex';
+
+                    const updateUI = () => {
+                        timerDisplay.textContent = \`Session expires in \${remaining}s\`;
+
+                        // Screen reader announcement logic
+                        if (remaining % 10 === 0 || remaining <= 10) {
+                            announcer.textContent = \`Session expires in \${remaining} seconds\`;
+                        }
+                    };
+
+                    updateUI();
+                    countdownInterval = setInterval(() => {
+                        remaining--;
+                        if (remaining <= 0) {
+                            clearInterval(countdownInterval);
+                            timerDisplay.textContent = 'Session expired';
+                            extendBtn.disabled = true;
+                        } else {
+                            updateUI();
+                        }
+                    }, 1000);
+                }
+
+                extendBtn.addEventListener('click', async () => {
+                    const originalText = extendBtn.textContent;
                     try {
+                        extendBtn.disabled = true;
+                        extendBtn.textContent = 'Extending...';
+
+                        let success = false;
                         if (currentSessionId) {
                             const response = await fetch('/session/' + currentSessionId + '/extend', {
                                 method: 'POST',
                                 headers: { 'x-user-id': 'demo-user' }
                             });
-                            if (response.ok) {
-                                resetTimer();
-                                alert('Session successfully extended!');
-                            } else {
-                                alert('Failed to extend session. Please login again.');
-                            }
+                            success = response.ok;
                         } else {
-                            resetTimer();
-                            alert('Session timer reset (Demo Mode)');
+                            // Demo Mode
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                            success = true;
+                        }
+
+                        if (success) {
+                            extendBtn.textContent = 'Extended!';
+                            announcer.textContent = 'Session successfully extended';
+                            setTimeout(() => resetTimer(), 1500);
+                        } else {
+                            extendBtn.textContent = 'Failed';
+                            extendBtn.disabled = false;
+                            setTimeout(() => { extendBtn.textContent = originalText; }, 3000);
                         }
                     } catch (err) {
                         console.error('Extension failed:', err);
-                        alert('A network error occurred.');
+                        extendBtn.textContent = 'Error';
+                        extendBtn.disabled = false;
+                        setTimeout(() => { extendBtn.textContent = originalText; }, 3000);
                     }
                 });
 
