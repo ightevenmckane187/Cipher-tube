@@ -9,12 +9,6 @@ export interface Tube {
   tag?: string;
 }
 
-interface TubeEntry {
-  tube: Tube;
-  salt: Buffer | null;
-  hash: Buffer | null;
-}
-
 export interface CipherTubeResult {
   ciphertext: string;
   tubes: Tube[];
