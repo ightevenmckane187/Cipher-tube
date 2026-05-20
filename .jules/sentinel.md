@@ -52,3 +52,8 @@
 **Vulnerability:** Governance manifest validation could be bypassed using built-in object properties (e.g., "toString") when using the "in" operator or direct property access.
 **Learning:** In JavaScript, the "in" operator and direct property access check the entire prototype chain. If a manifest specifies a role named "toString", and the validator checks if "toString" exists in the roles object using "roleId in manifest.roles", it will return true even if the role is not explicitly defined in the manifest.
 **Prevention:** Always use "Object.prototype.hasOwnProperty.call(obj, prop)" to verify that a property exists directly on an object, especially when dealing with user-supplied keys in security-critical validation logic.
+
+## 2026-06-25 - Activity Refresh in Multi-Tier Caching
+**Vulnerability:** Session expiration for active users due to stale Redis TTL despite in-memory cache hits.
+**Learning:** In systems with multi-tier caching (LRU + Redis), security-critical state updates (like sliding session TTL) must be propagated to the source of truth (Redis) even when the local cache satisfies the authorization check, otherwise the session may abruptly terminate when the Redis key expires.
+**Prevention:** Always ensure middleware performing authorization via local cache also triggers an update to the remote session store's TTL to maintain synchronization between the cache and the source of truth.
