@@ -10,7 +10,7 @@ import { buildCipherTube, decryptCipherTube } from "./cta";
 
 dotenv.config();
 
-export const app: Application = express();
+const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
@@ -492,10 +492,11 @@ app.get("/", (req: Request, res: Response) => {
 
                 document.getElementById('extend-session-btn').addEventListener('click', async () => {
                     try {
+                        const userId = userIdInput.value.trim() || 'demo-user';
                         if (currentSessionId) {
                             const response = await fetch('/session/' + currentSessionId + '/extend', {
                                 method: 'POST',
-                                headers: { 'x-user-id': 'demo-user' }
+                                headers: { 'x-user-id': userId }
                             });
                             if (response.ok) {
                                 resetTimer();
@@ -596,6 +597,17 @@ const ensureSessionOwner = async (
     if (!ownerId) return res.status(404).json({ error: "Session not found" });
     sessionCache.set(sessionId, ownerId);
     if (ownerId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+    // Sentinel: Implement Activity Refresh (sliding session)
+    // Extend the TTL in Redis on every successful authenticated request
+    if (typeof redisClient.expire === "function") {
+      await redisClient
+        .expire(`session:${sessionId}:owner`, SESSION_TTL)
+        .catch((err) =>
+          console.error("Failed to extend session TTL:", err.message),
+        );
+    }
+
     next();
   } catch (err: any) {
     console.error(
@@ -641,6 +653,21 @@ app.get(
   ensureSessionOwner,
   (req: Request, res: Response) => {
     res.json({ message: "Session ownership verified", status: "owned" });
+  },
+);
+
+/**
+ * Sentinel: Explicit Session Extension Endpoint
+ * Allows frontend to manually extend the session TTL.
+ */
+app.post(
+  "/session/:sessionId/extend",
+  sessionLimiter,
+  validateUserId,
+  ensureSessionOwner,
+  (req: Request, res: Response) => {
+    // ensureSessionOwner already extended the TTL in Redis
+    res.json({ message: "Session extended successfully", status: "extended" });
   },
 );
 
@@ -744,14 +771,8 @@ app.post(
 
         if (isClientError) {
              // Sentinel: Return 400 for all client-side crypto/validation errors.
-             // We use the original error message if it's explicitly allowed in the test expectations,
-             // otherwise we return a generic message to prevent info leakage.
-             const allowedMessages = ['Integrity check failed'];
-             const returnedMessage = allowedMessages.some(msg => errorMessage.includes(msg))
-                 ? errorMessage
-                 : 'Decryption failed';
-
-             return res.status(400).json({ error: returnedMessage });
+             // Sentinel: Use a strict generic message to prevent internal implementation leakage.
+             return res.status(400).json({ error: 'Decryption failed' });
         }
 
         res.status(500).json({ error: 'Internal server error: An unexpected error occurred during decryption.' });
