@@ -10,7 +10,7 @@ import { buildCipherTube, decryptCipherTube } from "./cta";
 
 dotenv.config();
 
-export const app: Application = express();
+const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
@@ -587,8 +587,15 @@ const ensureSessionOwner = async (
 
   const cachedOwnerId = sessionCache.get(sessionId);
   if (cachedOwnerId) {
-    if (cachedOwnerId === userId) return next();
-    return res.status(403).json({ error: "Forbidden" });
+    if (cachedOwnerId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+    // Sentinel: Activity Refresh even on cache hit
+    if (typeof redisClient.expire === 'function') {
+        redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL).catch(err => {
+            console.error("Activity Refresh failed (cache hit):", err?.message);
+        });
+    }
+    return next();
   }
 
   try {
@@ -596,6 +603,13 @@ const ensureSessionOwner = async (
     if (!ownerId) return res.status(404).json({ error: "Session not found" });
     sessionCache.set(sessionId, ownerId);
     if (ownerId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+    // Sentinel: Implement Activity Refresh (sliding session)
+    // Extend the session TTL in Redis on every successful authorized request
+    if (typeof redisClient.expire === 'function') {
+        await redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL);
+    }
+
     next();
   } catch (err: any) {
     console.error(
@@ -642,6 +656,21 @@ app.get(
   (req: Request, res: Response) => {
     res.json({ message: "Session ownership verified", status: "owned" });
   },
+);
+
+/**
+ * Session Extension Endpoint (Sentinel Enhancement)
+ * Allows frontend-driven session extension guarded by ownership checks.
+ */
+app.post(
+  "/session/:sessionId/extend",
+  sessionLimiter,
+  validateUserId,
+  ensureSessionOwner,
+  (req: Request, res: Response) => {
+    // Activity Refresh is already handled in ensureSessionOwner middleware
+    res.json({ message: "Session successfully extended", status: "extended" });
+  }
 );
 
 /**
@@ -748,7 +777,7 @@ app.post(
              // otherwise we return a generic message to prevent info leakage.
              const allowedMessages = ['Integrity check failed'];
              const returnedMessage = allowedMessages.some(msg => errorMessage.includes(msg))
-                 ? errorMessage
+                 ? 'Decryption failed: ' + errorMessage
                  : 'Decryption failed';
 
              return res.status(400).json({ error: returnedMessage });
