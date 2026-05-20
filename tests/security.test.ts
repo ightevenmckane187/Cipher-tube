@@ -9,6 +9,7 @@ jest.mock("redis", () => {
     connect: jest.fn().mockResolvedValue(null),
     set: jest.fn(),
     get: jest.fn(),
+    expire: jest.fn().mockResolvedValue(1),
   };
   return {
     createClient: jest.fn(() => mRedis),

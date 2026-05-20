@@ -10,7 +10,7 @@ import { buildCipherTube, decryptCipherTube } from "./cta";
 
 dotenv.config();
 
-export const app: Application = express();
+const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
@@ -594,8 +594,14 @@ const ensureSessionOwner = async (
   try {
     const ownerId = await redisClient.get(`session:${sessionId}:owner`);
     if (!ownerId) return res.status(404).json({ error: "Session not found" });
-    sessionCache.set(sessionId, ownerId);
+
     if (ownerId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+    // Activity Refresh: Extend TTL on every valid request (Defense-in-depth / Documentation compliance)
+    // Sentinel: Only refresh TTL after successful ownership verification
+    await redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL);
+
+    sessionCache.set(sessionId, ownerId);
     next();
   } catch (err: any) {
     console.error(
@@ -641,6 +647,21 @@ app.get(
   ensureSessionOwner,
   (req: Request, res: Response) => {
     res.json({ message: "Session ownership verified", status: "owned" });
+  },
+);
+
+/**
+ * Session Extension Endpoint
+ * Sentinel: Provides explicit session extension as expected by the UI.
+ */
+app.post(
+  "/session/:sessionId/extend",
+  sessionLimiter,
+  validateUserId,
+  ensureSessionOwner,
+  async (req: Request, res: Response) => {
+    // Ownership and TTL refresh are already handled by ensureSessionOwner middleware.
+    res.json({ message: "Session extended successfully" });
   },
 );
 
