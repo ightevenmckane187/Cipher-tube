@@ -9,12 +9,6 @@ export interface Tube {
   tag?: string;
 }
 
-interface TubeEntry {
-  tube: Tube;
-  salt: Buffer | null;
-  hash: Buffer | null;
-}
-
 export interface CipherTubeResult {
   ciphertext: string;
   tubes: Tube[];
@@ -82,7 +76,7 @@ export function buildCipherTube(
 ): CipherTubeResult {
   let current = plaintext;
   const tubes: Tube[] = [];
-  const audit: string[] = [];
+  const audit: string[] = new Array(NUM_INTEGRITY_TUBES + NUM_ENCRYPTION_LAYERS);
   const hashChain: string[] = [];
 
   // Bolt Optimization: Consolidate entropy generation.
@@ -114,7 +108,7 @@ export function buildCipherTube(
       hash: integrityHash
     });
 
-    audit.push(AUDIT_TUBE_INTEGRITY[i]);
+    audit[i] = AUDIT_TUBE_INTEGRITY[i];
   }
 
   // === 13 AES-256-GCM Encryption Layers ===
@@ -147,7 +141,7 @@ export function buildCipherTube(
       tag: tag.toString('hex')
     });
 
-    audit.push(AUDIT_LAYER_ENCRYPTION[j]);
+    audit[NUM_INTEGRITY_TUBES + j] = AUDIT_LAYER_ENCRYPTION[j];
   }
 
   return {
@@ -196,28 +190,39 @@ export function decryptCipherTube(
     throw new Error("Invalid ciphertext: Too short for 13 encryption layers");
   }
 
-  const audit: string[] = [];
+  const audit: string[] = new Array(NUM_INTEGRITY_TUBES + NUM_ENCRYPTION_LAYERS);
 
-  // Bolt Optimization: Use a fixed-size array for O(1) lookups instead of a Map
-  const tubePool: { tube: Tube; salt: Buffer | null; hash: Buffer | null }[] = new Array(101);
+  // Bolt Optimization: Use separate pre-allocated arrays for O(1) lookups to avoid object allocations
+  const poolTubes: Tube[] = new Array(101);
+  const poolSalts: (Buffer | null)[] = new Array(101);
+  const poolHashes: (Buffer | null)[] = new Array(101);
+
+  // Bolt Optimization: Cache hash-to-buffer conversions for repeated hash-lock tubes
+  const hashCache = new Map<string, Buffer>();
+
   for (const tube of tubes) {
     if (!tube || typeof tube !== 'object' || typeof tube.layer !== 'number') continue;
     const layer = tube.layer;
     if (layer < 0 || layer > 100) continue;
 
-    tubePool[layer] = {
-      tube,
-      salt: typeof tube.salt === 'string' ? Buffer.from(tube.salt, 'hex') : null,
-      hash: typeof tube.hash === 'string' ? Buffer.from(tube.hash, 'hex') : null
-    };
+    poolTubes[layer] = tube;
+    poolSalts[layer] = typeof tube.salt === 'string' ? Buffer.from(tube.salt, 'hex') : null;
+
+    if (typeof tube.hash === 'string') {
+      let cached = hashCache.get(tube.hash);
+      if (!cached) {
+        cached = Buffer.from(tube.hash, 'hex');
+        hashCache.set(tube.hash, cached);
+      }
+      poolHashes[layer] = cached;
+    }
   }
 
   // === Decrypt 13 encryption layers in reverse ===
   for (let j = NUM_ENCRYPTION_LAYERS - 1; j >= 0; j--) {
     const layerId = NUM_INTEGRITY_TUBES + j;
-    const entry = tubePool[layerId];
-    if (!entry) throw new Error(`Missing encryption tube for layer ${layerId}`);
-    const tube = entry.tube;
+    const tube = poolTubes[layerId];
+    if (!tube) throw new Error(`Missing encryption tube for layer ${layerId}`);
 
     // Sentinel: Validate tube fields
     if (
@@ -234,7 +239,7 @@ export function decryptCipherTube(
     const tag = current.subarray(12, 28);
     const encryptedData = current.subarray(28);
 
-    const salt = entry.salt;
+    const salt = poolSalts[layerId];
     if (!salt) throw new Error(`Invalid tube metadata for layer ${layerId}: Missing salt`);
     const info = ENCRYPTION_INFOS[j] || `enc-${j}`;
     const key = deriveKey(masterSeed, salt, info);
@@ -247,31 +252,32 @@ export function decryptCipherTube(
     const decFinal = decipher.final();
     // Bolt Optimization: Avoid Buffer.concat if decFinal is empty
     current = decFinal.length > 0 ? Buffer.concat([decUpdate, decFinal]) : decUpdate;
-    audit.push(AUDIT_DECRYPT_LAYER[j]);
+    // Bolt Optimization: Maintain original chronological order in audit trail
+    audit[NUM_ENCRYPTION_LAYERS - 1 - j] = AUDIT_DECRYPT_LAYER[j];
   }
 
   // === Verify 12 hash-lock tubes in reverse ===
-  // Bolt Optimization: Use standard hashing for compatibility with Node.js LTS versions
-  const computedHashBuffer = crypto.createHash('sha512').update(current).digest();
+  // Bolt Optimization: Use one-shot fastHash for better performance
+  const computedHashBuffer = fastHash('sha512', current);
   let lastHash: string | undefined;
   let lastVerified = false;
 
   for (let i = NUM_INTEGRITY_TUBES - 1; i >= 0; i--) {
-    const entry = tubePool[i];
-    if (!entry) throw new Error(`Missing hash-lock tube ${i}`);
-    const tube = entry.tube;
+    const tube = poolTubes[i];
+    if (!tube) throw new Error(`Missing hash-lock tube ${i}`);
 
-    if (typeof tube.hash !== 'string' || !entry.hash) {
+    if (typeof tube.hash !== 'string') {
       throw new Error(`Invalid tube metadata for hash-lock ${i}: Missing hash`);
     }
 
     // Bolt Optimization: Short-circuit if this hash was already verified in the previous layer
     if (tube.hash === lastHash && lastVerified) {
-      audit.push(AUDIT_VERIFY_TUBE[i]);
+      // Bolt Optimization: Maintain original chronological order in audit trail
+      audit[NUM_ENCRYPTION_LAYERS + (NUM_INTEGRITY_TUBES - 1 - i)] = AUDIT_VERIFY_TUBE[i];
       continue;
     }
 
-    const expectedBuffer = entry.hash;
+    const expectedBuffer = poolHashes[i];
     if (!expectedBuffer) {
       throw new Error(`Invalid tube metadata for hash-lock ${i}: Missing hash buffer`);
     }
@@ -286,7 +292,8 @@ export function decryptCipherTube(
 
     lastHash = tube.hash;
     lastVerified = true;
-    audit.push(AUDIT_VERIFY_TUBE[i]);
+    // Bolt Optimization: Maintain original chronological order in audit trail
+    audit[NUM_ENCRYPTION_LAYERS + (NUM_INTEGRITY_TUBES - 1 - i)] = AUDIT_VERIFY_TUBE[i];
   }
 
   return {
