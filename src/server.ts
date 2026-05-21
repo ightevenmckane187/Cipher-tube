@@ -10,7 +10,7 @@ import { buildCipherTube, decryptCipherTube } from "./cta";
 
 dotenv.config();
 
-export const app: Application = express();
+const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
@@ -492,10 +492,11 @@ app.get("/", (req: Request, res: Response) => {
 
                 document.getElementById('extend-session-btn').addEventListener('click', async () => {
                     try {
+                        const userId = userIdInput.value.trim() || 'demo-user';
                         if (currentSessionId) {
                             const response = await fetch('/session/' + currentSessionId + '/extend', {
                                 method: 'POST',
-                                headers: { 'x-user-id': 'demo-user' }
+                                headers: { 'x-user-id': userId }
                             });
                             if (response.ok) {
                                 resetTimer();
@@ -587,15 +588,30 @@ const ensureSessionOwner = async (
 
   const cachedOwnerId = sessionCache.get(sessionId);
   if (cachedOwnerId) {
-    if (cachedOwnerId === userId) return next();
+    if (cachedOwnerId === userId) {
+        // Activity Refresh: Extend Redis TTL on successful authorization
+        if (typeof redisClient.expire === 'function') {
+            redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL).catch(err => {
+                console.error('Failed to extend session TTL:', err.message);
+            });
+        }
+        return next();
+    }
     return res.status(403).json({ error: "Forbidden" });
   }
 
   try {
     const ownerId = await redisClient.get(`session:${sessionId}:owner`);
     if (!ownerId) return res.status(404).json({ error: "Session not found" });
+
     sessionCache.set(sessionId, ownerId);
     if (ownerId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+    // Activity Refresh: Extend Redis TTL on successful authorization
+    if (typeof redisClient.expire === 'function') {
+        await redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL);
+    }
+
     next();
   } catch (err: any) {
     console.error(
@@ -748,7 +764,7 @@ app.post(
              // otherwise we return a generic message to prevent info leakage.
              const allowedMessages = ['Integrity check failed'];
              const returnedMessage = allowedMessages.some(msg => errorMessage.includes(msg))
-                 ? errorMessage
+                 ? `Decryption failed: ${errorMessage}`
                  : 'Decryption failed';
 
              return res.status(400).json({ error: returnedMessage });
@@ -756,6 +772,24 @@ app.post(
 
         res.status(500).json({ error: 'Internal server error: An unexpected error occurred during decryption.' });
     }
+  },
+);
+
+/**
+ * Session Extension Endpoint
+ * Sentinel: Provides a way for the frontend to explicitly extend a session.
+ * The core "Activity Refresh" (sliding session) logic is handled within the ensureSessionOwner middleware.
+ */
+app.post(
+  "/session/:sessionId/extend",
+  sessionLimiter,
+  validateUserId,
+  ensureSessionOwner,
+  (req: Request, res: Response) => {
+    res.json({
+      message: "Session extended successfully",
+      expiresIn: SESSION_TTL,
+    });
   },
 );
 
