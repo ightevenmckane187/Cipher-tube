@@ -10,7 +10,8 @@ import { buildCipherTube, decryptCipherTube } from "./cta";
 
 dotenv.config();
 
-export const app: Application = express();
+const app: Application = express();
+export { app };
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
@@ -335,6 +336,32 @@ app.get("/", (req: Request, res: Response) => {
                 .counter-container { display: flex; justify-content: space-between; max-width: 300px; align-items: baseline; }
                 #user-id-counter { font-size: 0.75rem; opacity: 0.7; }
                 #user-id-counter.near-limit { color: #d63031; opacity: 1; font-weight: bold; }
+                #timeout-banner {
+                    display: none;
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    background: var(--bg-color);
+                    border: 1px solid var(--primary);
+                    padding: 1rem;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                    z-index: 1000;
+                    align-items: center;
+                    gap: 1rem;
+                }
+                #extend-session-btn {
+                    background: var(--primary);
+                    color: white;
+                    border: none;
+                    padding: 6px 12px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-weight: 500;
+                }
+                #extend-session-btn:hover {
+                    opacity: 0.9;
+                }
             </style>
         </head>
         <body>
@@ -493,9 +520,10 @@ app.get("/", (req: Request, res: Response) => {
                 document.getElementById('extend-session-btn').addEventListener('click', async () => {
                     try {
                         if (currentSessionId) {
+                            const userId = (userIdInput && userIdInput.value) ? userIdInput.value.trim() : 'demo-user';
                             const response = await fetch('/session/' + currentSessionId + '/extend', {
                                 method: 'POST',
-                                headers: { 'x-user-id': 'demo-user' }
+                                headers: { 'x-user-id': userId }
                             });
                             if (response.ok) {
                                 resetTimer();
@@ -587,7 +615,20 @@ const ensureSessionOwner = async (
 
   const cachedOwnerId = sessionCache.get(sessionId);
   if (cachedOwnerId) {
-    if (cachedOwnerId === userId) return next();
+    if (cachedOwnerId === userId) {
+      // Sentinel: Activity Refresh - extend session TTL in Redis
+      if (typeof redisClient.expire === "function") {
+        redisClient
+          .expire(`session:${sessionId}:owner`, SESSION_TTL)
+          .catch((err) =>
+            console.error(
+              "Failed to extend session TTL from cache:",
+              err.message,
+            ),
+          );
+      }
+      return next();
+    }
     return res.status(403).json({ error: "Forbidden" });
   }
 
@@ -596,6 +637,16 @@ const ensureSessionOwner = async (
     if (!ownerId) return res.status(404).json({ error: "Session not found" });
     sessionCache.set(sessionId, ownerId);
     if (ownerId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+    // Sentinel: Activity Refresh - extend session TTL in Redis
+    if (typeof redisClient.expire === "function") {
+      await redisClient
+        .expire(`session:${sessionId}:owner`, SESSION_TTL)
+        .catch((err) =>
+          console.error("Failed to extend session TTL from Redis:", err.message),
+        );
+    }
+
     next();
   } catch (err: any) {
     console.error(
@@ -641,6 +692,25 @@ app.get(
   ensureSessionOwner,
   (req: Request, res: Response) => {
     res.json({ message: "Session ownership verified", status: "owned" });
+  },
+);
+
+/**
+ * Dedicated Session Extension Endpoint (Sentinel Enhancement)
+ */
+app.post(
+  "/session/:sessionId/extend",
+  sessionLimiter,
+  validateUserId,
+  ensureSessionOwner,
+  (req: Request, res: Response) => {
+    // The ensureSessionOwner middleware already extends the TTL.
+    // This endpoint provides a way for the frontend to explicitly trigger an extension
+    // and receive feedback.
+    res.json({
+      message: "Session extended successfully",
+      expiresIn: SESSION_TTL,
+    });
   },
 );
 
@@ -763,7 +833,8 @@ app.post(
  * Global error-handling middleware.
  * Sentinel: Catch and sanitize unhandled errors to prevent information leakage and DoS.
  */
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
   if (
     err instanceof SyntaxError &&
     "status" in err &&
@@ -788,8 +859,6 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 app.use((req: Request, res: Response) => {
   res.status(404).json({ error: "Not Found" });
 });
-
-export { app };
 
 if (process.env.NODE_ENV !== "test") {
   app.listen(PORT, () => {

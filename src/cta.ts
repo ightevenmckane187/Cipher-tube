@@ -199,7 +199,7 @@ export function decryptCipherTube(
   const audit: string[] = [];
 
   // Bolt Optimization: Use a fixed-size array for O(1) lookups instead of a Map
-  const tubePool: { tube: Tube; salt: Buffer | null; hash: Buffer | null }[] = new Array(101);
+  const tubePool: TubeEntry[] = new Array(101);
   for (const tube of tubes) {
     if (!tube || typeof tube !== 'object' || typeof tube.layer !== 'number') continue;
     const layer = tube.layer;
