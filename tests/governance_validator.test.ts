@@ -31,12 +31,12 @@ describe('AuthorityChainValidator', () => {
 
   it('should throw if roles is not an object', () => {
     const invalid = { ...validManifest, roles: [] };
-    expect(() => AuthorityChainValidator.validate(invalid)).toThrow('manifest.roles must be an object');
+    expect(() => AuthorityChainValidator.validate(invalid)).toThrow('manifest.roles must be a non-array object');
   });
 
   it('should throw if lifecycle_gates is not an object', () => {
     const invalid = { ...validManifest, lifecycle_gates: 'invalid' };
-    expect(() => AuthorityChainValidator.validate(invalid)).toThrow('manifest.lifecycle_gates must be an object');
+    expect(() => AuthorityChainValidator.validate(invalid)).toThrow('manifest.lifecycle_gates must be a non-array object');
   });
 
   it('should throw if mandatory_signatures is not an array', () => {
