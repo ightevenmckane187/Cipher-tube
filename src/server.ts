@@ -587,15 +587,37 @@ const ensureSessionOwner = async (
 
   const cachedOwnerId = sessionCache.get(sessionId);
   if (cachedOwnerId) {
-    if (cachedOwnerId === userId) return next();
+    if (cachedOwnerId === userId) {
+      // Sentinel: Activity Refresh (Sliding Session)
+      // Extend session TTL in Redis on every successful authorized request
+      if (typeof redisClient.expire === "function") {
+        redisClient
+          .expire(`session:${sessionId}:owner`, SESSION_TTL)
+          .catch((err) =>
+            console.error("Failed to extend session TTL:", err.message),
+          );
+      }
+      return next();
+    }
     return res.status(403).json({ error: "Forbidden" });
   }
 
   try {
     const ownerId = await redisClient.get(`session:${sessionId}:owner`);
     if (!ownerId) return res.status(404).json({ error: "Session not found" });
+
     sessionCache.set(sessionId, ownerId);
     if (ownerId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+    // Sentinel: Activity Refresh (Sliding Session)
+    if (typeof redisClient.expire === "function") {
+      redisClient
+        .expire(`session:${sessionId}:owner`, SESSION_TTL)
+        .catch((err) =>
+          console.error("Failed to extend session TTL:", err.message),
+        );
+    }
+
     next();
   } catch (err: any) {
     console.error(
@@ -748,7 +770,7 @@ app.post(
              // otherwise we return a generic message to prevent info leakage.
              const allowedMessages = ['Integrity check failed'];
              const returnedMessage = allowedMessages.some(msg => errorMessage.includes(msg))
-                 ? errorMessage
+                 ? `Decryption failed: ${errorMessage}`
                  : 'Decryption failed';
 
              return res.status(400).json({ error: returnedMessage });
@@ -788,8 +810,6 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 app.use((req: Request, res: Response) => {
   res.status(404).json({ error: "Not Found" });
 });
-
-export { app };
 
 if (process.env.NODE_ENV !== "test") {
   app.listen(PORT, () => {

@@ -52,3 +52,8 @@
 **Vulnerability:** Governance manifest validation could be bypassed using built-in object properties (e.g., "toString") when using the "in" operator or direct property access.
 **Learning:** In JavaScript, the "in" operator and direct property access check the entire prototype chain. If a manifest specifies a role named "toString", and the validator checks if "toString" exists in the roles object using "roleId in manifest.roles", it will return true even if the role is not explicitly defined in the manifest.
 **Prevention:** Always use "Object.prototype.hasOwnProperty.call(obj, prop)" to verify that a property exists directly on an object, especially when dealing with user-supplied keys in security-critical validation logic.
+
+## 2026-06-22 - Activity Refresh for Session Continuity
+**Vulnerability:** Inflexible session timeouts leading to service disruption for active users.
+**Learning:** Fixed-TTL sessions in Redis do not automatically renew on access. In a zero-trust architecture, user activity should extend session life to balance security with availability.
+**Prevention:** Implement "Activity Refresh" (sliding sessions) in the ownership verification middleware. Always wrap Redis `expire` calls in type checks (e.g., `typeof redisClient.expire === 'function'`) to maintain compatibility with varied Redis mock implementations used in integration tests.
