@@ -335,6 +335,41 @@ app.get("/", (req: Request, res: Response) => {
                 .counter-container { display: flex; justify-content: space-between; max-width: 300px; align-items: baseline; }
                 #user-id-counter { font-size: 0.75rem; opacity: 0.7; }
                 #user-id-counter.near-limit { color: #d63031; opacity: 1; font-weight: bold; }
+                #timeout-banner {
+                    position: fixed;
+                    bottom: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: var(--bg-color);
+                    border: 1px solid var(--border-color);
+                    padding: 1rem 1.5rem;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    display: none;
+                    align-items: center;
+                    gap: 1rem;
+                    z-index: 1000;
+                    min-width: 300px;
+                }
+                .timeout-info { flex-grow: 1; }
+                #extend-session-btn {
+                    background: var(--primary);
+                    color: white;
+                    border: none;
+                    padding: 6px 12px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 0.875rem;
+                }
+                #extend-session-btn:hover { opacity: 0.9; }
+                #extension-status {
+                    font-size: 0.75rem;
+                    margin-top: 4px;
+                    display: block;
+                }
+                #extension-status.success { color: var(--success); }
+                #extension-status.error { color: var(--error); }
+                .countdown-timer { font-variant-numeric: tabular-nums; font-weight: bold; color: var(--error); }
             </style>
         </head>
         <body>
@@ -388,8 +423,11 @@ app.get("/", (req: Request, res: Response) => {
                 </div>
             </main>
 
-            <div id="timeout-banner" role="alert" aria-live="assertive">
-                <span>Session expires in 1 minute.</span>
+            <div id="timeout-banner" role="alert">
+                <div class="timeout-info">
+                    <span>Session expires in <span id="countdown" class="countdown-timer">60</span>s</span>
+                    <span id="extension-status" aria-live="polite"></span>
+                </div>
                 <button id="extend-session-btn">Extend Session</button>
             </div>
 
@@ -477,39 +515,80 @@ app.get("/", (req: Request, res: Response) => {
 
                 // Session Timeout Simulation
                 let timeoutWarning;
+                let countdownInterval;
                 let currentSessionId = null;
                 const SESSION_DURATION = 3600 * 1000;
                 const WARNING_TIME = 60 * 1000;
 
                 function resetTimer() {
                     if (timeoutWarning) clearTimeout(timeoutWarning);
-                    document.getElementById('timeout-banner').style.display = 'none';
+                    if (countdownInterval) clearInterval(countdownInterval);
+
+                    const banner = document.getElementById('timeout-banner');
+                    const status = document.getElementById('extension-status');
+                    banner.style.display = 'none';
+                    status.textContent = '';
+                    status.className = '';
 
                     timeoutWarning = setTimeout(() => {
-                        document.getElementById('timeout-banner').style.display = 'flex';
+                        banner.style.display = 'flex';
+                        startCountdown();
                     }, SESSION_DURATION - WARNING_TIME);
                 }
 
+                function startCountdown() {
+                    let timeLeft = WARNING_TIME / 1000;
+                    const countdownEl = document.getElementById('countdown');
+                    countdownEl.textContent = timeLeft;
+
+                    countdownInterval = setInterval(() => {
+                        timeLeft--;
+                        countdownEl.textContent = timeLeft;
+                        if (timeLeft <= 0) {
+                            clearInterval(countdownInterval);
+                            // Session would actually expire here
+                        }
+                    }, 1000);
+                }
+
                 document.getElementById('extend-session-btn').addEventListener('click', async () => {
+                    const status = document.getElementById('extension-status');
+                    const btn = document.getElementById('extend-session-btn');
+
                     try {
+                        btn.disabled = true;
+                        status.textContent = 'Extending...';
+
+                        let success = false;
                         if (currentSessionId) {
                             const response = await fetch('/session/' + currentSessionId + '/extend', {
                                 method: 'POST',
-                                headers: { 'x-user-id': 'demo-user' }
+                                headers: { 'x-user-id': userIdInput.value.trim() || 'demo-user' }
                             });
-                            if (response.ok) {
-                                resetTimer();
-                                alert('Session successfully extended!');
-                            } else {
-                                alert('Failed to extend session. Please login again.');
-                            }
+                            success = response.ok;
                         } else {
-                            resetTimer();
-                            alert('Session timer reset (Demo Mode)');
+                            // Demo mode success
+                            await new Promise(r => setTimeout(r, 500));
+                            success = true;
+                        }
+
+                        if (success) {
+                            status.textContent = 'Extended!';
+                            status.className = 'success';
+                            setTimeout(() => {
+                                resetTimer();
+                                btn.disabled = false;
+                            }, 1500);
+                        } else {
+                            status.textContent = 'Failed to extend.';
+                            status.className = 'error';
+                            btn.disabled = false;
                         }
                     } catch (err) {
                         console.error('Extension failed:', err);
-                        alert('A network error occurred.');
+                        status.textContent = 'Network error.';
+                        status.className = 'error';
+                        btn.disabled = false;
                     }
                 });
 
@@ -788,8 +867,6 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 app.use((req: Request, res: Response) => {
   res.status(404).json({ error: "Not Found" });
 });
-
-export { app };
 
 if (process.env.NODE_ENV !== "test") {
   app.listen(PORT, () => {
