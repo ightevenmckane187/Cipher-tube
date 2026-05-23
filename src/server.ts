@@ -335,6 +335,34 @@ app.get("/", (req: Request, res: Response) => {
                 .counter-container { display: flex; justify-content: space-between; max-width: 300px; align-items: baseline; }
                 #user-id-counter { font-size: 0.75rem; opacity: 0.7; }
                 #user-id-counter.near-limit { color: #d63031; opacity: 1; font-weight: bold; }
+                #timeout-banner {
+                    position: fixed;
+                    bottom: 2rem;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: var(--bg-color);
+                    border: 2px solid var(--primary);
+                    padding: 1rem;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    display: none;
+                    align-items: center;
+                    gap: 1rem;
+                    z-index: 1000;
+                }
+                #extend-session-btn {
+                    background: var(--primary);
+                    color: white;
+                    border: none;
+                    padding: 0.5rem 1rem;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-weight: bold;
+                }
+                #extend-session-btn:disabled {
+                    opacity: 0.7;
+                    cursor: not-allowed;
+                }
             </style>
         </head>
         <body>
@@ -491,25 +519,37 @@ app.get("/", (req: Request, res: Response) => {
                 }
 
                 document.getElementById('extend-session-btn').addEventListener('click', async () => {
+                    const btn = document.getElementById('extend-session-btn');
+                    const banner = document.querySelector('#timeout-banner span');
+                    if (!userIdInput) return;
+
                     try {
                         if (currentSessionId) {
                             const response = await fetch('/session/' + currentSessionId + '/extend', {
                                 method: 'POST',
-                                headers: { 'x-user-id': 'demo-user' }
+                                headers: { 'x-user-id': userIdInput.value.trim() || 'demo-user' }
                             });
                             if (response.ok) {
                                 resetTimer();
-                                alert('Session successfully extended!');
+                                btn.textContent = 'Extended!';
+                                btn.disabled = true;
+                                setTimeout(() => {
+                                    btn.textContent = 'Extend Session';
+                                    btn.disabled = false;
+                                }, 3000);
                             } else {
-                                alert('Failed to extend session. Please login again.');
+                                banner.textContent = 'Failed to extend session.';
+                                banner.style.color = 'var(--error)';
                             }
                         } else {
                             resetTimer();
-                            alert('Session timer reset (Demo Mode)');
+                            btn.textContent = 'Extended (Demo)!';
+                            setTimeout(() => { btn.textContent = 'Extend Session'; }, 2000);
                         }
                     } catch (err) {
                         console.error('Extension failed:', err);
-                        alert('A network error occurred.');
+                        banner.textContent = 'Network error.';
+                        banner.style.color = 'var(--error)';
                     }
                 });
 
@@ -587,7 +627,13 @@ const ensureSessionOwner = async (
 
   const cachedOwnerId = sessionCache.get(sessionId);
   if (cachedOwnerId) {
-    if (cachedOwnerId === userId) return next();
+    if (cachedOwnerId === userId) {
+      // Sentinel: Activity Refresh - extend session TTL on successful access
+      if (typeof redisClient.expire === "function") {
+        redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL).catch(() => {});
+      }
+      return next();
+    }
     return res.status(403).json({ error: "Forbidden" });
   }
 
@@ -596,6 +642,12 @@ const ensureSessionOwner = async (
     if (!ownerId) return res.status(404).json({ error: "Session not found" });
     sessionCache.set(sessionId, ownerId);
     if (ownerId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+    // Sentinel: Activity Refresh - extend session TTL on successful access
+    if (typeof redisClient.expire === "function") {
+      await redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL);
+    }
+
     next();
   } catch (err: any) {
     console.error(
@@ -641,6 +693,21 @@ app.get(
   ensureSessionOwner,
   (req: Request, res: Response) => {
     res.json({ message: "Session ownership verified", status: "owned" });
+  },
+);
+
+/**
+ * Session Extension Endpoint
+ * Sentinel: Explicitly allows frontend-driven session extension
+ */
+app.post(
+  "/session/:sessionId/extend",
+  sessionLimiter,
+  validateUserId,
+  ensureSessionOwner,
+  async (req: Request, res: Response) => {
+    // Ownership already verified and TTL extended by ensureSessionOwner middleware
+    res.json({ message: "Session extended", expiresIn: SESSION_TTL });
   },
 );
 
@@ -744,12 +811,12 @@ app.post(
 
         if (isClientError) {
              // Sentinel: Return 400 for all client-side crypto/validation errors.
-             // We use the original error message if it's explicitly allowed in the test expectations,
-             // otherwise we return a generic message to prevent info leakage.
-             const allowedMessages = ['Integrity check failed'];
-             const returnedMessage = allowedMessages.some(msg => errorMessage.includes(msg))
-                 ? errorMessage
-                 : 'Decryption failed';
+             // We return a generic message to prevent info leakage, but we MUST include "Decryption failed"
+             // as per memory/test requirements.
+             let returnedMessage = 'Decryption failed';
+             if (errorMessage.includes('Integrity check failed')) {
+                 returnedMessage = `Decryption failed: ${errorMessage}`;
+             }
 
              return res.status(400).json({ error: returnedMessage });
         }
@@ -788,8 +855,6 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 app.use((req: Request, res: Response) => {
   res.status(404).json({ error: "Not Found" });
 });
-
-export { app };
 
 if (process.env.NODE_ENV !== "test") {
   app.listen(PORT, () => {

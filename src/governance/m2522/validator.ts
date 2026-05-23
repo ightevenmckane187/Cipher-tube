@@ -15,7 +15,7 @@ export class AuthorityChainValidator {
 
     // Validate Roles
     if (!manifest.roles || Array.isArray(manifest.roles) || typeof manifest.roles !== 'object') {
-      throw new Error('manifest.roles must be an object');
+      throw new Error('manifest.roles must be a non-array object');
     }
     for (const [roleId, role] of Object.entries(manifest.roles)) {
       if (typeof role !== 'object' || role === null || Array.isArray(role)) {
@@ -31,7 +31,7 @@ export class AuthorityChainValidator {
 
     // Validate Lifecycle Gates
     if (!manifest.lifecycle_gates || Array.isArray(manifest.lifecycle_gates) || typeof manifest.lifecycle_gates !== 'object') {
-      throw new Error('manifest.lifecycle_gates must be an object');
+      throw new Error('manifest.lifecycle_gates must be a non-array object');
     }
     for (const [gateId, gate] of Object.entries(manifest.lifecycle_gates)) {
       if (typeof gate !== 'object' || gate === null || Array.isArray(gate)) {
@@ -57,7 +57,7 @@ export class AuthorityChainValidator {
 
     // Validate Governance Controls
     if (!manifest.governance_controls || Array.isArray(manifest.governance_controls) || typeof manifest.governance_controls !== 'object') {
-      throw new Error('manifest.governance_controls must be an object');
+      throw new Error('manifest.governance_controls must be a non-array object');
     }
     const hiAi = manifest.governance_controls.high_impact_ai;
     if (!hiAi || typeof hiAi !== 'object' || Array.isArray(hiAi)) {
