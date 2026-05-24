@@ -9,16 +9,9 @@ export interface Tube {
   tag?: string;
 }
 
-interface TubeEntry {
-  tube: Tube;
-  salt: Buffer | null;
-  hash: Buffer | null;
-}
-
 export interface CipherTubeResult {
   ciphertext: string;
   tubes: Tube[];
-  hashChain?: string[]; // optional, for extra verification
   audit: {
     whatHappened: string[];
     timestamp: string;
@@ -81,9 +74,9 @@ export function buildCipherTube(
   masterSeed: Buffer,
 ): CipherTubeResult {
   let current = plaintext;
-  const tubes: Tube[] = [];
-  const audit: string[] = [];
-  const hashChain: string[] = [];
+  const totalTubes = NUM_INTEGRITY_TUBES + NUM_ENCRYPTION_LAYERS;
+  const tubes: Tube[] = new Array(totalTubes);
+  const audit: string[] = new Array(totalTubes);
 
   // Bolt Optimization: Consolidate entropy generation.
   // NUM_INTEGRITY_TUBES * 16B (salt) + NUM_ENCRYPTION_LAYERS * 16B (salt) + NUM_ENCRYPTION_LAYERS * 12B (iv)
@@ -98,23 +91,22 @@ export function buildCipherTube(
   // Bolt Optimization: Use fastHash for one-shot performance
   const integrityHash = fastHash('sha512', current).toString('hex');
 
-  // Bolt Optimization: Convert entropy pool to hex once to avoid repeated conversions in loops
+  // Bolt Optimization: Convert entropy pool to hex once as the buffer is small (~500B),
+  // which is more efficient than repeated slice-and-convert calls.
   const entropyHex = entropyPool.toString('hex');
 
   for (let i = 0; i < NUM_INTEGRITY_TUBES; i++) {
     const saltHex = entropyHex.substring(entropyOffset * 2, entropyOffset * 2 + 32);
     entropyOffset += 16;
 
-    hashChain.push(integrityHash);
-
-    tubes.push({
+    tubes[i] = {
       layer: i,
       type: 'hash-lock',
       salt: saltHex,
       hash: integrityHash
-    });
+    };
 
-    audit.push(AUDIT_TUBE_INTEGRITY[i]);
+    audit[i] = AUDIT_TUBE_INTEGRITY[i];
   }
 
   // === 13 AES-256-GCM Encryption Layers ===
@@ -139,21 +131,20 @@ export function buildCipherTube(
     // Bolt Optimization: Avoid Buffer.concat if final is empty (common for GCM)
     current = final.length > 0 ? Buffer.concat([iv, tag, update, final]) : Buffer.concat([iv, tag, update]);
 
-    tubes.push({
+    tubes[layerId] = {
       layer: layerId,
       type: 'aes-256-gcm',
       salt: saltHex,
       iv: ivHex,
       tag: tag.toString('hex')
-    });
+    };
 
-    audit.push(AUDIT_LAYER_ENCRYPTION[j]);
+    audit[layerId] = AUDIT_LAYER_ENCRYPTION[j];
   }
 
   return {
     ciphertext: current.toString("hex"),
     tubes,
-    hashChain,
     audit: {
       whatHappened: audit,
       timestamp: new Date().toISOString(),
@@ -196,11 +187,15 @@ export function decryptCipherTube(
     throw new Error("Invalid ciphertext: Too short for 13 encryption layers");
   }
 
-  const audit: string[] = [];
+  const totalTubes = NUM_ENCRYPTION_LAYERS + NUM_INTEGRITY_TUBES;
+  const audit: string[] = new Array(totalTubes);
+  let auditIdx = 0;
 
-  // Bolt Optimization: Use a fixed-size array for O(1) lookups instead of a Map
+  // Bolt Optimization: Use a fixed-size array for O(1) lookups instead of a Map.
+  // Pre-parsing salts/hashes into Buffers avoids redundant conversion inside hot loops.
   const tubePool: { tube: Tube; salt: Buffer | null; hash: Buffer | null }[] = new Array(101);
-  for (const tube of tubes) {
+  for (let i = 0; i < tubes.length; i++) {
+    const tube = tubes[i];
     if (!tube || typeof tube !== 'object' || typeof tube.layer !== 'number') continue;
     const layer = tube.layer;
     if (layer < 0 || layer > 100) continue;
@@ -247,12 +242,12 @@ export function decryptCipherTube(
     const decFinal = decipher.final();
     // Bolt Optimization: Avoid Buffer.concat if decFinal is empty
     current = decFinal.length > 0 ? Buffer.concat([decUpdate, decFinal]) : decUpdate;
-    audit.push(AUDIT_DECRYPT_LAYER[j]);
+    audit[auditIdx++] = AUDIT_DECRYPT_LAYER[j];
   }
 
   // === Verify 12 hash-lock tubes in reverse ===
-  // Bolt Optimization: Use standard hashing for compatibility with Node.js LTS versions
-  const computedHashBuffer = crypto.createHash('sha512').update(current).digest();
+  // Bolt Optimization: Use fastHash for one-shot performance
+  const computedHashBuffer = fastHash('sha512', current);
   let lastHash: string | undefined;
   let lastVerified = false;
 
@@ -267,7 +262,7 @@ export function decryptCipherTube(
 
     // Bolt Optimization: Short-circuit if this hash was already verified in the previous layer
     if (tube.hash === lastHash && lastVerified) {
-      audit.push(AUDIT_VERIFY_TUBE[i]);
+      audit[auditIdx++] = AUDIT_VERIFY_TUBE[i];
       continue;
     }
 
@@ -286,7 +281,7 @@ export function decryptCipherTube(
 
     lastHash = tube.hash;
     lastVerified = true;
-    audit.push(AUDIT_VERIFY_TUBE[i]);
+    audit[auditIdx++] = AUDIT_VERIFY_TUBE[i];
   }
 
   return {
