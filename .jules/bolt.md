@@ -25,3 +25,7 @@
 ## 2026-05-25 - Entropy-to-Hex Optimization and Redundancy Cleanup
 **Learning:** Using `buffer.toString('hex', start, end)` is significantly faster than converting a large buffer to a full hex string and then using `.substring()`, as it avoids a massive string allocation. Additionally, removing duplicate middleware and redundant UI elements improves both backend throughput and frontend clarity.
 **Action:** Use specific buffer range conversions for hex strings; always audit middleware chains and UI templates for accidental duplication.
+
+## 2026-05-24 - Balanced Optimization and Maintainability at Small Scales
+**Learning:** For low-iteration loops (e.g., < 100 iterations), the overhead of parallel arrays or excessive slice-and-convert buffer operations can exceed their performance benefits while significantly hurting code readability. High-impact optimizations like one-shot hashing and pre-parsing metadata into Buffers remain valuable across scales.
+**Action:** Prioritize readability for small data structures; use single-object arrays for easier maintenance unless profiling proves it's a critical bottleneck.
