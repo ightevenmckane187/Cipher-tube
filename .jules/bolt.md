@@ -25,3 +25,7 @@
 ## 2026-05-25 - Entropy-to-Hex Optimization and Redundancy Cleanup
 **Learning:** Using `buffer.toString('hex', start, end)` is significantly faster than converting a large buffer to a full hex string and then using `.substring()`, as it avoids a massive string allocation. Additionally, removing duplicate middleware and redundant UI elements improves both backend throughput and frontend clarity.
 **Action:** Use specific buffer range conversions for hex strings; always audit middleware chains and UI templates for accidental duplication.
+
+## 2026-05-26 - Integrity Verification and Interface Stability
+**Learning:** Hoisting the initial integrity hash computation in `decryptCipherTube` using the one-shot `fastHash` helper provides a stable performance gain. However, removing unused but exported properties like `hashChain` from public-facing results is a breaking change that violates the core principle of non-disruptive optimization.
+**Action:** Always verify if a seemingly "dead" property is part of a public interface before removal; prioritize one-shot hashing for invariant data at the start of decryption.
