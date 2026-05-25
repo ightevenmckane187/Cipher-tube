@@ -10,7 +10,7 @@ import { buildCipherTube, decryptCipherTube } from "./cta";
 
 dotenv.config();
 
-export const app: Application = express();
+const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
@@ -587,7 +587,13 @@ const ensureSessionOwner = async (
 
   const cachedOwnerId = sessionCache.get(sessionId);
   if (cachedOwnerId) {
-    if (cachedOwnerId === userId) return next();
+    if (cachedOwnerId === userId) {
+      // Sentinel: Activity Refresh even for cached lookups.
+      if (typeof redisClient.expire === 'function') {
+        redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL).catch(() => {});
+      }
+      return next();
+    }
     return res.status(403).json({ error: "Forbidden" });
   }
 
@@ -596,6 +602,15 @@ const ensureSessionOwner = async (
     if (!ownerId) return res.status(404).json({ error: "Session not found" });
     sessionCache.set(sessionId, ownerId);
     if (ownerId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+    // Sentinel: Activity Refresh (sliding session).
+    // Every successful authorized request extends the session TTL in Redis.
+    if (typeof redisClient.expire === 'function') {
+      redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL).catch((err: any) => {
+          console.error('Failed to extend session TTL:', err?.message || 'Unknown error');
+      });
+    }
+
     next();
   } catch (err: any) {
     console.error(
@@ -641,6 +656,21 @@ app.get(
   ensureSessionOwner,
   (req: Request, res: Response) => {
     res.json({ message: "Session ownership verified", status: "owned" });
+  },
+);
+
+/**
+ * Session Extension Endpoint
+ * Sentinel: Allows frontend-driven explicit session extension.
+ */
+app.post(
+  "/session/:sessionId/extend",
+  sessionLimiter,
+  validateUserId,
+  ensureSessionOwner,
+  (req: Request, res: Response) => {
+    // ensureSessionOwner already extended the TTL, so we just return success
+    res.json({ message: "Session extended", expiresIn: SESSION_TTL });
   },
 );
 
@@ -748,7 +778,7 @@ app.post(
              // otherwise we return a generic message to prevent info leakage.
              const allowedMessages = ['Integrity check failed'];
              const returnedMessage = allowedMessages.some(msg => errorMessage.includes(msg))
-                 ? errorMessage
+                 ? `Decryption failed: ${errorMessage}`
                  : 'Decryption failed';
 
              return res.status(400).json({ error: returnedMessage });
@@ -764,6 +794,7 @@ app.post(
  * Sentinel: Catch and sanitize unhandled errors to prevent information leakage and DoS.
  */
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  void next;
   if (
     err instanceof SyntaxError &&
     "status" in err &&
