@@ -10,7 +10,7 @@ import { buildCipherTube, decryptCipherTube } from "./cta";
 
 dotenv.config();
 
-export const app: Application = express();
+const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
@@ -748,7 +748,7 @@ app.post(
              // otherwise we return a generic message to prevent info leakage.
              const allowedMessages = ['Integrity check failed'];
              const returnedMessage = allowedMessages.some(msg => errorMessage.includes(msg))
-                 ? errorMessage
+                 ? `Decryption failed: ${errorMessage}`
                  : 'Decryption failed';
 
              return res.status(400).json({ error: returnedMessage });
