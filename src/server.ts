@@ -10,7 +10,7 @@ import { buildCipherTube, decryptCipherTube } from "./cta";
 
 dotenv.config();
 
-export const app: Application = express();
+const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
@@ -587,7 +587,17 @@ const ensureSessionOwner = async (
 
   const cachedOwnerId = sessionCache.get(sessionId);
   if (cachedOwnerId) {
-    if (cachedOwnerId === userId) return next();
+    if (cachedOwnerId === userId) {
+      // Sentinel: Activity Refresh (sliding session)
+      if (typeof redisClient.expire === "function") {
+        await redisClient
+          .expire(`session:${sessionId}:owner`, SESSION_TTL)
+          .catch((err) =>
+            console.error("Failed to extend session TTL:", err.message),
+          );
+      }
+      return next();
+    }
     return res.status(403).json({ error: "Forbidden" });
   }
 
@@ -596,6 +606,16 @@ const ensureSessionOwner = async (
     if (!ownerId) return res.status(404).json({ error: "Session not found" });
     sessionCache.set(sessionId, ownerId);
     if (ownerId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+    // Sentinel: Activity Refresh (sliding session)
+    if (typeof redisClient.expire === "function") {
+      await redisClient
+        .expire(`session:${sessionId}:owner`, SESSION_TTL)
+        .catch((err) =>
+          console.error("Failed to extend session TTL:", err.message),
+        );
+    }
+
     next();
   } catch (err: any) {
     console.error(
@@ -746,9 +766,10 @@ app.post(
              // Sentinel: Return 400 for all client-side crypto/validation errors.
              // We use the original error message if it's explicitly allowed in the test expectations,
              // otherwise we return a generic message to prevent info leakage.
-             const allowedMessages = ['Integrity check failed'];
-             const returnedMessage = allowedMessages.some(msg => errorMessage.includes(msg))
-                 ? errorMessage
+             // Sentinel: Return 400 for client-side errors with a generic prefix.
+             // Specific integrity errors are allowed for integration tests.
+             const returnedMessage = errorMessage.includes('Integrity check failed')
+                 ? 'Decryption failed: Integrity check failed'
                  : 'Decryption failed';
 
              return res.status(400).json({ error: returnedMessage });
@@ -756,6 +777,24 @@ app.post(
 
         res.status(500).json({ error: 'Internal server error: An unexpected error occurred during decryption.' });
     }
+  },
+);
+
+/**
+ * Session Extension Endpoint
+ * Allows explicit session extension from the frontend.
+ */
+app.post(
+  "/session/:sessionId/extend",
+  sessionLimiter,
+  validateUserId,
+  ensureSessionOwner,
+  async (req: Request, res: Response) => {
+    // Session is already extended by ensureSessionOwner middleware
+    res.json({
+      message: "Session extended successfully",
+      expiresIn: SESSION_TTL,
+    });
   },
 );
 
