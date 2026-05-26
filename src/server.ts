@@ -492,10 +492,12 @@ app.get("/", (req: Request, res: Response) => {
 
                 document.getElementById('extend-session-btn').addEventListener('click', async () => {
                     try {
+                        const userIdInput = document.getElementById('user-id-input');
+                        const userId = userIdInput ? userIdInput.value.trim() || 'demo-user' : 'demo-user';
                         if (currentSessionId) {
                             const response = await fetch('/session/' + currentSessionId + '/extend', {
                                 method: 'POST',
-                                headers: { 'x-user-id': 'demo-user' }
+                                headers: { 'x-user-id': userId }
                             });
                             if (response.ok) {
                                 resetTimer();
@@ -587,7 +589,13 @@ const ensureSessionOwner = async (
 
   const cachedOwnerId = sessionCache.get(sessionId);
   if (cachedOwnerId) {
-    if (cachedOwnerId === userId) return next();
+    if (cachedOwnerId === userId) {
+      // Activity Refresh: Extend TTL on successful cache hit
+      if (typeof redisClient.expire === "function") {
+        await redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL).catch(() => {});
+      }
+      return next();
+    }
     return res.status(403).json({ error: "Forbidden" });
   }
 
@@ -596,6 +604,12 @@ const ensureSessionOwner = async (
     if (!ownerId) return res.status(404).json({ error: "Session not found" });
     sessionCache.set(sessionId, ownerId);
     if (ownerId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+    // Activity Refresh: Extend TTL on successful Redis lookup
+    if (typeof redisClient.expire === "function") {
+      await redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL).catch(() => {});
+    }
+
     next();
   } catch (err: any) {
     console.error(
@@ -641,6 +655,21 @@ app.get(
   ensureSessionOwner,
   (req: Request, res: Response) => {
     res.json({ message: "Session ownership verified", status: "owned" });
+  },
+);
+
+/**
+ * Session Extension Endpoint
+ * Sentinel: Specifically for frontend-driven session renewals.
+ * Also triggers Activity Refresh via ensureSessionOwner middleware.
+ */
+app.post(
+  "/session/:sessionId/extend",
+  sessionLimiter,
+  validateUserId,
+  ensureSessionOwner,
+  (req: Request, res: Response) => {
+    res.json({ message: "Session extended", expiresIn: SESSION_TTL });
   },
 );
 
@@ -788,8 +817,6 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 app.use((req: Request, res: Response) => {
   res.status(404).json({ error: "Not Found" });
 });
-
-export { app };
 
 if (process.env.NODE_ENV !== "test") {
   app.listen(PORT, () => {
