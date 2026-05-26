@@ -1,0 +1,13 @@
+workflow: bod22kevremediation
+description: Placeholder for BOD 22-01 KEV Remediation
+
+steps:
+  - name: fetch_kev
+    action: vulnerability.fetch_known_exploited
+    output: kev_list
+
+  - name: remediate
+    foreach: kev_list
+    action: remediation.patch_vulnerability
+    params:
+      id: "${item.id}"
