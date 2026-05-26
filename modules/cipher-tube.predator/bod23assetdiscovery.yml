@@ -1,0 +1,15 @@
+workflow: bod23assetdiscovery
+description: Placeholder for BOD 23-01 Asset Discovery
+
+steps:
+  - name: discovery
+    action: asset.list
+    params:
+      scope: all
+    output: assets
+
+  - name: log
+    action: audit.record
+    params:
+      data: BOD 23 Discovery completed
+      count: "${state.assets.count}"
