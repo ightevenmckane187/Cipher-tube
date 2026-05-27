@@ -9,11 +9,6 @@ export interface Tube {
   tag?: string;
 }
 
-interface TubeEntry {
-  tube: Tube;
-  salt: Buffer | null;
-  hash: Buffer | null;
-}
 
 export interface CipherTubeResult {
   ciphertext: string;
@@ -281,7 +276,7 @@ export function decryptCipherTube(
       computedHashBuffer.length !== expectedBuffer.length ||
       !crypto.timingSafeEqual(computedHashBuffer, expectedBuffer)
     ) {
-      throw new Error(`Integrity check failed: Hash-lock tube ${i} mismatch`);
+      throw new Error(`Decryption failed: Integrity check failed: Hash-lock tube ${i} mismatch`);
     }
 
     lastHash = tube.hash;
