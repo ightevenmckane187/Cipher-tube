@@ -10,7 +10,7 @@ import { buildCipherTube, decryptCipherTube } from "./cta";
 
 dotenv.config();
 
-export const app: Application = express();
+const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
@@ -393,7 +393,7 @@ app.get("/", (req: Request, res: Response) => {
                 <button id="extend-session-btn">Extend Session</button>
             </div>
 
-            <footer role="contentinfo">
+            <footer>
                 <nav aria-label="Footer navigation">
                     <a href="/health">Health Check</a> |
                     <a href="/docs/USER_GUIDE.md">User Guide</a> |
@@ -748,7 +748,7 @@ app.post(
              // otherwise we return a generic message to prevent info leakage.
              const allowedMessages = ['Integrity check failed'];
              const returnedMessage = allowedMessages.some(msg => errorMessage.includes(msg))
-                 ? errorMessage
+                 ? `Decryption failed: ${errorMessage}`
                  : 'Decryption failed';
 
              return res.status(400).json({ error: returnedMessage });
@@ -781,6 +781,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 
   // Sentinel: Log only message to avoid leaking sensitive internal state
   console.error("Unhandled Error:", err?.message || "Unknown error");
+  void next;
   res.status(500).json({ error: "Internal server error" });
 });
 
