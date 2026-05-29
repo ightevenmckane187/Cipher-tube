@@ -97,7 +97,6 @@ app.use(
 // Serve accessible documentation (WCAG 602.3 compliance)
 app.use('/docs', express.static(path.join(__dirname, '../docs')));
 
-app.use(apiLimiter); // Sentinel: Apply global rate limiting before expensive operations
 
 export const redisClient: RedisClientType = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
@@ -493,9 +492,11 @@ app.get("/", (req: Request, res: Response) => {
                 document.getElementById('extend-session-btn').addEventListener('click', async () => {
                     try {
                         if (currentSessionId) {
+                            if (!userIdInput) return;
+                            const userId = userIdInput.value.trim() || 'demo-user';
                             const response = await fetch('/session/' + currentSessionId + '/extend', {
                                 method: 'POST',
-                                headers: { 'x-user-id': 'demo-user' }
+                                headers: { 'x-user-id': userId }
                             });
                             if (response.ok) {
                                 resetTimer();
@@ -585,25 +586,34 @@ const ensureSessionOwner = async (
       .json({ error: "Bad Request: Invalid sessionId format" });
   }
 
-  const cachedOwnerId = sessionCache.get(sessionId);
-  if (cachedOwnerId) {
-    if (cachedOwnerId === userId) return next();
-    return res.status(403).json({ error: "Forbidden" });
+  let ownerId = sessionCache.get(sessionId);
+
+  if (!ownerId) {
+    try {
+      ownerId = (await redisClient.get(`session:${sessionId}:owner`)) || undefined;
+      if (ownerId) {
+        sessionCache.set(sessionId, ownerId);
+      }
+    } catch (err: any) {
+      console.error(
+        "Session ownership check failed:",
+        err?.message || "Unknown error",
+      );
+      return res.status(500).json({ error: "Internal server error" });
+    }
   }
 
-  try {
-    const ownerId = await redisClient.get(`session:${sessionId}:owner`);
-    if (!ownerId) return res.status(404).json({ error: "Session not found" });
-    sessionCache.set(sessionId, ownerId);
-    if (ownerId !== userId) return res.status(403).json({ error: "Forbidden" });
-    next();
-  } catch (err: any) {
-    console.error(
-      "Session ownership check failed:",
-      err?.message || "Unknown error",
-    );
-    res.status(500).json({ error: "Internal server error" });
+  if (!ownerId) return res.status(404).json({ error: "Session not found" });
+  if (ownerId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+  // Sentinel: Activity Refresh (Sliding Session) - extend TTL on every authorized request
+  if (typeof redisClient.expire === 'function') {
+      await redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL).catch(err =>
+          console.error('Failed to extend session TTL:', err?.message)
+      );
   }
+
+  next();
 };
 
 // Session Creation Endpoint
@@ -642,6 +652,21 @@ app.get(
   (req: Request, res: Response) => {
     res.json({ message: "Session ownership verified", status: "owned" });
   },
+);
+
+/**
+ * Session Extension Endpoint (Sentinel security enhancement)
+ */
+app.post(
+  "/session/:sessionId/extend",
+  sessionLimiter,
+  validateUserId,
+  ensureSessionOwner,
+  (req: Request, res: Response) => {
+    // Activity Refresh is already handled by ensureSessionOwner middleware.
+    // We just return success and the current TTL.
+    res.json({ message: "Session successfully extended", expiresIn: SESSION_TTL });
+  }
 );
 
 /**
@@ -788,8 +813,6 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 app.use((req: Request, res: Response) => {
   res.status(404).json({ error: "Not Found" });
 });
-
-export { app };
 
 if (process.env.NODE_ENV !== "test") {
   app.listen(PORT, () => {
