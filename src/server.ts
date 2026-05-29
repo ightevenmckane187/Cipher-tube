@@ -748,7 +748,7 @@ app.post(
              // otherwise we return a generic message to prevent info leakage.
              const allowedMessages = ['Integrity check failed'];
              const returnedMessage = allowedMessages.some(msg => errorMessage.includes(msg))
-                 ? errorMessage
+                 ? `Decryption failed: ${errorMessage}`
                  : 'Decryption failed';
 
              return res.status(400).json({ error: returnedMessage });
@@ -764,6 +764,7 @@ app.post(
  * Sentinel: Catch and sanitize unhandled errors to prevent information leakage and DoS.
  */
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  void next;
   if (
     err instanceof SyntaxError &&
     "status" in err &&
@@ -788,8 +789,6 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 app.use((req: Request, res: Response) => {
   res.status(404).json({ error: "Not Found" });
 });
-
-export { app };
 
 if (process.env.NODE_ENV !== "test") {
   app.listen(PORT, () => {
