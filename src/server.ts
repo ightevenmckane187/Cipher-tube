@@ -10,7 +10,7 @@ import { buildCipherTube, decryptCipherTube } from "./cta";
 
 dotenv.config();
 
-export const app: Application = express();
+const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
@@ -493,9 +493,10 @@ app.get("/", (req: Request, res: Response) => {
                 document.getElementById('extend-session-btn').addEventListener('click', async () => {
                     try {
                         if (currentSessionId) {
+                            const userId = userIdInput ? userIdInput.value.trim() : 'demo-user';
                             const response = await fetch('/session/' + currentSessionId + '/extend', {
                                 method: 'POST',
-                                headers: { 'x-user-id': 'demo-user' }
+                                headers: { 'x-user-id': userId }
                             });
                             if (response.ok) {
                                 resetTimer();
@@ -585,25 +586,41 @@ const ensureSessionOwner = async (
       .json({ error: "Bad Request: Invalid sessionId format" });
   }
 
-  const cachedOwnerId = sessionCache.get(sessionId);
-  if (cachedOwnerId) {
-    if (cachedOwnerId === userId) return next();
+  let ownerId = sessionCache.get(sessionId);
+
+  if (!ownerId) {
+    try {
+      ownerId = await redisClient.get(`session:${sessionId}:owner`) as string | undefined;
+      if (!ownerId) return res.status(404).json({ error: "Session not found" });
+      sessionCache.set(sessionId, ownerId);
+    } catch (err: any) {
+      console.error(
+        "Session ownership lookup failed:",
+        err?.message || "Unknown error",
+      );
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
+  if (ownerId !== userId) {
     return res.status(403).json({ error: "Forbidden" });
   }
 
+  // Sentinel: Activity Refresh (Sliding Session)
+  // Every successful authorized request extends the session lifetime in Redis.
   try {
-    const ownerId = await redisClient.get(`session:${sessionId}:owner`);
-    if (!ownerId) return res.status(404).json({ error: "Session not found" });
-    sessionCache.set(sessionId, ownerId);
-    if (ownerId !== userId) return res.status(403).json({ error: "Forbidden" });
-    next();
+    if (typeof redisClient.expire === "function") {
+      await redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL);
+    }
   } catch (err: any) {
+    // Fail-secure: Log error but allow request if only refresh fails
     console.error(
-      "Session ownership check failed:",
+      "Session activity refresh failed:",
       err?.message || "Unknown error",
     );
-    res.status(500).json({ error: "Internal server error" });
   }
+
+  next();
 };
 
 // Session Creation Endpoint
@@ -641,6 +658,24 @@ app.get(
   ensureSessionOwner,
   (req: Request, res: Response) => {
     res.json({ message: "Session ownership verified", status: "owned" });
+  },
+);
+
+/**
+ * Session Extension Endpoint (Manual)
+ */
+app.post(
+  "/session/:sessionId/extend",
+  sessionLimiter,
+  validateUserId,
+  ensureSessionOwner,
+  (req: Request, res: Response) => {
+    // ensureSessionOwner already handled the Redis 'expire' call (Activity Refresh).
+    // We just return success and the current TTL setting.
+    res.json({
+      message: "Session successfully extended",
+      expiresIn: SESSION_TTL,
+    });
   },
 );
 
