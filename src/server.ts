@@ -393,7 +393,7 @@ app.get("/", (req: Request, res: Response) => {
                 <button id="extend-session-btn">Extend Session</button>
             </div>
 
-            <footer role="contentinfo">
+            <footer role="contentinfo" aria-label="Page Footer">
                 <nav aria-label="Footer navigation">
                     <a href="/health">Health Check</a> |
                     <a href="/docs/USER_GUIDE.md">User Guide</a> |
@@ -748,7 +748,7 @@ app.post(
              // otherwise we return a generic message to prevent info leakage.
              const allowedMessages = ['Integrity check failed'];
              const returnedMessage = allowedMessages.some(msg => errorMessage.includes(msg))
-                 ? errorMessage
+                 ? `Decryption failed: ${errorMessage}`
                  : 'Decryption failed';
 
              return res.status(400).json({ error: returnedMessage });
@@ -788,8 +788,6 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 app.use((req: Request, res: Response) => {
   res.status(404).json({ error: "Not Found" });
 });
-
-export { app };
 
 if (process.env.NODE_ENV !== "test") {
   app.listen(PORT, () => {
