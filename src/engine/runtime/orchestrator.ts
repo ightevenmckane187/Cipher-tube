@@ -50,7 +50,7 @@ export async function executePipeline(def: any, ctx: ExecContext) {
       let input = null;
       if (stage.from) {
           if (Array.isArray(stage.from)) {
-              input = stage.from.map(f => state[f]);
+              input = stage.from.map((f: string) => state[f]);
           } else {
               input = state[stage.from];
           }
@@ -66,7 +66,7 @@ export async function executePipeline(def: any, ctx: ExecContext) {
     let input = null;
     if (sink.from) {
         if (Array.isArray(sink.from)) {
-            input = sink.from.map(f => state[f]);
+            input = sink.from.map((f: string) => state[f]);
         } else {
             input = state[sink.from];
         }
@@ -98,10 +98,38 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
   return await handler(resolvedParams, state, ctx.config);
 }
 
-function resolveParams(params: any, config: any, state: any, item: any): any {
+/**
+ * Resolves a deep path in a root object with prototype protection.
+ */
+function resolvePath(root: any, path: string | undefined): any {
+    if (!root) return root;
+    if (!path) return root;
+
+    const keys = path.split('.');
+    let val = root;
+    for (const k of keys) {
+        // Sentinel: Block access to prototype properties
+        if (k === '__proto__' || k === 'constructor' || k === 'prototype') {
+            return undefined;
+        }
+        val = val?.[k];
+    }
+    return val;
+}
+
+/**
+ * Resolves template strings in params using config, state, and item context.
+ * Sentinel: Implements single-pass replacement to prevent template injection (double expansion).
+ * Sentinel: Blocks access to sensitive prototype properties to prevent prototype pollution/access.
+ * Bolt: Includes short-circuit for static strings to optimize performance.
+ */
+export function resolveParams(params: any, config: any, state: any, item: any): any {
   if (typeof params === 'string') {
+    // Bolt Optimization: Short-circuit for static strings
+    if (!params.includes('$')) return params;
+
     // Check if it's a direct reference like "${state.xxx}"
-    const directMatch = params.match(/^\${(config|state|params|item)\.([^}]+)}$/);
+    const directMatch = params.match(/^\${(config|state|params|item)(?:\.([^}]+))?}$/);
     if (directMatch) {
         const [, type, key] = directMatch;
         let root;
@@ -110,30 +138,29 @@ function resolveParams(params: any, config: any, state: any, item: any): any {
         else if (type === 'params') root = state.params;
         else if (type === 'item') root = item;
 
-        if (root) {
-            const keys = key.split('.');
-            let val = root;
-            for (const k of keys) val = val?.[k];
-            return val;
-        }
+        return resolvePath(root, key);
     }
 
-    // Direct reference to "${item}"
-    if (params === '${item}') return item;
+    // Sentinel: Single-pass regex replacement to prevent double expansion/template injection
+    return params.replace(/\${(config|state|params|item)(?:\.([^}]+))?}/g, (match, type, key) => {
+        let root;
+        if (type === 'config') root = config;
+        else if (type === 'state') root = state;
+        else if (type === 'params') root = state.params;
+        else if (type === 'item') root = item;
 
-    // Mixed string interpolation
-    let resolved = params.replace(/\${config\.([^}]+)}/g, (_, key) => config[key]);
-    resolved = resolved.replace(/\${state\.([^}]+)}/g, (_, key) => {
-        const keys = key.split('.');
-        let val = state;
-        for (const k of keys) val = val?.[k];
-        return val;
+        const val = resolvePath(root, key);
+
+        // Handle cases where the path doesn't exist or is invalid
+        if (val === undefined) {
+             // If the root exists but the key doesn't, return 'undefined' string
+             if (root !== undefined) return 'undefined';
+             // If even the root is missing, return the original match
+             return match;
+        }
+
+        return String(val);
     });
-    resolved = resolved.replace(/\${params\.([^}]+)}/g, (_, key) => state.params?.[key]);
-    resolved = resolved.replace(/\${item\.([^}]+)}/g, (_, key) => item?.[key]);
-    resolved = resolved.replace(/\${item}/g, () => item);
-
-    return resolved;
   }
 
   if (Array.isArray(params)) {
