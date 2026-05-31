@@ -98,42 +98,65 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
   return await handler(resolvedParams, state, ctx.config);
 }
 
+/**
+ * Bolt Optimization: Single-pass parameter resolution with static short-circuit.
+ * Also implements security boundaries to prevent prototype pollution.
+ */
 function resolveParams(params: any, config: any, state: any, item: any): any {
   if (typeof params === 'string') {
-    // Check if it's a direct reference like "${state.xxx}"
-    const directMatch = params.match(/^\${(config|state|params|item)\.([^}]+)}$/);
-    if (directMatch) {
-        const [, type, key] = directMatch;
-        let root;
-        if (type === 'config') root = config;
-        else if (type === 'state') root = state;
-        else if (type === 'params') root = state.params;
-        else if (type === 'item') root = item;
+    // Bolt Optimization: Fast-path for static strings
+    if (!params.includes('${')) return params;
 
-        if (root) {
-            const keys = key.split('.');
-            let val = root;
-            for (const k of keys) val = val?.[k];
-            return val;
+    // Check if it's a direct reference like "${state.xxx}" or "${item}"
+    const directMatch = params.match(/^\${(config|state|params|item)(?:\.([^}]+))?}$/);
+    if (directMatch) {
+      const [, type, key] = directMatch;
+      if (type === 'item' && !key) return item;
+
+      let root;
+      if (type === 'config') root = config;
+      else if (type === 'state') root = state;
+      else if (type === 'params') root = state.params;
+      else if (type === 'item') root = item;
+
+      if (root && key) {
+        const keys = key.split('.');
+        let val = root;
+        for (const k of keys) {
+          // Security: Prevent prototype pollution
+          if (k === '__proto__' || k === 'constructor' || k === 'prototype') return undefined;
+          val = val?.[k];
         }
+        return val;
+      }
+      return undefined;
     }
 
-    // Direct reference to "${item}"
-    if (params === '${item}') return item;
+    // Bolt Optimization: Single-pass regex for mixed string interpolation
+    return params.replace(/\${(config|state|params|item)(?:\.([^}]+))?}/g, (match, type, key) => {
+      if (type === 'item' && !key) return String(item);
 
-    // Mixed string interpolation
-    let resolved = params.replace(/\${config\.([^}]+)}/g, (_, key) => config[key]);
-    resolved = resolved.replace(/\${state\.([^}]+)}/g, (_, key) => {
+      let root;
+      if (type === 'config') root = config;
+      else if (type === 'state') root = state;
+      else if (type === 'params') root = state.params;
+      else if (type === 'item') root = item;
+
+      if (!root) return match;
+
+      if (key) {
         const keys = key.split('.');
-        let val = state;
-        for (const k of keys) val = val?.[k];
-        return val;
-    });
-    resolved = resolved.replace(/\${params\.([^}]+)}/g, (_, key) => state.params?.[key]);
-    resolved = resolved.replace(/\${item\.([^}]+)}/g, (_, key) => item?.[key]);
-    resolved = resolved.replace(/\${item}/g, () => item);
+        let val = root;
+        for (const k of keys) {
+          // Security: Prevent prototype pollution
+          if (k === '__proto__' || k === 'constructor' || k === 'prototype') return '';
+          val = val?.[k];
+        }
+        return val !== undefined ? String(val) : '';
+      }
 
-    return resolved;
+      return match;
+    });
   }
 
   if (Array.isArray(params)) {
