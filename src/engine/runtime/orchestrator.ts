@@ -99,67 +99,59 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
 }
 
 /**
- * Resolves a deep path in a root object with prototype protection.
+ * Sentinel: Secure path resolution helper to prevent prototype pollution.
  */
 function resolvePath(root: any, path: string | undefined): any {
-    if (!root) return root;
-    if (!path) return root;
+  if (!root) return undefined;
+  if (!path) return root;
 
-    const keys = path.split('.');
-    let val = root;
-    for (const k of keys) {
-        // Sentinel: Block access to prototype properties
-        if (k === '__proto__' || k === 'constructor' || k === 'prototype') {
-            return undefined;
-        }
-        val = val?.[k];
+  const keys = path.split('.');
+  let current = root;
+
+  for (const key of keys) {
+    // Sentinel: Block access to internal properties that could be used for prototype pollution
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      return undefined;
     }
-    return val;
+    current = current?.[key];
+  }
+
+  return current;
 }
 
 /**
- * Resolves template strings in params using config, state, and item context.
- * Sentinel: Implements single-pass replacement to prevent template injection (double expansion).
- * Sentinel: Blocks access to sensitive prototype properties to prevent prototype pollution/access.
- * Bolt: Includes short-circuit for static strings to optimize performance.
+ * Sentinel: Resolves template variables in a single pass to prevent template injection (double expansion).
  */
-export function resolveParams(params: any, config: any, state: any, item: any): any {
+function resolveParams(params: any, config: any, state: any, item: any): any {
   if (typeof params === 'string') {
     // Bolt Optimization: Short-circuit for static strings
     if (!params.includes('$')) return params;
 
-    // Check if it's a direct reference like "${state.xxx}"
+    // Sentinel: Check for direct reference like "${state.xxx}" to preserve original types (e.g. objects, numbers)
     const directMatch = params.match(/^\${(config|state|params|item)(?:\.([^}]+))?}$/);
     if (directMatch) {
-        const [, type, key] = directMatch;
+        const [, type, path] = directMatch;
         let root;
         if (type === 'config') root = config;
         else if (type === 'state') root = state;
         else if (type === 'params') root = state.params;
         else if (type === 'item') root = item;
 
-        return resolvePath(root, key);
+        return resolvePath(root, path);
     }
 
-    // Sentinel: Single-pass regex replacement to prevent double expansion/template injection
-    return params.replace(/\${(config|state|params|item)(?:\.([^}]+))?}/g, (match, type, key) => {
+    // Sentinel: Mixed string interpolation using a single-pass regex to avoid template injection.
+    // This ensures that values containing template syntax are NOT recursively expanded.
+    return params.replace(/\${(config|state|params|item)(?:\.([^}]+))?}/g, (_, type, path) => {
         let root;
         if (type === 'config') root = config;
         else if (type === 'state') root = state;
         else if (type === 'params') root = state.params;
         else if (type === 'item') root = item;
 
-        const val = resolvePath(root, key);
-
-        // Handle cases where the path doesn't exist or is invalid
-        if (val === undefined) {
-             // If the root exists but the key doesn't, return 'undefined' string
-             if (root !== undefined) return 'undefined';
-             // If even the root is missing, return the original match
-             return match;
-        }
-
-        return String(val);
+        const val = resolvePath(root, path);
+        // Handle falsy values (0, false, null) correctly during string interpolation
+        return (val !== undefined && val !== null) ? String(val) : '';
     });
   }
 
