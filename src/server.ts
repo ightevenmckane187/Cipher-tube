@@ -335,6 +335,33 @@ app.get("/", (req: Request, res: Response) => {
                 .counter-container { display: flex; justify-content: space-between; max-width: 300px; align-items: baseline; }
                 #user-id-counter { font-size: 0.75rem; opacity: 0.7; }
                 #user-id-counter.near-limit { color: #d63031; opacity: 1; font-weight: bold; }
+                #timeout-banner {
+                    display: none;
+                    position: fixed;
+                    bottom: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: var(--primary);
+                    color: white;
+                    padding: 12px 24px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                    z-index: 1000;
+                    align-items: center;
+                    gap: 16px;
+                }
+                #extend-session-btn {
+                    background: white;
+                    color: var(--primary);
+                    border: none;
+                    padding: 6px 12px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-weight: bold;
+                    transition: opacity 0.2s;
+                }
+                #extend-session-btn:hover { opacity: 0.9; }
+                #extension-status { margin-left: 8px; font-weight: bold; }
             </style>
         </head>
         <body>
@@ -388,12 +415,13 @@ app.get("/", (req: Request, res: Response) => {
                 </div>
             </main>
 
-            <div id="timeout-banner" role="alert" aria-live="assertive">
+            <div id="timeout-banner" role="alert">
                 <span>Session expires in 1 minute.</span>
-                <button id="extend-session-btn">Extend Session</button>
+                <button id="extend-session-btn" aria-keyshortcuts="e">Extend Session <kbd aria-hidden="true" style="font-size: 0.7em; opacity: 0.8; border: 1px solid rgba(255,255,255,0.4); padding: 1px 3px; border-radius: 3px; margin-left: 4px;">(e)</kbd></button>
+                <span id="extension-status" aria-live="polite"></span>
             </div>
 
-            <footer role="contentinfo">
+            <footer role="contentinfo" aria-label="Page Footer">
                 <nav aria-label="Footer navigation">
                     <a href="/health">Health Check</a> |
                     <a href="/docs/USER_GUIDE.md">User Guide</a> |
@@ -472,6 +500,11 @@ app.get("/", (req: Request, res: Response) => {
                         document.getElementById('copy-curl')?.click();
                     } else if (e.key === 't') {
                         document.getElementById('theme-toggle')?.click();
+                    } else if (e.key === 'e') {
+                        const btn = document.getElementById('extend-session-btn');
+                        if (btn && window.getComputedStyle(document.getElementById('timeout-banner')).display !== 'none') {
+                            btn.click();
+                        }
                     }
                 });
 
@@ -490,7 +523,16 @@ app.get("/", (req: Request, res: Response) => {
                     }, SESSION_DURATION - WARNING_TIME);
                 }
 
+                let statusTimeout;
                 document.getElementById('extend-session-btn').addEventListener('click', async () => {
+                    const status = document.getElementById('extension-status');
+                    const showStatus = (msg, isError = false) => {
+                        if (statusTimeout) clearTimeout(statusTimeout);
+                        status.textContent = msg;
+                        status.style.color = isError ? '#f28b82' : '#2ecc71';
+                        statusTimeout = setTimeout(() => status.textContent = '', 3000);
+                    };
+
                     try {
                         if (currentSessionId) {
                             const response = await fetch('/session/' + currentSessionId + '/extend', {
@@ -499,17 +541,17 @@ app.get("/", (req: Request, res: Response) => {
                             });
                             if (response.ok) {
                                 resetTimer();
-                                alert('Session successfully extended!');
+                                showStatus('Extended!');
                             } else {
-                                alert('Failed to extend session. Please login again.');
+                                showStatus('Failed', true);
                             }
                         } else {
                             resetTimer();
-                            alert('Session timer reset (Demo Mode)');
+                            showStatus('Reset!');
                         }
                     } catch (err) {
                         console.error('Extension failed:', err);
-                        alert('A network error occurred.');
+                        showStatus('Error', true);
                     }
                 });
 
@@ -773,7 +815,7 @@ app.post(
              // otherwise we return a generic message to prevent info leakage.
              const allowedMessages = ['Integrity check failed'];
              const returnedMessage = allowedMessages.some(msg => errorMessage.includes(msg))
-                 ? errorMessage
+                 ? 'Decryption failed: ' + errorMessage
                  : 'Decryption failed';
 
              return res.status(400).json({ error: returnedMessage });
