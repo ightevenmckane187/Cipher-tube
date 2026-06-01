@@ -1,0 +1,31 @@
+[project]
+name = "a2a-tck"
+version = "0.1.0"
+description = "A2A Protocol Technology Compatibility Kit"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "gherkin-official>=39.1.0",
+    "grpcio-tools>=1.81.0",
+    "grpcio>=1.81.0",
+    "httpx>=0.28.1",
+    "jinja2>=3.1.6",
+    "pytest-asyncio>=1.4.0",
+    "pytest>=9.0.3",
+    "fastapi>=0.136.3",
+    "uvicorn>=0.48.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "grpc: gRPC transport",
+    "jsonrpc: JSON-RPC transport",
+    "http_json: HTTP+JSON transport",
+    "must: MUST requirement",
+    "should: SHOULD requirement",
+    "may: MAY requirement",
+    "core_ops: CORE-OPS requirements",
+]

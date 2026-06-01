@@ -130,8 +130,20 @@ clean: ## Clean build artifacts
 	@rm -rf benchmark-results.json benchmark-report.md
 	@echo "✅ Clean complete"
 
+tck-codegen: ## Run code generation from Gherkin scenarios
+	@echo "🛠️ Generating TCK artifacts..."
+	@uv run python3 run_codegen.py
+
+tck-test: ## Run the full TCK suite
+	@echo "🧪 Running TCK compatibility tests..."
+	@uv run pytest tests/compatibility/
+
+tck-unit: ## Run TCK unit tests
+	@echo "🧪 Running TCK unit tests..."
+	@uv run pytest tests/unit/
+
 help: ## Show this help message
-	@echo "Cipher-tube — Available Commands"
-	@echo "================================"
+	@echo "Cipher-tube & A2A TCK — Available Commands"
+	@echo "=========================================="
 	@grep -E '^[a-zA-Z-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
