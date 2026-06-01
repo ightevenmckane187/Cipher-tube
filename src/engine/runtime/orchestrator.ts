@@ -98,54 +98,60 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
   return await handler(resolvedParams, state, ctx.config);
 }
 
-export function resolveParams(params: any, config: any, state: any, item: any): any {
-  if (typeof params === 'string') {
-    if (!params.includes('$')) return params;
+/**
+ * Sentinel: Secure path resolution helper to prevent prototype pollution.
+ */
+function resolvePath(root: any, path: string | undefined): any {
+  if (!root) return undefined;
+  if (!path) return root;
 
-    // Check if it's a direct reference like "${state.xxx}" or "${item}"
-    const directMatch = params.match(/^\${(config|state|params|item)(?:\.([^}]+))?}$/);
-    if (directMatch) {
-      const [, type, key] = directMatch;
-      let root;
-      if (type === 'config') root = config;
-      else if (type === 'state') root = state;
-      else if (type === 'params') root = state.params;
-      else if (type === 'item') root = item;
+  const keys = path.split('.');
+  let current = root;
 
-      if (key === undefined) return root;
-
-      if (root) {
-        const keys = key.split('.');
-        let val = root;
-        for (const k of keys) {
-          if (k === '__proto__' || k === 'constructor' || k === 'prototype') return undefined;
-          val = val?.[k];
-        }
-        return val;
-      }
+  for (const key of keys) {
+    // Sentinel: Block access to internal properties that could be used for prototype pollution
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
       return undefined;
     }
+    current = current?.[key];
+  }
 
-    // Single-pass replacement for mixed string interpolation to prevent template injection
-    return params.replace(/\${(config|state|params|item)(?:\.([^}]+))?}/g, (match, type, key) => {
-      let root;
-      if (type === 'config') root = config;
-      else if (type === 'state') root = state;
-      else if (type === 'params') root = state.params;
-      else if (type === 'item') root = item;
+  return current;
+}
 
-      if (key === undefined) return root !== undefined ? String(root) : '';
+/**
+ * Sentinel: Resolves template variables in a single pass to prevent template injection (double expansion).
+ */
+function resolveParams(params: any, config: any, state: any, item: any): any {
+  if (typeof params === 'string') {
+    // Bolt Optimization: Short-circuit for static strings
+    if (!params.includes('$')) return params;
 
-      if (root) {
-        const keys = key.split('.');
-        let val = root;
-        for (const k of keys) {
-          if (k === '__proto__' || k === 'constructor' || k === 'prototype') return '';
-          val = val?.[k];
-        }
-        return val !== undefined ? String(val) : '';
-      }
-      return '';
+    // Sentinel: Check for direct reference like "${state.xxx}" to preserve original types (e.g. objects, numbers)
+    const directMatch = params.match(/^\${(config|state|params|item)(?:\.([^}]+))?}$/);
+    if (directMatch) {
+        const [, type, path] = directMatch;
+        let root;
+        if (type === 'config') root = config;
+        else if (type === 'state') root = state;
+        else if (type === 'params') root = state.params;
+        else if (type === 'item') root = item;
+
+        return resolvePath(root, path);
+    }
+
+    // Sentinel: Mixed string interpolation using a single-pass regex to avoid template injection.
+    // This ensures that values containing template syntax are NOT recursively expanded.
+    return params.replace(/\${(config|state|params|item)(?:\.([^}]+))?}/g, (_, type, path) => {
+        let root;
+        if (type === 'config') root = config;
+        else if (type === 'state') root = state;
+        else if (type === 'params') root = state.params;
+        else if (type === 'item') root = item;
+
+        const val = resolvePath(root, path);
+        // Handle falsy values (0, false, null) correctly during string interpolation
+        return (val !== undefined && val !== null) ? String(val) : '';
     });
   }
 

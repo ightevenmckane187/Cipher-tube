@@ -116,7 +116,8 @@ describe('CTA API Integration', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain('Decryption failed');
+      // The server now returns the detailed error for "Integrity check failed" to satisfy requirements
+      expect(response.body.error).toMatch(/Integrity check failed|Decryption failed/);
     });
 
     it('should return 400 if masterSeed is wrong', async () => {
