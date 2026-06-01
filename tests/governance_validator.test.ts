@@ -42,7 +42,7 @@ describe('AuthorityChainValidator', () => {
   it('should throw if mandatory_signatures is not an array', () => {
     const invalid = JSON.parse(JSON.stringify(validManifest));
     invalid.governance_controls.high_impact_ai.mandatory_signatures = {};
-    expect(() => AuthorityChainValidator.validate(invalid)).toThrow('high_impact_ai.mandatory_signatures must be an array');
+    expect(() => AuthorityChainValidator.validate(invalid)).toThrow('governance_controls.high_impact_ai.mandatory_signatures must be an array');
   });
 
   it('should throw if a role references non-existent role in signatures', () => {

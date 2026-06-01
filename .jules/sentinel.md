@@ -52,3 +52,8 @@
 **Vulnerability:** Governance manifest validation could be bypassed using built-in object properties (e.g., "toString") when using the "in" operator or direct property access.
 **Learning:** In JavaScript, the "in" operator and direct property access check the entire prototype chain. If a manifest specifies a role named "toString", and the validator checks if "toString" exists in the roles object using "roleId in manifest.roles", it will return true even if the role is not explicitly defined in the manifest.
 **Prevention:** Always use "Object.prototype.hasOwnProperty.call(obj, prop)" to verify that a property exists directly on an object, especially when dealing with user-supplied keys in security-critical validation logic.
+
+## 2026-05-31 - Template Injection in Orchestrator
+**Vulnerability:** Template injection (double expansion) and prototype pollution in Predator orchestrator parameter resolution.
+**Learning:** Iterative or recursive string replacement on user-controlled inputs can lead to nested template expansion, exposing internal state or secrets. Direct property access on objects via user-supplied keys also risks prototype chain traversal.
+**Prevention:** Use single-pass regex replacement for template interpolation to ensure each token is expanded exactly once. Explicitly block access to `__proto__`, `constructor`, and `prototype` during dynamic path resolution.
