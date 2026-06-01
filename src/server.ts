@@ -560,8 +560,11 @@ const validateUserId = (req: Request, res: Response, next: NextFunction) => {
   next();
 };
 
-// Middleware to ensure session ownership
-// Sentinel: Relies on validateUserId middleware being called first
+/**
+ * Middleware to ensure session ownership and implement "Activity Refresh" (sliding session).
+ * Sentinel: Relies on validateUserId middleware being called first.
+ * Every authorized request extends the session TTL in Redis.
+ */
 const ensureSessionOwner = async (
   req: Request,
   res: Response,
@@ -585,17 +588,24 @@ const ensureSessionOwner = async (
       .json({ error: "Bad Request: Invalid sessionId format" });
   }
 
-  const cachedOwnerId = sessionCache.get(sessionId);
-  if (cachedOwnerId) {
-    if (cachedOwnerId === userId) return next();
-    return res.status(403).json({ error: "Forbidden" });
-  }
+  let ownerId = sessionCache.get(sessionId);
 
   try {
-    const ownerId = await redisClient.get(`session:${sessionId}:owner`);
-    if (!ownerId) return res.status(404).json({ error: "Session not found" });
-    sessionCache.set(sessionId, ownerId);
-    if (ownerId !== userId) return res.status(403).json({ error: "Forbidden" });
+    if (!ownerId) {
+      ownerId = await redisClient.get(`session:${sessionId}:owner`) as string;
+      if (!ownerId) return res.status(404).json({ error: "Session not found" });
+      sessionCache.set(sessionId, ownerId);
+    }
+
+    if (ownerId !== userId) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    // Sentinel: Activity Refresh - Extend Redis TTL on every successful access
+    if (typeof redisClient.expire === "function") {
+      await redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL);
+    }
+
     next();
   } catch (err: any) {
     console.error(
@@ -642,6 +652,21 @@ app.get(
   (req: Request, res: Response) => {
     res.json({ message: "Session ownership verified", status: "owned" });
   },
+);
+
+/**
+ * Session Extension Endpoint
+ * Sentinel: Explicitly allows users to extend their session.
+ * Activity Refresh is also handled by ensureSessionOwner middleware.
+ */
+app.post(
+  "/session/:sessionId/extend",
+  sessionLimiter,
+  validateUserId,
+  ensureSessionOwner,
+  (req: Request, res: Response) => {
+    res.json({ message: "Session extended successfully", expiresIn: SESSION_TTL });
+  }
 );
 
 /**
@@ -789,7 +814,6 @@ app.use((req: Request, res: Response) => {
   res.status(404).json({ error: "Not Found" });
 });
 
-export { app };
 
 if (process.env.NODE_ENV !== "test") {
   app.listen(PORT, () => {
