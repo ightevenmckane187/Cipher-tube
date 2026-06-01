@@ -50,7 +50,7 @@ export async function executePipeline(def: any, ctx: ExecContext) {
       let input = null;
       if (stage.from) {
           if (Array.isArray(stage.from)) {
-              input = stage.from.map(f => state[f]);
+              input = stage.from.map((f: string) => state[f]);
           } else {
               input = state[stage.from];
           }
@@ -66,7 +66,7 @@ export async function executePipeline(def: any, ctx: ExecContext) {
     let input = null;
     if (sink.from) {
         if (Array.isArray(sink.from)) {
-            input = sink.from.map(f => state[f]);
+            input = sink.from.map((f: string) => state[f]);
         } else {
             input = state[sink.from];
         }
@@ -99,63 +99,59 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
 }
 
 /**
- * Bolt Optimization: Single-pass parameter resolution with static short-circuit.
- * Also implements security boundaries to prevent prototype pollution.
+ * Sentinel: Secure path resolution helper to prevent prototype pollution.
+ */
+function resolvePath(root: any, path: string | undefined): any {
+  if (!root) return undefined;
+  if (!path) return root;
+
+  const keys = path.split('.');
+  let current = root;
+
+  for (const key of keys) {
+    // Sentinel: Block access to internal properties that could be used for prototype pollution
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      return undefined;
+    }
+    current = current?.[key];
+  }
+
+  return current;
+}
+
+/**
+ * Sentinel: Resolves template variables in a single pass to prevent template injection (double expansion).
  */
 function resolveParams(params: any, config: any, state: any, item: any): any {
   if (typeof params === 'string') {
-    // Bolt Optimization: Fast-path for static strings
-    if (!params.includes('${')) return params;
+    // Bolt Optimization: Short-circuit for static strings
+    if (!params.includes('$')) return params;
 
-    // Check if it's a direct reference like "${state.xxx}" or "${item}"
+    // Sentinel: Check for direct reference like "${state.xxx}" to preserve original types (e.g. objects, numbers)
     const directMatch = params.match(/^\${(config|state|params|item)(?:\.([^}]+))?}$/);
     if (directMatch) {
-      const [, type, key] = directMatch;
-      if (type === 'item' && !key) return item;
+        const [, type, path] = directMatch;
+        let root;
+        if (type === 'config') root = config;
+        else if (type === 'state') root = state;
+        else if (type === 'params') root = state.params;
+        else if (type === 'item') root = item;
 
-      let root;
-      if (type === 'config') root = config;
-      else if (type === 'state') root = state;
-      else if (type === 'params') root = state.params;
-      else if (type === 'item') root = item;
-
-      if (root && key) {
-        const keys = key.split('.');
-        let val = root;
-        for (const k of keys) {
-          // Security: Prevent prototype pollution
-          if (k === '__proto__' || k === 'constructor' || k === 'prototype') return undefined;
-          val = val?.[k];
-        }
-        return val;
-      }
-      return undefined;
+        return resolvePath(root, path);
     }
 
-    // Bolt Optimization: Single-pass regex for mixed string interpolation
-    return params.replace(/\${(config|state|params|item)(?:\.([^}]+))?}/g, (match, type, key) => {
-      if (type === 'item' && !key) return String(item);
+    // Sentinel: Mixed string interpolation using a single-pass regex to avoid template injection.
+    // This ensures that values containing template syntax are NOT recursively expanded.
+    return params.replace(/\${(config|state|params|item)(?:\.([^}]+))?}/g, (_, type, path) => {
+        let root;
+        if (type === 'config') root = config;
+        else if (type === 'state') root = state;
+        else if (type === 'params') root = state.params;
+        else if (type === 'item') root = item;
 
-      let root;
-      if (type === 'config') root = config;
-      else if (type === 'state') root = state;
-      else if (type === 'params') root = state.params;
-      else if (type === 'item') root = item;
-
-      if (!root) return match;
-
-      if (key) {
-        const keys = key.split('.');
-        let val = root;
-        for (const k of keys) {
-          // Security: Prevent prototype pollution
-          if (k === '__proto__' || k === 'constructor' || k === 'prototype') return '';
-          val = val?.[k];
-        }
-        return val !== undefined ? String(val) : '';
-      }
-
-      return match;
+        const val = resolvePath(root, path);
+        // Handle falsy values (0, false, null) correctly during string interpolation
+        return (val !== undefined && val !== null) ? String(val) : '';
     });
   }
 
