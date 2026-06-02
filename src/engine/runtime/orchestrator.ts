@@ -122,7 +122,7 @@ function resolvePath(root: any, path: string | undefined): any {
 /**
  * Sentinel: Resolves template variables in a single pass to prevent template injection (double expansion).
  */
-function resolveParams(params: any, config: any, state: any, item: any): any {
+export function resolveParams(params: any, config: any, state: any, item: any): any {
   if (typeof params === 'string') {
     // Bolt Optimization: Short-circuit for static strings
     if (!params.includes('$')) return params;
@@ -162,6 +162,10 @@ function resolveParams(params: any, config: any, state: any, item: any): any {
   if (params && typeof params === 'object') {
     const resolved: any = {};
     for (const [k, v] of Object.entries(params)) {
+      // Sentinel: Block prototype pollution during object iteration
+      if (k === '__proto__' || k === 'constructor' || k === 'prototype') {
+        continue;
+      }
       resolved[k] = resolveParams(v, config, state, item);
     }
     return resolved;

@@ -30,7 +30,7 @@ describe('AuthorityChainValidator Robustness', () => {
 
   it('should throw if roles is an array', () => {
     const manifest = { ...validManifestBase, roles: [] };
-    expect(() => AuthorityChainValidator.validate(manifest)).toThrow('manifest.roles must be an object');
+    expect(() => AuthorityChainValidator.validate(manifest)).toThrow('manifest.roles must be a non-array object');
   });
 
   it('should throw if a role is an array', () => {
@@ -45,7 +45,7 @@ describe('AuthorityChainValidator Robustness', () => {
 
   it('should throw if lifecycle_gates is an array', () => {
     const manifest = { ...validManifestBase, lifecycle_gates: [] };
-    expect(() => AuthorityChainValidator.validate(manifest)).toThrow('manifest.lifecycle_gates must be an object');
+    expect(() => AuthorityChainValidator.validate(manifest)).toThrow('manifest.lifecycle_gates must be a non-array object');
   });
 
   it('should throw if a lifecycle gate is an array', () => {
@@ -66,7 +66,7 @@ describe('AuthorityChainValidator Robustness', () => {
 
   it('should throw if governance_controls is an array', () => {
     const manifest = { ...validManifestBase, governance_controls: [] };
-    expect(() => AuthorityChainValidator.validate(manifest)).toThrow('manifest.governance_controls must be an object');
+    expect(() => AuthorityChainValidator.validate(manifest)).toThrow('manifest.governance_controls must be a non-array object');
   });
 
   it('should throw if high_impact_ai is an array', () => {

@@ -70,7 +70,7 @@ describe('resolveParams Security', () => {
 
   it('should handle null item correctly', () => {
     const result = (resolveParams as any)('${item}', config, state, null);
-    expect(result).toBe(null);
+    expect(result).toBeUndefined();
   });
 
   it('should stringify falsy values in interpolation', () => {

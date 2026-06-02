@@ -57,3 +57,8 @@
 **Vulnerability:** Template injection (double expansion) and prototype pollution in Predator orchestrator parameter resolution.
 **Learning:** Iterative or recursive string replacement on user-controlled inputs can lead to nested template expansion, exposing internal state or secrets. Direct property access on objects via user-supplied keys also risks prototype chain traversal.
 **Prevention:** Use single-pass regex replacement for template interpolation to ensure each token is expanded exactly once. Explicitly block access to `__proto__`, `constructor`, and `prototype` during dynamic path resolution.
+
+## 2026-06-25 - Prototype Pollution in Object Iteration
+**Vulnerability:** Prototype pollution during recursive object resolution in orchestrator.
+**Learning:** Even if individual path resolution is protected, a recursive function that iterates over object entries and assigns them to a new object can still be vulnerable to prototype pollution if it encounters a `__proto__` key in the input object.
+**Prevention:** Always filter out sensitive keys like `__proto__`, `constructor`, and `prototype` when iterating over untrusted object entries and creating new objects based on them.
