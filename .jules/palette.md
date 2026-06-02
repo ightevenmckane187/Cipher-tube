@@ -25,3 +25,7 @@
 ## 2026-05-15 - [Real-time Input Validation and Feedback]
 **Learning:** For text inputs with a hard `maxlength` limit, users often feel frustrated when the browser simply stops accepting input without warning. Adding a live character counter provides immediate feedback and sets clear expectations, especially when paired with visual cues for "near-limit" states.
 **Action:** Implement a live character counter associated via `aria-describedby` and `aria-live="polite"` for any field with a length constraint. Use a visual warning state (e.g., a `.near-limit` class) when the user is close to the maximum character count.
+
+## 2025-05-24 - [Consolidating Interactive Elements to Resolve ID Conflicts]
+**Learning:** Duplicate HTML IDs (e.g., from multiple instances of a theme toggle) cause significant accessibility failures and unpredictable JavaScript behavior. Moving globally relevant controls to a single, consistent location (like the header) ensures predictable state management and WCAG compliance.
+**Action:** Always audit the DOM for duplicate IDs when placing multiple instances of a functional component. Prefer unique header-level controls for global actions to maintain a clean document structure.

@@ -10,7 +10,7 @@ import { buildCipherTube, decryptCipherTube } from "./cta";
 
 dotenv.config();
 
-const app: Application = express();
+export const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
@@ -382,11 +382,6 @@ app.get("/", (req: Request, res: Response) => {
             <main id="main-content">
                 <div class="header-container">
                     <h1>Cipher Tube Assembly</h1>
-                    <button id="theme-toggle" aria-label="Switch Theme" aria-pressed="false" aria-keyshortcuts="t">
-                        <span id="theme-icon" aria-hidden="true"></span>
-                        <span id="theme-text">Switch to Dark</span>
-                        <kbd aria-hidden="true" class="kb-hint">(t)</kbd>
-                    </button>
                 </div>
                 <p>Welcome to the performance-optimized session management service.</p>
                 <div role="status" aria-live="polite">
@@ -510,7 +505,7 @@ app.get("/", (req: Request, res: Response) => {
 
                 // Session Timeout Simulation
                 let timeoutWarning;
-                let currentSessionId = null;
+                window.currentSessionId = null;
                 const SESSION_DURATION = 3600 * 1000;
                 const WARNING_TIME = 60 * 1000;
 
@@ -524,8 +519,11 @@ app.get("/", (req: Request, res: Response) => {
                 }
 
                 let statusTimeout;
-                document.getElementById('extend-session-btn').addEventListener('click', async () => {
+                const extendBtn = document.getElementById('extend-session-btn');
+                extendBtn.addEventListener('click', async () => {
                     const status = document.getElementById('extension-status');
+                    const originalText = extendBtn.innerHTML;
+
                     const showStatus = (msg, isError = false) => {
                         if (statusTimeout) clearTimeout(statusTimeout);
                         status.textContent = msg;
@@ -534,8 +532,11 @@ app.get("/", (req: Request, res: Response) => {
                     };
 
                     try {
-                        if (currentSessionId) {
-                            const response = await fetch('/session/' + currentSessionId + '/extend', {
+                        extendBtn.disabled = true;
+                        extendBtn.textContent = 'Extending...';
+
+                        if (window.currentSessionId) {
+                            const response = await fetch('/session/' + window.currentSessionId + '/extend', {
                                 method: 'POST',
                                 headers: { 'x-user-id': 'demo-user' }
                             });
@@ -552,6 +553,9 @@ app.get("/", (req: Request, res: Response) => {
                     } catch (err) {
                         console.error('Extension failed:', err);
                         showStatus('Error', true);
+                    } finally {
+                        extendBtn.disabled = false;
+                        extendBtn.innerHTML = originalText;
                     }
                 });
 
@@ -561,7 +565,7 @@ app.get("/", (req: Request, res: Response) => {
                     const response = await originalFetch(...args);
                     if (typeof args[0] === 'string' && args[0].includes('/mcp') && args[1]?.method === 'POST') {
                         const data = await response.clone().json();
-                        if (data.sessionId) currentSessionId = data.sessionId;
+                        if (data.sessionId) window.currentSessionId = data.sessionId;
                     }
                     return response;
                 };
