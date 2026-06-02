@@ -18,7 +18,9 @@ export async function executeWorkflow(def: any, ctx: ExecContext, params: Record
       }
     } else {
       const result = await executeAction(step.action, step, state, ctx);
-      if (step.output) state[step.output] = result;
+      if (step.output && step.output !== '__proto__' && step.output !== 'constructor' && step.output !== 'prototype') {
+        state[step.output] = result;
+      }
     }
   }
 
@@ -32,7 +34,9 @@ export async function executePipeline(def: any, ctx: ExecContext) {
   // Process sources
   for (const source of def.sources ?? []) {
     const result = await executeAction(source.use, source, state, ctx);
-    state[source.name] = result;
+    if (source.name && source.name !== '__proto__' && source.name !== 'constructor' && source.name !== 'prototype') {
+      state[source.name] = result;
+    }
   }
 
   // Process stages
@@ -57,7 +61,9 @@ export async function executePipeline(def: any, ctx: ExecContext) {
       }
 
       const result = await executeAction(stage.use, { ...stage, input }, state, ctx);
-      if (stage.emit) state[stage.emit] = result;
+      if (stage.emit && stage.emit !== '__proto__' && stage.emit !== 'constructor' && stage.emit !== 'prototype') {
+        state[stage.emit] = result;
+      }
     }
   }
 
@@ -102,7 +108,7 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
  * Sentinel: Secure path resolution helper to prevent prototype pollution.
  */
 function resolvePath(root: any, path: string | undefined): any {
-  if (!root) return undefined;
+  if (root === undefined) return undefined;
   if (!path) return root;
 
   const keys = path.split('.');
@@ -122,7 +128,7 @@ function resolvePath(root: any, path: string | undefined): any {
 /**
  * Sentinel: Resolves template variables in a single pass to prevent template injection (double expansion).
  */
-function resolveParams(params: any, config: any, state: any, item: any): any {
+export function resolveParams(params: any, config: any, state: any, item: any): any {
   if (typeof params === 'string') {
     // Bolt Optimization: Short-circuit for static strings
     if (!params.includes('$')) return params;
@@ -162,6 +168,10 @@ function resolveParams(params: any, config: any, state: any, item: any): any {
   if (params && typeof params === 'object') {
     const resolved: any = {};
     for (const [k, v] of Object.entries(params)) {
+      // Sentinel: Block prototype pollution during recursive object resolution
+      if (k === '__proto__' || k === 'constructor' || k === 'prototype') {
+        continue;
+      }
       resolved[k] = resolveParams(v, config, state, item);
     }
     return resolved;
