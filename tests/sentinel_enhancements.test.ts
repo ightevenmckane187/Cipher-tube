@@ -11,4 +11,23 @@ describe('Sentinel Security Enhancements', () => {
       expect(response.body).toEqual({ error: 'Not Found' });
     });
   });
+
+  describe('Security Headers', () => {
+    it('should have no-cache headers on sensitive endpoints', async () => {
+      const response = await request(app)
+        .post('/mcp')
+        .set('x-user-id', 'test-user')
+        .send({});
+
+      expect(response.headers['cache-control']).toContain('no-store');
+      expect(response.headers['cache-control']).toContain('no-cache');
+      expect(response.headers['pragma']).toBe('no-cache');
+    });
+
+    it('should have Permissions-Policy header', async () => {
+      const response = await request(app).get('/');
+      expect(response.headers['permissions-policy']).toBeDefined();
+      expect(response.headers['permissions-policy']).toContain('geolocation=()');
+    });
+  });
 });
