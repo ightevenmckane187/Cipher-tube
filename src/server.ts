@@ -65,6 +65,25 @@ app.use(
 );
 app.disable("x-powered-by"); // Further ensures the header is removed
 
+// Sentinel: Add Permissions-Policy to restrict sensitive browser features
+app.use((req: Request, res: Response, next: NextFunction) => {
+  res.setHeader(
+    "Permissions-Policy",
+    "geolocation=(), camera=(), microphone=(), interest-cohort=()",
+  );
+  next();
+});
+
+/**
+ * Sentinel: Prevent sensitive data leakage through intermediate proxies or browser caches.
+ */
+const noCache = (req: Request, res: Response, next: NextFunction) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  next();
+};
+
 app.use(apiLimiter); // Sentinel: Apply global rate limiting after core security headers are set
 
 // CSP and Nonce: Applied only to requests that pass the rate limiter
@@ -662,6 +681,7 @@ const ensureSessionOwner = async (
 app.post(
   "/mcp",
   sessionLimiter,
+  noCache,
   jsonParser,
   validateUserId,
   async (req: Request, res: Response) => {
@@ -689,6 +709,7 @@ app.post(
 app.get(
   "/mcp/:sessionId/check",
   sessionLimiter,
+  noCache,
   validateUserId,
   ensureSessionOwner,
   (req: Request, res: Response) => {
@@ -704,6 +725,7 @@ app.get(
 app.post(
   "/session/:sessionId/extend",
   sessionLimiter,
+  noCache,
   validateUserId,
   ensureSessionOwner,
   (req: Request, res: Response) => {
@@ -717,6 +739,7 @@ app.post(
 app.post(
   "/mcp/:sessionId/encrypt",
   sessionLimiter,
+  noCache,
   jsonParser,
   validateUserId,
   ensureSessionOwner,
@@ -758,6 +781,7 @@ app.post(
 app.post(
   "/mcp/:sessionId/decrypt",
   sessionLimiter,
+  noCache,
   jsonParser,
   validateUserId,
   ensureSessionOwner,

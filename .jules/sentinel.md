@@ -62,3 +62,8 @@
 **Vulnerability:** Prototype pollution during recursive object resolution in orchestrator.
 **Learning:** Even if individual path resolution is protected, a recursive function that iterates over object entries and assigns them to a new object can still be vulnerable to prototype pollution if it encounters a `__proto__` key in the input object.
 **Prevention:** Always filter out sensitive keys like `__proto__`, `constructor`, and `prototype` when iterating over untrusted object entries and creating new objects based on them.
+
+## 2026-06-03 - Cache Control for Sensitive Endpoints
+**Vulnerability:** Information leakage via browser cache and intermediate proxies for sensitive session and cryptographic data.
+**Learning:** Standard security headers (like HSTS) do not prevent caching of sensitive JSON payloads. API endpoints dealing with session management or cryptographic material must explicitly opt-out of caching.
+**Prevention:** Implement and apply a centralized `noCache` middleware to all endpoints returning sensitive or transient state.
