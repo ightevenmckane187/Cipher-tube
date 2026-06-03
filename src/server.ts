@@ -380,14 +380,7 @@ app.get("/", (req: Request, res: Response) => {
             </header>
 
             <main id="main-content">
-                <div class="header-container">
-                    <h1>Cipher Tube Assembly</h1>
-                    <button id="theme-toggle" aria-label="Switch Theme" aria-pressed="false" aria-keyshortcuts="t">
-                        <span id="theme-icon" aria-hidden="true"></span>
-                        <span id="theme-text">Switch to Dark</span>
-                        <kbd aria-hidden="true" class="kb-hint">(t)</kbd>
-                    </button>
-                </div>
+                <h1>Cipher Tube Assembly</h1>
                 <p>Welcome to the performance-optimized session management service.</p>
                 <div role="status" aria-live="polite">
                     <p>
@@ -524,7 +517,12 @@ app.get("/", (req: Request, res: Response) => {
                 }
 
                 let statusTimeout;
-                document.getElementById('extend-session-btn').addEventListener('click', async () => {
+                const extendBtn = document.getElementById('extend-session-btn');
+                extendBtn.addEventListener('click', async () => {
+                    const originalText = extendBtn.innerHTML;
+                    extendBtn.disabled = true;
+                    extendBtn.textContent = 'Extending...';
+
                     const status = document.getElementById('extension-status');
                     const showStatus = (msg, isError = false) => {
                         if (statusTimeout) clearTimeout(statusTimeout);
@@ -552,6 +550,9 @@ app.get("/", (req: Request, res: Response) => {
                     } catch (err) {
                         console.error('Extension failed:', err);
                         showStatus('Error', true);
+                    } finally {
+                        extendBtn.disabled = false;
+                        extendBtn.innerHTML = originalText;
                     }
                 });
 
@@ -834,6 +835,7 @@ app.post(
  * Global error-handling middleware.
  * Sentinel: Catch and sanitize unhandled errors to prevent information leakage and DoS.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   if (
     err instanceof SyntaxError &&
