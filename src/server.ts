@@ -402,11 +402,6 @@ app.get("/", (req: Request, res: Response) => {
             <main id="main-content">
                 <div class="header-container">
                     <h1>Cipher Tube Assembly</h1>
-                    <button id="theme-toggle" aria-label="Switch Theme" aria-pressed="false" aria-keyshortcuts="t">
-                        <span id="theme-icon" aria-hidden="true"></span>
-                        <span id="theme-text">Switch to Dark</span>
-                        <kbd aria-hidden="true" class="kb-hint">(t)</kbd>
-                    </button>
                 </div>
                 <p>Welcome to the performance-optimized session management service.</p>
                 <div role="status" aria-live="polite">
@@ -530,7 +525,7 @@ app.get("/", (req: Request, res: Response) => {
 
                 // Session Timeout Simulation
                 let timeoutWarning;
-                let currentSessionId = null;
+                window.currentSessionId = null;
                 const SESSION_DURATION = 3600 * 1000;
                 const WARNING_TIME = 60 * 1000;
 
@@ -544,7 +539,10 @@ app.get("/", (req: Request, res: Response) => {
                 }
 
                 let statusTimeout;
-                document.getElementById('extend-session-btn').addEventListener('click', async () => {
+                const extendBtn = document.getElementById('extend-session-btn');
+                const originalBtnHtml = extendBtn.innerHTML;
+
+                extendBtn.addEventListener('click', async () => {
                     const status = document.getElementById('extension-status');
                     const showStatus = (msg, isError = false) => {
                         if (statusTimeout) clearTimeout(statusTimeout);
@@ -553,25 +551,39 @@ app.get("/", (req: Request, res: Response) => {
                         statusTimeout = setTimeout(() => status.textContent = '', 3000);
                     };
 
+                    extendBtn.disabled = true;
+                    extendBtn.textContent = 'Extending...';
+
                     try {
-                        if (currentSessionId) {
-                            const response = await fetch('/session/' + currentSessionId + '/extend', {
+                        if (window.currentSessionId) {
+                            const response = await fetch('/session/' + window.currentSessionId + '/extend', {
                                 method: 'POST',
                                 headers: { 'x-user-id': 'demo-user' }
                             });
                             if (response.ok) {
                                 resetTimer();
-                                showStatus('Extended!');
+                                extendBtn.innerHTML = 'Extended! ✅';
+                                showStatus('Success');
                             } else {
                                 showStatus('Failed', true);
+                                extendBtn.innerHTML = originalBtnHtml;
                             }
                         } else {
                             resetTimer();
-                            showStatus('Reset!');
+                            extendBtn.innerHTML = 'Reset! ✅';
+                            showStatus('Reset');
                         }
                     } catch (err) {
                         console.error('Extension failed:', err);
                         showStatus('Error', true);
+                        extendBtn.innerHTML = originalBtnHtml;
+                    } finally {
+                        setTimeout(() => {
+                            extendBtn.disabled = false;
+                            if (extendBtn.innerHTML !== originalBtnHtml) {
+                                extendBtn.innerHTML = originalBtnHtml;
+                            }
+                        }, 2000);
                     }
                 });
 
@@ -581,7 +593,7 @@ app.get("/", (req: Request, res: Response) => {
                     const response = await originalFetch(...args);
                     if (typeof args[0] === 'string' && args[0].includes('/mcp') && args[1]?.method === 'POST') {
                         const data = await response.clone().json();
-                        if (data.sessionId) currentSessionId = data.sessionId;
+                        if (data.sessionId) window.currentSessionId = data.sessionId;
                     }
                     return response;
                 };
