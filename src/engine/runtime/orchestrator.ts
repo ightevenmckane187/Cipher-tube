@@ -105,6 +105,14 @@ function resolvePath(root: any, path: string | undefined): any {
   if (!root) return undefined;
   if (!path) return root;
 
+  // Bolt Optimization: Short-circuit for single-level paths to avoid split() and array allocation
+  if (!path.includes('.')) {
+    if (path === '__proto__' || path === 'constructor' || path === 'prototype') {
+      return undefined;
+    }
+    return root[path];
+  }
+
   const keys = path.split('.');
   let current = root;
 
