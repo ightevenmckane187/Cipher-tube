@@ -50,6 +50,21 @@ const sessionLimiter = rateLimit({
   },
 });
 
+/**
+ * Sentinel: Middleware to prevent sensitive data leakage through caching.
+ * Sets headers to ensure no-cache, no-store, and revalidation.
+ */
+const noCache = (req: Request, res: Response, next: NextFunction) => {
+  res.setHeader(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate, proxy-revalidate",
+  );
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  res.setHeader("Surrogate-Control", "no-store");
+  next();
+};
+
 // Security Enhancements: Core Headers (Defense-in-depth for all responses)
 app.use(
   helmet({
@@ -70,6 +85,11 @@ app.use(apiLimiter); // Sentinel: Apply global rate limiting after core security
 // CSP and Nonce: Applied only to requests that pass the rate limiter
 app.use((req: Request, res: Response, next: NextFunction) => {
   res.locals.nonce = crypto.randomBytes(16).toString("base64");
+  // Sentinel: Harden browser security by restricting sensitive features
+  res.setHeader(
+    "Permissions-Policy",
+    "geolocation=(), camera=(), microphone=(), interest-cohort=()",
+  );
   next();
 });
 
@@ -662,6 +682,7 @@ const ensureSessionOwner = async (
 app.post(
   "/mcp",
   sessionLimiter,
+  noCache,
   jsonParser,
   validateUserId,
   async (req: Request, res: Response) => {
@@ -689,6 +710,7 @@ app.post(
 app.get(
   "/mcp/:sessionId/check",
   sessionLimiter,
+  noCache,
   validateUserId,
   ensureSessionOwner,
   (req: Request, res: Response) => {
@@ -704,6 +726,7 @@ app.get(
 app.post(
   "/session/:sessionId/extend",
   sessionLimiter,
+  noCache,
   validateUserId,
   ensureSessionOwner,
   (req: Request, res: Response) => {
@@ -717,6 +740,7 @@ app.post(
 app.post(
   "/mcp/:sessionId/encrypt",
   sessionLimiter,
+  noCache,
   jsonParser,
   validateUserId,
   ensureSessionOwner,
@@ -758,6 +782,7 @@ app.post(
 app.post(
   "/mcp/:sessionId/decrypt",
   sessionLimiter,
+  noCache,
   jsonParser,
   validateUserId,
   ensureSessionOwner,
