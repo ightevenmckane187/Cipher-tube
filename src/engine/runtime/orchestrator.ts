@@ -18,7 +18,9 @@ export async function executeWorkflow(def: any, ctx: ExecContext, params: Record
       }
     } else {
       const result = await executeAction(step.action, step, state, ctx);
-      if (step.output) state[step.output] = result;
+      if (step.output && isValidStateKey(step.output)) {
+        state[step.output] = result;
+      }
     }
   }
 
@@ -32,7 +34,9 @@ export async function executePipeline(def: any, ctx: ExecContext) {
   // Process sources
   for (const source of def.sources ?? []) {
     const result = await executeAction(source.use, source, state, ctx);
-    state[source.name] = result;
+    if (isValidStateKey(source.name)) {
+      state[source.name] = result;
+    }
   }
 
   // Process stages
@@ -57,7 +61,9 @@ export async function executePipeline(def: any, ctx: ExecContext) {
       }
 
       const result = await executeAction(stage.use, { ...stage, input }, state, ctx);
-      if (stage.emit) state[stage.emit] = result;
+      if (stage.emit && isValidStateKey(stage.emit)) {
+        state[stage.emit] = result;
+      }
     }
   }
 
@@ -99,20 +105,34 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
 }
 
 /**
+ * Sentinel: Centralized security helper to prevent prototype pollution.
+ */
+function isValidStateKey(key: any): boolean {
+  return (
+    typeof key === 'string' &&
+    key !== '__proto__' &&
+    key !== 'constructor' &&
+    key !== 'prototype'
+  );
+}
+
+/**
  * Sentinel: Secure path resolution helper to prevent prototype pollution.
  */
 function resolvePath(root: any, path: string | undefined): any {
-  if (!root) return undefined;
+  // Bolt Optimization: Single-level path short-circuit
+  if (root === undefined || root === null) return undefined;
   if (!path) return root;
+
+  if (!path.includes('.')) {
+    return isValidStateKey(path) ? root[path] : undefined;
+  }
 
   const keys = path.split('.');
   let current = root;
 
   for (const key of keys) {
-    // Sentinel: Block access to internal properties that could be used for prototype pollution
-    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
-      return undefined;
-    }
+    if (!isValidStateKey(key)) return undefined;
     current = current?.[key];
   }
 
@@ -163,7 +183,7 @@ export function resolveParams(params: any, config: any, state: any, item: any): 
     const resolved: any = {};
     for (const [k, v] of Object.entries(params)) {
       // Sentinel: Block prototype pollution during object iteration
-      if (k === '__proto__' || k === 'constructor' || k === 'prototype') {
+      if (!isValidStateKey(k)) {
         continue;
       }
       resolved[k] = resolveParams(v, config, state, item);
