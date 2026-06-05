@@ -25,3 +25,7 @@
 ## 2026-05-25 - Entropy-to-Hex Optimization and Redundancy Cleanup
 **Learning:** Using `buffer.toString('hex', start, end)` is significantly faster than converting a large buffer to a full hex string and then using `.substring()`, as it avoids a massive string allocation. Additionally, removing duplicate middleware and redundant UI elements improves both backend throughput and frontend clarity.
 **Action:** Use specific buffer range conversions for hex strings; always audit middleware chains and UI templates for accidental duplication.
+
+## 2026-05-27 - Throttling Redis TTL Extensions
+**Learning:** In high-traffic environments, updating session TTL in Redis on every request via 'Activity Refresh' (sliding session) can become a major write bottleneck and increase network latency. Throttling these EXPIRE calls to once every 60 seconds (using a small in-memory LRU cache) maintains session security while significantly reducing Redis load.
+**Action:** Use an in-memory cache to throttle high-frequency database write operations that have high redundancy (like TTL extensions).

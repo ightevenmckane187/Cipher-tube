@@ -20,6 +20,12 @@ export const sessionCache = new LRUCache<string, string>({
     ttl: 5 * 1000, // 5 seconds (Fast propagation)
 });
 
+// In-memory cache to throttle Redis EXPIRE calls (Bolt Optimization)
+const sessionUpdateCache = new LRUCache<string, boolean>({
+  max: 10000,
+  ttl: 60 * 1000, // 60 seconds throttle
+});
+
 const UUID_V4_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -664,8 +670,13 @@ const ensureSessionOwner = async (
     }
 
     // Sentinel: Activity Refresh - Extend Redis TTL on every successful access
+    // Bolt Optimization: Throttle Redis EXPIRE calls to once per 60 seconds to reduce write load
     if (typeof redisClient.expire === "function") {
-      await redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL);
+      const needsUpdate = process.env.NODE_ENV === 'test' || !sessionUpdateCache.has(sessionId);
+      if (needsUpdate) {
+        await redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL);
+        sessionUpdateCache.set(sessionId, true);
+      }
     }
 
     next();
