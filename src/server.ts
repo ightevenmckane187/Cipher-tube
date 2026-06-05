@@ -209,7 +209,7 @@ app.get("/", (req: Request, res: Response) => {
                     70% { box-shadow: 0 0 0 10px transparent; }
                     100% { box-shadow: 0 0 0 0 transparent; }
                 }
-                #theme-toggle {
+                .theme-toggle {
                     background: none;
                     border: 1px solid var(--border-color);
                     color: var(--text-color);
@@ -223,7 +223,7 @@ app.get("/", (req: Request, res: Response) => {
                     gap: 8px;
                     float: right;
                 }
-                #theme-toggle:hover {
+                .theme-toggle:hover {
                     background-color: var(--border-color);
                 }
                 .header-container {
@@ -259,21 +259,21 @@ app.get("/", (req: Request, res: Response) => {
                     border-color: var(--primary);
                     box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
                 }
-                #theme-toggle:focus-visible {
+                .theme-toggle:focus-visible {
                     outline: 2px solid var(--primary);
                     outline-offset: 2px;
                 }
-                #theme-icon {
+                .theme-icon {
                     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                     display: inline-block;
                 }
-                #theme-toggle:active #theme-icon {
+                .theme-toggle:active .theme-icon {
                     transform: scale(0.8);
                 }
                 footer { margin-top: 4rem; font-size: 0.875rem; border-top: 1px solid var(--border-color); padding-top: 1rem; }
                 a { color: var(--primary); text-decoration: none; }
                 a:hover { text-decoration: underline; }
-                a:focus-visible, #theme-toggle:focus-visible, .copy-button:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+                a:focus-visible, .theme-toggle:focus-visible, .copy-button:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
                 .code-container {
                     position: relative;
                     margin: 1rem 0;
@@ -350,10 +350,10 @@ app.get("/", (req: Request, res: Response) => {
                 .kb-hint { margin-left: 4px; font-size: 0.7rem; opacity: 0.8; border: 1px solid rgba(255, 255, 255, 0.3); padding: 1px 4px; border-radius: 3px; font-family: inherit; }
                 .input-group { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
                 .input-group label { font-size: 0.875rem; font-weight: 500; }
-                .input-group input { background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 8px 12px; border-radius: 6px; font-size: 0.875rem; width: 100%; max-width: 300px; }
+                .input-group input { background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 8px 12px; border-radius: 6px; font-size: 0.875rem; width: 100%; max-width: 400px; }
                 .input-group input:focus { outline: 2px solid var(--primary); border-color: transparent; }
-                .counter-container { display: flex; justify-content: space-between; max-width: 300px; align-items: baseline; }
-                #user-id-counter { font-size: 0.75rem; opacity: 0.7; }
+                .counter-container { display: flex; justify-content: space-between; max-width: 400px; align-items: baseline; gap: 1rem; flex-wrap: nowrap; }
+                #user-id-counter { font-size: 0.75rem; opacity: 0.7; white-space: nowrap; flex-shrink: 0; }
                 #user-id-counter.near-limit { color: #d63031; opacity: 1; font-weight: bold; }
                 #timeout-banner {
                     display: none;
@@ -390,11 +390,6 @@ app.get("/", (req: Request, res: Response) => {
                 <nav aria-label="Main Navigation">
                      <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: bold; color: var(--primary);">Cipher Tube</span>
-                        <button id="theme-toggle" aria-label="Switch Theme" aria-pressed="false" aria-keyshortcuts="t">
-                            <span id="theme-icon" aria-hidden="true"></span>
-                            <span id="theme-text">Switch to Dark</span>
-                            <kbd aria-hidden="true" class="kb-shortcut">(t)</kbd>
-                        </button>
                     </div>
                 </nav>
             </header>
@@ -402,9 +397,9 @@ app.get("/", (req: Request, res: Response) => {
             <main id="main-content">
                 <div class="header-container">
                     <h1>Cipher Tube Assembly</h1>
-                    <button id="theme-toggle" aria-label="Switch Theme" aria-pressed="false" aria-keyshortcuts="t">
-                        <span id="theme-icon" aria-hidden="true"></span>
-                        <span id="theme-text">Switch to Dark</span>
+                    <button class="theme-toggle" aria-label="Switch Theme" aria-pressed="false" aria-keyshortcuts="t">
+                        <span class="theme-icon" aria-hidden="true"></span>
+                        <span class="theme-text">Switch to Dark</span>
                         <kbd aria-hidden="true" class="kb-hint">(t)</kbd>
                     </button>
                 </div>
@@ -419,7 +414,7 @@ app.get("/", (req: Request, res: Response) => {
                 <div class="input-group">
                     <div class="counter-container">
                         <label for="user-id-input">Customize your User ID:</label>
-                        <span id="user-id-counter" aria-live="polite">0 / 128</span>
+                        <span id="user-id-counter" aria-live="polite">0 of 128 characters used</span>
                     </div>
                     <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter">
                 </div>
@@ -437,7 +432,10 @@ app.get("/", (req: Request, res: Response) => {
 
             <div id="timeout-banner" role="alert">
                 <span>Session expires in 1 minute.</span>
-                <button id="extend-session-btn" aria-keyshortcuts="e">Extend Session <kbd aria-hidden="true" style="font-size: 0.7em; opacity: 0.8; border: 1px solid rgba(255,255,255,0.4); padding: 1px 3px; border-radius: 3px; margin-left: 4px;">(e)</kbd></button>
+                <button id="extend-session-btn" aria-keyshortcuts="e">
+                    <span id="extend-btn-text">Extend Session</span>
+                    <kbd aria-hidden="true" style="font-size: 0.7em; opacity: 0.8; border: 1px solid rgba(255,255,255,0.4); padding: 1px 3px; border-radius: 3px; margin-left: 4px;">(e)</kbd>
+                </button>
                 <span id="extension-status" aria-live="polite"></span>
             </div>
 
@@ -451,26 +449,30 @@ app.get("/", (req: Request, res: Response) => {
             </footer>
 
             <script nonce="${res.locals.nonce}">
-                const themeToggle = document.getElementById('theme-toggle');
-                const themeText = document.getElementById('theme-text');
-                const themeIcon = document.getElementById('theme-icon');
+                const themeToggles = document.querySelectorAll('.theme-toggle');
 
                 function updateUI(theme) {
                     const isDark = theme === 'dark';
-                    themeText.textContent = isDark ? 'Switch to Light' : 'Switch to Dark';
-                    themeIcon.textContent = isDark ? '☀️' : '🌙';
-                    themeToggle.setAttribute('aria-pressed', isDark);
-                    themeToggle.setAttribute('aria-label', isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode');
+                    themeToggles.forEach(toggle => {
+                        const themeText = toggle.querySelector('.theme-text');
+                        const themeIcon = toggle.querySelector('.theme-icon');
+                        if (themeText) themeText.textContent = isDark ? 'Switch to Light' : 'Switch to Dark';
+                        if (themeIcon) themeIcon.textContent = isDark ? '☀️' : '🌙';
+                        toggle.setAttribute('aria-pressed', isDark);
+                        toggle.setAttribute('aria-label', isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode');
+                    });
                     document.documentElement.setAttribute('data-theme', theme);
                 }
 
                 updateUI(document.documentElement.getAttribute('data-theme'));
 
-                themeToggle.addEventListener('click', () => {
-                    const currentTheme = document.documentElement.getAttribute('data-theme');
-                    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-                    localStorage.setItem('theme', newTheme);
-                    updateUI(newTheme);
+                themeToggles.forEach(toggle => {
+                    toggle.addEventListener('click', () => {
+                        const currentTheme = document.documentElement.getAttribute('data-theme');
+                        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                        localStorage.setItem('theme', newTheme);
+                        updateUI(newTheme);
+                    });
                 });
 
                 const copyButton = document.getElementById('copy-curl');
@@ -485,7 +487,7 @@ app.get("/", (req: Request, res: Response) => {
                     curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: \${userId}"\`;
 
                     const length = userIdInput.value.length;
-                    userIdCounter.textContent = \`\${length} / 128\`;
+                    userIdCounter.textContent = \`\${length} of 128 characters used\`;
                     if (length >= 120) {
                         userIdCounter.classList.add('near-limit');
                     } else {
@@ -519,7 +521,7 @@ app.get("/", (req: Request, res: Response) => {
                     if (e.key === 'c') {
                         document.getElementById('copy-curl')?.click();
                     } else if (e.key === 't') {
-                        document.getElementById('theme-toggle')?.click();
+                        document.querySelector('.theme-toggle')?.click();
                     } else if (e.key === 'e') {
                         const btn = document.getElementById('extend-session-btn');
                         if (btn && window.getComputedStyle(document.getElementById('timeout-banner')).display !== 'none') {
@@ -544,14 +546,21 @@ app.get("/", (req: Request, res: Response) => {
                 }
 
                 let statusTimeout;
-                document.getElementById('extend-session-btn').addEventListener('click', async () => {
+                const extendBtn = document.getElementById('extend-session-btn');
+                const extendBtnText = document.getElementById('extend-btn-text');
+                extendBtn.addEventListener('click', async () => {
                     const status = document.getElementById('extension-status');
+                    const originalText = extendBtnText.textContent;
+
                     const showStatus = (msg, isError = false) => {
                         if (statusTimeout) clearTimeout(statusTimeout);
                         status.textContent = msg;
                         status.style.color = isError ? '#f28b82' : '#2ecc71';
                         statusTimeout = setTimeout(() => status.textContent = '', 3000);
                     };
+
+                    extendBtn.disabled = true;
+                    extendBtnText.textContent = 'Extending...';
 
                     try {
                         if (currentSessionId) {
@@ -572,6 +581,9 @@ app.get("/", (req: Request, res: Response) => {
                     } catch (err) {
                         console.error('Extension failed:', err);
                         showStatus('Error', true);
+                    } finally {
+                        extendBtn.disabled = false;
+                        extendBtnText.textContent = originalText;
                     }
                 });
 
