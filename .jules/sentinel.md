@@ -62,3 +62,8 @@
 **Vulnerability:** Prototype pollution during recursive object resolution in orchestrator.
 **Learning:** Even if individual path resolution is protected, a recursive function that iterates over object entries and assigns them to a new object can still be vulnerable to prototype pollution if it encounters a `__proto__` key in the input object.
 **Prevention:** Always filter out sensitive keys like `__proto__`, `constructor`, and `prototype` when iterating over untrusted object entries and creating new objects based on them.
+
+## 2026-07-01 - Prototype Pollution in State Assignments
+**Vulnerability:** Prototype pollution via user-controlled output keys in workflow and pipeline execution.
+**Learning:** Preventing prototype pollution during value resolution (reading) is insufficient if the system allows users to define the keys where results are stored (writing). If an attacker can set a step's output key to `__proto__`, they can pollute the global object prototype.
+**Prevention:** Implement a centralized validation helper (e.g., `isValidStateKey`) and apply it to ALL locations where user-controlled strings are used as keys for object assignment, specifically targeting `__proto__`, `constructor`, and `prototype`.
