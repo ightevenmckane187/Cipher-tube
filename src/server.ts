@@ -273,7 +273,7 @@ app.get("/", (req: Request, res: Response) => {
                 footer { margin-top: 4rem; font-size: 0.875rem; border-top: 1px solid var(--border-color); padding-top: 1rem; }
                 a { color: var(--primary); text-decoration: none; }
                 a:hover { text-decoration: underline; }
-                a:focus-visible, #theme-toggle:focus-visible, .copy-button:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+                a:focus-visible, #theme-toggle:focus-visible, .copy-button:focus-visible, #user-id-input:focus-visible, pre[tabindex="0"]:focus-visible, #extend-session-btn:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
                 .code-container {
                     position: relative;
                     margin: 1rem 0;
@@ -352,11 +352,16 @@ app.get("/", (req: Request, res: Response) => {
                 .input-group label { font-size: 0.875rem; font-weight: 500; }
                 .input-group input { background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 8px 12px; border-radius: 6px; font-size: 0.875rem; width: 100%; max-width: 300px; }
                 .input-group input:focus { outline: 2px solid var(--primary); border-color: transparent; }
-                .counter-container { display: flex; justify-content: space-between; max-width: 300px; align-items: baseline; }
+                .counter-container { display: flex; justify-content: space-between; max-width: 400px; align-items: baseline; flex-wrap: nowrap; gap: 10px; }
                 #user-id-counter { font-size: 0.75rem; opacity: 0.7; }
                 #user-id-counter.near-limit { color: #d63031; opacity: 1; font-weight: bold; }
+                @keyframes slideUp {
+                    from { transform: translate(-50%, 20px); opacity: 0; }
+                    to { transform: translate(-50%, 0); opacity: 1; }
+                }
                 #timeout-banner {
                     display: none;
+                    animation: slideUp 0.4s ease-out forwards;
                     position: fixed;
                     bottom: 20px;
                     left: 50%;
@@ -402,11 +407,6 @@ app.get("/", (req: Request, res: Response) => {
             <main id="main-content">
                 <div class="header-container">
                     <h1>Cipher Tube Assembly</h1>
-                    <button id="theme-toggle" aria-label="Switch Theme" aria-pressed="false" aria-keyshortcuts="t">
-                        <span id="theme-icon" aria-hidden="true"></span>
-                        <span id="theme-text">Switch to Dark</span>
-                        <kbd aria-hidden="true" class="kb-hint">(t)</kbd>
-                    </button>
                 </div>
                 <p>Welcome to the performance-optimized session management service.</p>
                 <div role="status" aria-live="polite">
@@ -419,7 +419,7 @@ app.get("/", (req: Request, res: Response) => {
                 <div class="input-group">
                     <div class="counter-container">
                         <label for="user-id-input">Customize your User ID:</label>
-                        <span id="user-id-counter" aria-live="polite">0 / 128</span>
+                        <span id="user-id-counter" aria-live="polite">0 of 128 characters used</span>
                     </div>
                     <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter">
                 </div>
@@ -485,7 +485,7 @@ app.get("/", (req: Request, res: Response) => {
                     curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: \${userId}"\`;
 
                     const length = userIdInput.value.length;
-                    userIdCounter.textContent = \`\${length} / 128\`;
+                    userIdCounter.textContent = \`\${length} of 128 characters used\`;
                     if (length >= 120) {
                         userIdCounter.classList.add('near-limit');
                     } else {
@@ -859,7 +859,7 @@ app.post(
  * Global error-handling middleware.
  * Sentinel: Catch and sanitize unhandled errors to prevent information leakage and DoS.
  */
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
   if (
     err instanceof SyntaxError &&
     "status" in err &&
