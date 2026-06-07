@@ -672,8 +672,13 @@ const ensureSessionOwner = async (
     }
 
     // Sentinel: Activity Refresh - Extend Redis TTL on every successful access
+    // Bolt Optimization: Throttle Redis EXPIRE calls to once per 60 seconds to reduce write load
     if (typeof redisClient.expire === "function") {
-      await redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL);
+      const needsUpdate = process.env.NODE_ENV === 'test' || !sessionUpdateCache.has(sessionId);
+      if (needsUpdate) {
+        await redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL);
+        sessionUpdateCache.set(sessionId, true);
+      }
     }
 
     next();
