@@ -20,6 +20,9 @@ export const sessionCache = new LRUCache<string, string>({
     ttl: 5 * 1000, // 5 seconds (Fast propagation)
 });
 
+// Sentinel: Constant for negative caching to prevent Cache Penetration DoS
+const SESSION_NOT_FOUND = "__NOT_FOUND__";
+
 const UUID_V4_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -654,9 +657,17 @@ const ensureSessionOwner = async (
 
   try {
     if (!ownerId) {
-      ownerId = await redisClient.get(`session:${sessionId}:owner`) as string;
-      if (!ownerId) return res.status(404).json({ error: "Session not found" });
+      ownerId = (await redisClient.get(`session:${sessionId}:owner`)) as string;
+      if (!ownerId) {
+        // Sentinel: Implement negative caching to prevent redundant Redis lookups
+        sessionCache.set(sessionId, SESSION_NOT_FOUND);
+        return res.status(404).json({ error: "Session not found" });
+      }
       sessionCache.set(sessionId, ownerId);
+    }
+
+    if (ownerId === SESSION_NOT_FOUND) {
+      return res.status(404).json({ error: "Session not found" });
     }
 
     if (ownerId !== userId) {
