@@ -213,7 +213,7 @@ app.get("/", (req: Request, res: Response) => {
                     70% { box-shadow: 0 0 0 10px transparent; }
                     100% { box-shadow: 0 0 0 0 transparent; }
                 }
-                #theme-toggle {
+                .theme-toggle {
                     background: none;
                     border: 1px solid var(--border-color);
                     color: var(--text-color);
@@ -227,7 +227,7 @@ app.get("/", (req: Request, res: Response) => {
                     gap: 8px;
                     float: right;
                 }
-                #theme-toggle:hover {
+                .theme-toggle:hover {
                     background-color: var(--border-color);
                 }
                 .header-container {
@@ -262,7 +262,7 @@ app.get("/", (req: Request, res: Response) => {
                     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                     display: inline-block;
                 }
-                #theme-toggle:active #theme-icon {
+                .theme-toggle:active .theme-icon {
                     transform: scale(0.8);
                 }
                 footer { margin-top: 4rem; font-size: 0.875rem; border-top: 1px solid var(--border-color); padding-top: 1rem; }
@@ -384,11 +384,6 @@ app.get("/", (req: Request, res: Response) => {
                 <nav aria-label="Main Navigation">
                      <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: bold; color: var(--primary);">Cipher Tube</span>
-                        <button id="theme-toggle" aria-label="Switch Theme" aria-pressed="false" aria-keyshortcuts="t">
-                            <span id="theme-icon" aria-hidden="true"></span>
-                            <span id="theme-text">Switch to Dark</span>
-                            <kbd aria-hidden="true" class="kb-shortcut">(t)</kbd>
-                        </button>
                     </div>
                 </nav>
             </header>
@@ -408,7 +403,7 @@ app.get("/", (req: Request, res: Response) => {
                 <div class="input-group">
                     <div class="counter-container">
                         <label for="user-id-input">Customize your User ID:</label>
-                        <span id="user-id-counter" aria-live="polite">0 / 128</span>
+                        <span id="user-id-counter" aria-live="polite">0 of 128 characters used</span>
                     </div>
                     <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter">
                 </div>
@@ -440,26 +435,30 @@ app.get("/", (req: Request, res: Response) => {
             </footer>
 
             <script nonce="${res.locals.nonce}">
-                const themeToggle = document.getElementById('theme-toggle');
-                const themeText = document.getElementById('theme-text');
-                const themeIcon = document.getElementById('theme-icon');
+                const themeToggles = document.querySelectorAll('.theme-toggle');
 
                 function updateUI(theme) {
                     const isDark = theme === 'dark';
-                    themeText.textContent = isDark ? 'Switch to Light' : 'Switch to Dark';
-                    themeIcon.textContent = isDark ? '☀️' : '🌙';
-                    themeToggle.setAttribute('aria-pressed', isDark);
-                    themeToggle.setAttribute('aria-label', isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode');
+                    themeToggles.forEach(toggle => {
+                        const themeText = toggle.querySelector('.theme-text');
+                        const themeIcon = toggle.querySelector('.theme-icon');
+                        if (themeText) themeText.textContent = isDark ? 'Switch to Light' : 'Switch to Dark';
+                        if (themeIcon) themeIcon.textContent = isDark ? '☀️' : '🌙';
+                        toggle.setAttribute('aria-pressed', isDark);
+                        toggle.setAttribute('aria-label', isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode');
+                    });
                     document.documentElement.setAttribute('data-theme', theme);
                 }
 
                 updateUI(document.documentElement.getAttribute('data-theme'));
 
-                themeToggle.addEventListener('click', () => {
-                    const currentTheme = document.documentElement.getAttribute('data-theme');
-                    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-                    localStorage.setItem('theme', newTheme);
-                    updateUI(newTheme);
+                themeToggles.forEach(toggle => {
+                    toggle.addEventListener('click', () => {
+                        const currentTheme = document.documentElement.getAttribute('data-theme');
+                        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                        localStorage.setItem('theme', newTheme);
+                        updateUI(newTheme);
+                    });
                 });
 
                 const copyButton = document.getElementById('copy-curl');
@@ -474,7 +473,7 @@ app.get("/", (req: Request, res: Response) => {
                     curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: \${userId}"\`;
 
                     const length = userIdInput.value.length;
-                    userIdCounter.textContent = \`\${length} / 128\`;
+                    userIdCounter.textContent = \`\${length} of 128 characters used\`;
                     if (length >= 120) {
                         userIdCounter.classList.add('near-limit');
                     } else {
@@ -508,7 +507,7 @@ app.get("/", (req: Request, res: Response) => {
                     if (e.key === 'c') {
                         document.getElementById('copy-curl')?.click();
                     } else if (e.key === 't') {
-                        document.getElementById('theme-toggle')?.click();
+                        document.querySelector('.theme-toggle')?.click();
                     } else if (e.key === 'e') {
                         const btn = document.getElementById('extend-session-btn');
                         if (btn && window.getComputedStyle(document.getElementById('timeout-banner')).display !== 'none') {
@@ -544,6 +543,9 @@ app.get("/", (req: Request, res: Response) => {
                         status.style.color = isError ? '#f28b82' : '#2ecc71';
                         statusTimeout = setTimeout(() => status.textContent = '', 3000);
                     };
+
+                    extendBtn.disabled = true;
+                    extendBtnText.textContent = 'Extending...';
 
                     try {
                         btn.disabled = true;
