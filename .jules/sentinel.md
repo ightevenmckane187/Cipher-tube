@@ -62,3 +62,8 @@
 **Vulnerability:** Prototype pollution during recursive object resolution in orchestrator.
 **Learning:** Even if individual path resolution is protected, a recursive function that iterates over object entries and assigns them to a new object can still be vulnerable to prototype pollution if it encounters a `__proto__` key in the input object.
 **Prevention:** Always filter out sensitive keys like `__proto__`, `constructor`, and `prototype` when iterating over untrusted object entries and creating new objects based on them.
+
+## 2026-06-26 - Cache Penetration via Non-Existent Sessions
+**Vulnerability:** Denial of Service (DoS) via Cache Penetration.
+**Learning:** The application was vulnerable to resource exhaustion because it only cached successful session lookups. Attackers could flood the system with requests for non-existent session IDs, forcing a Redis lookup for every request and bypassing the in-memory cache entirely.
+**Prevention:** Implement negative caching by storing a sentinel value (e.g., "__NOT_FOUND__") in the local cache for keys that do not exist in the primary database. This ensures that repeated lookups for missing resources are handled at the cache layer, protecting the database from exhaustion.
