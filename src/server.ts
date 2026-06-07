@@ -21,6 +21,7 @@ export const sessionCache = new LRUCache<string, string>({
     ttl: 5 * 1000, // 5 seconds (Fast propagation)
 });
 
+// Sentinel: Constant for negative caching to prevent Cache Penetration DoS
 const SESSION_NOT_FOUND = "__NOT_FOUND__";
 
 const UUID_V4_REGEX =
@@ -257,15 +258,6 @@ app.get("/", (req: Request, res: Response) => {
                     max-width: 300px;
                     transition: border-color 0.2s;
                 }
-                #user-id-input:focus {
-                    outline: none;
-                    border-color: var(--primary);
-                    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
-                }
-                #theme-toggle:focus-visible {
-                    outline: 2px solid var(--primary);
-                    outline-offset: 2px;
-                }
                 #theme-icon {
                     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                     display: inline-block;
@@ -276,7 +268,13 @@ app.get("/", (req: Request, res: Response) => {
                 footer { margin-top: 4rem; font-size: 0.875rem; border-top: 1px solid var(--border-color); padding-top: 1rem; }
                 a { color: var(--primary); text-decoration: none; }
                 a:hover { text-decoration: underline; }
-                a:focus-visible, #theme-toggle:focus-visible, .copy-button:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+                a:focus-visible,
+                button:focus-visible,
+                input:focus-visible,
+                pre[tabindex="0"]:focus-visible {
+                    outline: 3px solid var(--primary);
+                    outline-offset: 2px;
+                }
                 .code-container {
                     position: relative;
                     margin: 1rem 0;
@@ -301,10 +299,6 @@ app.get("/", (req: Request, res: Response) => {
                     font-size: 0.875rem;
                     scroll-behavior: smooth;
                 }
-                pre:focus-visible {
-                    outline: 2px solid var(--primary);
-                    outline-offset: -2px;
-                }
                 .copy-button {
                     background: rgba(255, 255, 255, 0.1);
                     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -319,7 +313,6 @@ app.get("/", (req: Request, res: Response) => {
                     gap: 4px;
                 }
                 .copy-button:hover { background: rgba(255, 255, 255, 0.2); }
-                .copy-button:focus-visible { outline: 2px solid var(--primary); }
                 .kb-shortcut {
                     margin-left: 4px;
                     opacity: 0.8;
@@ -350,11 +343,9 @@ app.get("/", (req: Request, res: Response) => {
                 .copy-button.copied .check-icon { display: block; }
                 .header-container { display: flex; justify-content: space-between; align-items: center; }
                 .status-text { color: var(--success); font-weight: bold; }
-                .kb-hint { margin-left: 4px; font-size: 0.7rem; opacity: 0.8; border: 1px solid rgba(255, 255, 255, 0.3); padding: 1px 4px; border-radius: 3px; font-family: inherit; }
                 .input-group { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
                 .input-group label { font-size: 0.875rem; font-weight: 500; }
                 .input-group input { background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 8px 12px; border-radius: 6px; font-size: 0.875rem; width: 100%; max-width: 300px; }
-                .input-group input:focus { outline: 2px solid var(--primary); border-color: transparent; }
                 .counter-container { display: flex; justify-content: space-between; max-width: 300px; align-items: baseline; }
                 #user-id-counter { font-size: 0.75rem; opacity: 0.7; }
                 #user-id-counter.near-limit { color: #d63031; opacity: 1; font-weight: bold; }
@@ -405,11 +396,6 @@ app.get("/", (req: Request, res: Response) => {
             <main id="main-content">
                 <div class="header-container">
                     <h1>Cipher Tube Assembly</h1>
-                    <button id="theme-toggle" aria-label="Switch Theme" aria-pressed="false" aria-keyshortcuts="t">
-                        <span id="theme-icon" aria-hidden="true"></span>
-                        <span id="theme-text">Switch to Dark</span>
-                        <kbd aria-hidden="true" class="kb-hint">(t)</kbd>
-                    </button>
                 </div>
                 <p>Welcome to the performance-optimized session management service.</p>
                 <div role="status" aria-live="polite">
@@ -432,7 +418,7 @@ app.get("/", (req: Request, res: Response) => {
                         <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
                         <svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
                         <span id="copy-text" aria-live="polite">Copy</span>
-                        <kbd aria-hidden="true" class="kb-hint">(c)</kbd>
+                        <kbd aria-hidden="true" class="kb-shortcut">(c)</kbd>
                     </button>
                     <pre tabindex="0" role="region" aria-label="Terminal command example"><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
                 </div>
@@ -440,7 +426,7 @@ app.get("/", (req: Request, res: Response) => {
 
             <div id="timeout-banner" role="alert">
                 <span>Session expires in 1 minute.</span>
-                <button id="extend-session-btn" aria-keyshortcuts="e">Extend Session <kbd aria-hidden="true" style="font-size: 0.7em; opacity: 0.8; border: 1px solid rgba(255,255,255,0.4); padding: 1px 3px; border-radius: 3px; margin-left: 4px;">(e)</kbd></button>
+                <button id="extend-session-btn" aria-keyshortcuts="e"><span id="extend-btn-text">Extend Session</span> <kbd aria-hidden="true" style="font-size: 0.7em; opacity: 0.8; border: 1px solid rgba(255,255,255,0.4); padding: 1px 3px; border-radius: 3px; margin-left: 4px;">(e)</kbd></button>
                 <span id="extension-status" aria-live="polite"></span>
             </div>
 
@@ -547,8 +533,11 @@ app.get("/", (req: Request, res: Response) => {
                 }
 
                 let statusTimeout;
-                document.getElementById('extend-session-btn').addEventListener('click', async () => {
+                document.getElementById('extend-session-btn').addEventListener('click', async (e) => {
+                    const btn = e.currentTarget;
+                    const btnText = document.getElementById('extend-btn-text');
                     const status = document.getElementById('extension-status');
+
                     const showStatus = (msg, isError = false) => {
                         if (statusTimeout) clearTimeout(statusTimeout);
                         status.textContent = msg;
@@ -557,6 +546,9 @@ app.get("/", (req: Request, res: Response) => {
                     };
 
                     try {
+                        btn.disabled = true;
+                        btnText.textContent = 'Extending...';
+
                         if (currentSessionId) {
                             const response = await fetch('/session/' + currentSessionId + '/extend', {
                                 method: 'POST',
@@ -569,12 +561,17 @@ app.get("/", (req: Request, res: Response) => {
                                 showStatus('Failed', true);
                             }
                         } else {
+                            // Simulation mode
+                            await new Promise(resolve => setTimeout(resolve, 500));
                             resetTimer();
                             showStatus('Reset!');
                         }
                     } catch (err) {
                         console.error('Extension failed:', err);
                         showStatus('Error', true);
+                    } finally {
+                        btn.disabled = false;
+                        btnText.textContent = 'Extend Session';
                     }
                 });
 
@@ -656,10 +653,13 @@ const ensureSessionOwner = async (
   let ownerId = sessionCache.get(sessionId);
 
   try {
-    if (ownerId === undefined) {
-      const redisVal = await redisClient.get(`session:${sessionId}:owner`);
-      ownerId = redisVal || SESSION_NOT_FOUND;
-      // Sentinel: Negative caching - Cache sentinel if session not found in Redis to prevent cache penetration DoS
+    if (!ownerId) {
+      ownerId = (await redisClient.get(`session:${sessionId}:owner`)) as string;
+      if (!ownerId) {
+        // Sentinel: Implement negative caching to prevent redundant Redis lookups
+        sessionCache.set(sessionId, SESSION_NOT_FOUND);
+        return res.status(404).json({ error: "Session not found" });
+      }
       sessionCache.set(sessionId, ownerId);
     }
 
@@ -738,7 +738,7 @@ app.post(
   validateUserId,
   ensureSessionOwner,
   (req: Request, res: Response) => {
-    res.json({ message: "Session extended successfully", expiresIn: SESSION_TTL });
+    res.json({ message: "Session extended", expiresIn: SESSION_TTL });
   }
 );
 
@@ -867,7 +867,7 @@ app.post(
  * Global error-handling middleware.
  * Sentinel: Catch and sanitize unhandled errors to prevent information leakage and DoS.
  */
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
   if (
     err instanceof SyntaxError &&
     "status" in err &&
