@@ -26,6 +26,6 @@
 **Learning:** Using `buffer.toString('hex', start, end)` is significantly faster than converting a large buffer to a full hex string and then using `.substring()`, as it avoids a massive string allocation. Additionally, removing duplicate middleware and redundant UI elements improves both backend throughput and frontend clarity.
 **Action:** Use specific buffer range conversions for hex strings; always audit middleware chains and UI templates for accidental duplication.
 
-## 2025-05-23 - Optimized Orchestrator Path Resolution
-**Learning:** In high-frequency recursive functions like `resolveParams`, creating internal helper functions (like a `getRoot` closure) can cause a performance regression due to repeated allocations. Direct conditional selection is faster. Additionally, short-circuiting common cases (like single-level paths or strings that don't match a template pattern) avoids expensive operations like `split()` or regex execution.
-**Action:** Use fast short-circuits for common paths; avoid internal closures in hot loops.
+## 2025-05-25 - Optimized Orchestrator Path Resolution
+**Learning:** In hot recursive paths like `resolveParams`, avoiding `split('.')` and array allocation for single-level paths (`path.includes('.')`) provides a measurable performance gain. Additionally, creating internal helper functions (closures) inside high-frequency functions can negatively impact performance due to repeated allocation; direct conditional selection or externalized functions are more efficient.
+**Action:** Short-circuit simple path lookups; avoid creating internal functions in hot paths.
