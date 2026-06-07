@@ -14,7 +14,8 @@ export const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
-// Sentinel: TTL reduced to 5s to ensure fast propagation of session revocations
+// Sentinel: TTL reduced to 5s to ensure fast propagation of session revocations.
+// Sentinel: Negative caching of non-existent sessions to prevent cache penetration.
 export const sessionCache = new LRUCache<string, string>({
     max: 1000,
     ttl: 5 * 1000, // 5 seconds (Fast propagation)
@@ -88,10 +89,10 @@ app.use(apiLimiter); // Sentinel: Apply global rate limiting after core security
 // CSP and Nonce: Applied only to requests that pass the rate limiter
 app.use((req: Request, res: Response, next: NextFunction) => {
   res.locals.nonce = crypto.randomBytes(16).toString("base64");
-  // Sentinel: Harden browser security by restricting sensitive features
+  // Sentinel: Harden browser security by restricting sensitive features (Defense-in-depth)
   res.setHeader(
     "Permissions-Policy",
-    "geolocation=(), camera=(), microphone=(), interest-cohort=()",
+    "accelerometer=(), ambient-light-sensor=(), autoplay=(), battery=(), camera=(), display-capture=(), document-domain=(), encrypted-media=(), fullscreen=(), gamepad=(), geolocation=(), gyroscope=(), layout-animations=(), legacy-image-formats=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), speaker-selection=(), screen-wake-lock=(), sync-xhr=(), usb=(), web-share=(), xr-spatial-tracking=(), interest-cohort=()",
   );
   next();
 });
