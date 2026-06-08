@@ -21,6 +21,12 @@ export const sessionCache = new LRUCache<string, string>({
     ttl: 5 * 1000, // 5 seconds (Fast propagation)
 });
 
+// Bolt Optimization: Throttling cache for Redis EXPIRE calls
+export const sessionUpdateCache = new LRUCache<string, boolean>({
+  max: 1000,
+  ttl: 60 * 1000, // 60 seconds
+});
+
 // Sentinel: Constant for negative caching to prevent Cache Penetration DoS
 const SESSION_NOT_FOUND = "__NOT_FOUND__";
 
@@ -745,7 +751,7 @@ app.post(
   validateUserId,
   ensureSessionOwner,
   (req: Request, res: Response) => {
-    res.json({ message: "Session extended", expiresIn: SESSION_TTL });
+    res.json({ message: "Session extended successfully", expiresIn: SESSION_TTL });
   }
 );
 
