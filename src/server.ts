@@ -24,6 +24,13 @@ export const sessionCache = new LRUCache<string, string>({
 // Sentinel: Constant for negative caching to prevent Cache Penetration DoS
 const SESSION_NOT_FOUND = "__NOT_FOUND__";
 
+// Bolt Optimization: Cache to throttle Redis EXPIRE calls (Activity Refresh)
+// Sentinel: TTL of 60s matches the throttling logic in ensureSessionOwner.
+export const sessionUpdateCache = new LRUCache<string, boolean>({
+    max: 1000,
+    ttl: 60 * 1000,
+});
+
 const UUID_V4_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -384,6 +391,11 @@ app.get("/", (req: Request, res: Response) => {
                 <nav aria-label="Main Navigation">
                      <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: bold; color: var(--primary);">Cipher Tube</span>
+                        <button class="theme-toggle" id="theme-toggle-header" aria-label="Switch Theme" aria-keyshortcuts="t">
+                            <span class="theme-icon" aria-hidden="true">🌙</span>
+                            <span class="theme-text">Switch Theme</span>
+                            <kbd aria-hidden="true" class="kb-shortcut">(t)</kbd>
+                        </button>
                     </div>
                 </nav>
             </header>
@@ -745,7 +757,7 @@ app.post(
   validateUserId,
   ensureSessionOwner,
   (req: Request, res: Response) => {
-    res.json({ message: "Session extended", expiresIn: SESSION_TTL });
+    res.json({ message: "Session extended successfully", expiresIn: SESSION_TTL });
   }
 );
 
