@@ -21,6 +21,12 @@ export const sessionCache = new LRUCache<string, string>({
     ttl: 5 * 1000, // 5 seconds (Fast propagation)
 });
 
+// Bolt Optimization: Cache to throttle Redis EXPIRE calls for sliding sessions
+export const sessionUpdateCache = new LRUCache<string, boolean>({
+    max: 1000,
+    ttl: 60 * 1000, // 60 seconds
+});
+
 // Sentinel: Constant for negative caching to prevent Cache Penetration DoS
 const SESSION_NOT_FOUND = "__NOT_FOUND__";
 
@@ -384,6 +390,11 @@ app.get("/", (req: Request, res: Response) => {
                 <nav aria-label="Main Navigation">
                      <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: bold; color: var(--primary);">Cipher Tube</span>
+                        <button class="theme-toggle" id="theme-toggle-header" aria-live="polite" aria-keyshortcuts="t">
+                            <span class="theme-icon" aria-hidden="true">🌙</span>
+                            <span class="theme-text">Switch to Dark</span>
+                            <kbd class="kb-shortcut" aria-hidden="true">(t)</kbd>
+                        </button>
                     </div>
                 </nav>
             </header>
@@ -543,9 +554,6 @@ app.get("/", (req: Request, res: Response) => {
                         status.style.color = isError ? '#f28b82' : '#2ecc71';
                         statusTimeout = setTimeout(() => status.textContent = '', 3000);
                     };
-
-                    extendBtn.disabled = true;
-                    extendBtnText.textContent = 'Extending...';
 
                     try {
                         btn.disabled = true;
@@ -745,7 +753,7 @@ app.post(
   validateUserId,
   ensureSessionOwner,
   (req: Request, res: Response) => {
-    res.json({ message: "Session extended", expiresIn: SESSION_TTL });
+    res.json({ message: "Session extended successfully", expiresIn: SESSION_TTL });
   }
 );
 

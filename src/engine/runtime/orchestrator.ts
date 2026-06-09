@@ -16,10 +16,6 @@ export interface ExecContext {
   registry?: Record<string, any>;
 }
 
-/**
- * Sentinel: Centralized validator to block prototype pollution.
- */
-const isValidStateKey = (k: string) => k !== '__proto__' && k !== 'constructor' && k !== 'prototype';
 
 export async function executeWorkflow(def: any, ctx: ExecContext, params: Record<string, any> = {}) {
   const state: Record<string, any> = { params };
@@ -121,12 +117,6 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
   return await handler(resolvedParams, state, ctx.config);
 }
 
-/**
- * Sentinel: Centralized validator for state keys to prevent prototype pollution.
- */
-function isValidStateKey(key: string): boolean {
-  return key !== '__proto__' && key !== 'constructor' && key !== 'prototype';
-}
 
 /**
  * Sentinel: Secure path resolution helper to prevent prototype pollution.
