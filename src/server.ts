@@ -21,6 +21,13 @@ export const sessionCache = new LRUCache<string, string>({
     ttl: 5 * 1000, // 5 seconds (Fast propagation)
 });
 
+// In-memory cache for throttling session activity updates (Bolt Optimization)
+// Sentinel: Throttles Redis EXPIRE calls to once per 60s per session.
+export const sessionUpdateCache = new LRUCache<string, boolean>({
+    max: 1000,
+    ttl: 60 * 1000, // 60 seconds (Throttle Redis EXPIRE)
+});
+
 // Sentinel: Constant for negative caching to prevent Cache Penetration DoS
 const SESSION_NOT_FOUND = "__NOT_FOUND__";
 
@@ -745,7 +752,7 @@ app.post(
   validateUserId,
   ensureSessionOwner,
   (req: Request, res: Response) => {
-    res.json({ message: "Session extended", expiresIn: SESSION_TTL });
+    res.json({ message: "Session extended successfully", expiresIn: SESSION_TTL });
   }
 );
 
