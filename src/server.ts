@@ -95,6 +95,12 @@ app.use(
     referrerPolicy: { policy: "same-origin" },
   }),
 );
+
+// Sentinel: Manually apply Permissions-Policy as helmet 8.x seems to lack built-in support in some environments
+app.use((req: Request, res: Response, next: NextFunction) => {
+  res.setHeader("Permissions-Policy", "geolocation=(), camera=(), microphone=()");
+  next();
+});
 app.disable("x-powered-by"); // Further ensures the header is removed
 
 app.use(apiLimiter); // Sentinel: Apply global rate limiting after core security headers are set
@@ -133,8 +139,6 @@ app.use(
 
 // Serve accessible documentation (WCAG 602.3 compliance)
 app.use('/docs', express.static(path.join(__dirname, '../docs')));
-
-app.use(apiLimiter); // Sentinel: Apply global rate limiting before expensive operations
 
 export const redisClient: RedisClientType = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
@@ -615,6 +619,16 @@ app.get("/health", (req: Request, res: Response) => {
 });
 
 const jsonParser = express.json({ limit: "10kb" });
+
+/**
+ * Sentinel: Disable caching for sensitive data.
+ */
+const noCache = (req: Request, res: Response, next: NextFunction) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  next();
+};
 
 const validateUserId = (req: Request, res: Response, next: NextFunction) => {
   let userId = req.headers["x-user-id"];
