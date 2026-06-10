@@ -125,25 +125,23 @@ function resolvePath(root: any, path: string | undefined): any {
   if (!root) return undefined;
   if (!path) return root;
 
-  // Bolt Optimization: Short-circuit for single-level paths to avoid split('.') and array allocation.
-  if (!path.includes('.')) {
-    return isValidStateKey(path) ? root[path] : undefined;
-  }
-
-  const keys = path.split('.');
+  // Bolt Optimization: Iterative path resolution without split('.') to avoid array allocation.
   let current = root;
+  let start = 0;
+  let dotIdx = path.indexOf('.');
 
-  for (let i = 0; i < keys.length; i++) {
-    const key = keys[i];
-    // Sentinel: Block access to internal properties that could be used for prototype pollution
-    if (!isValidStateKey(key)) {
-      return undefined;
-    }
+  while (dotIdx !== -1) {
+    const key = path.substring(start, dotIdx);
+    if (!isValidStateKey(key)) return undefined;
     current = current?.[key];
     if (current === undefined || current === null) return undefined;
+    start = dotIdx + 1;
+    dotIdx = path.indexOf('.', start);
   }
 
-  return current;
+  const lastKey = path.substring(start);
+  if (!isValidStateKey(lastKey)) return undefined;
+  return current?.[lastKey];
 }
 
 /**

@@ -30,6 +30,13 @@ export const sessionUpdateCache = new LRUCache<string, boolean>({
 // Sentinel: Constant for negative caching to prevent Cache Penetration DoS
 const SESSION_NOT_FOUND = "__NOT_FOUND__";
 
+// Bolt Optimization: Cache to throttle Redis EXPIRE calls (Activity Refresh)
+// Sentinel: TTL of 60s matches the throttling logic in ensureSessionOwner.
+export const sessionUpdateCache = new LRUCache<string, boolean>({
+    max: 1000,
+    ttl: 60 * 1000,
+});
+
 const UUID_V4_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
