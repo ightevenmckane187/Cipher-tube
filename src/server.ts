@@ -390,6 +390,11 @@ app.get("/", (req: Request, res: Response) => {
                 <nav aria-label="Main Navigation">
                      <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: bold; color: var(--primary);">Cipher Tube</span>
+                        <button class="theme-toggle" aria-label="Switch to Dark Mode" aria-pressed="false">
+                            <span class="theme-icon" aria-hidden="true" id="theme-icon">🌙</span>
+                            <span class="theme-text">Switch to Dark</span>
+                            <kbd aria-hidden="true" class="kb-shortcut">(t)</kbd>
+                        </button>
                     </div>
                 </nav>
             </header>
