@@ -1,26 +1,45 @@
-import crypto from 'crypto';
-import { buildCipherTube, decryptCipherTube } from '../src/cta';
+import { resolveParams } from '../src/engine/runtime/orchestrator';
 
-const masterSeed = crypto.randomBytes(32);
-const plaintext = Buffer.from('Performance optimization is key for Bolt ⚡'.repeat(10), 'utf8');
+const config = { api: { key: 'secret', url: 'http://api.example.com' } };
+const state = {
+  user: { id: 123, name: 'Bolt' },
+  params: { debug: true }
+};
+const item = { id: 'item-1', value: 42 };
 
-const ITERATIONS = 1000;
-
-console.log(`Starting Build Benchmark with ${ITERATIONS} iterations...`);
-const startBuild = performance.now();
-let lastResult;
-for (let i = 0; i < ITERATIONS; i++) {
-    lastResult = buildCipherTube(plaintext, masterSeed);
+// A large object with NO templates
+const staticObject: any = {};
+for (let i = 0; i < 100; i++) {
+    staticObject[`key${i}`] = `value${i}`;
 }
-const endBuild = performance.now();
-console.log(`Average Build time: ${((endBuild - startBuild) / ITERATIONS).toFixed(4)}ms`);
 
-const { ciphertext, tubes } = lastResult!;
+const testCases = [
+  staticObject
+];
 
-console.log(`Starting Decrypt Benchmark with ${ITERATIONS} iterations...`);
-const startDecrypt = performance.now();
-for (let i = 0; i < ITERATIONS; i++) {
-    decryptCipherTube(ciphertext, masterSeed, tubes);
+const ITERATIONS = 10000;
+
+function bench() {
+  const start = performance.now();
+  for (let i = 0; i < ITERATIONS; i++) {
+    for (let j = 0; j < testCases.length; j++) {
+        resolveParams(testCases[j], config, state, item);
+    }
+  }
+  const end = performance.now();
+  return end - start;
 }
-const endDecrypt = performance.now();
-console.log(`Average Decrypt time: ${((endDecrypt - startDecrypt) / ITERATIONS).toFixed(4)}ms`);
+
+console.log(`Benchmarking resolveParams with large STATIC object, ${ITERATIONS} iterations (warming up)...`);
+bench();
+bench();
+
+console.log(`Running benchmark...`);
+const total = bench();
+
+console.log(`Total time: ${total.toFixed(2)}ms`);
+console.log(`Average time per call: ${(total / (ITERATIONS * testCases.length) * 1000).toFixed(4)}µs`);
+
+// Verify CoW
+const result = resolveParams(staticObject, config, state, item);
+console.log(`Is CoW working (referential equality)? ${result === staticObject}`);

@@ -11,16 +11,9 @@ export function isValidStateKey(key: any): boolean {
 }
 
 export interface ExecContext {
-  actions: Record<string, Record<string, Function>>;
+  actions: Record<string, Record<string, (...args: any[]) => any>>;
   config: Record<string, any>;
   registry?: Record<string, any>;
-}
-
-/**
- * Sentinel: Centralized utility to block sensitive keys that could be used for prototype pollution.
- */
-function isValidStateKey(key: string | undefined): boolean {
-  return !!key && key !== '__proto__' && key !== 'constructor' && key !== 'prototype';
 }
 
 export async function executeWorkflow(def: any, ctx: ExecContext, params: Record<string, any> = {}) {
@@ -61,7 +54,7 @@ export async function executePipeline(def: any, ctx: ExecContext) {
   for (const stage of def.stages ?? []) {
     if (stage.parallel) {
        console.log(`Executing Stage Parallel: ${stage.name}`);
-       const branchPromises = Object.entries(stage.branches || {}).map(async ([name, branch]: [string, any]) => {
+       const branchPromises = Object.entries(stage.branches || {}).map(async ([_name, branch]: [string, any]) => {
          // Pass input data from 'from' if specified
          const branchInput = stage.from ? resolveParams(Array.isArray(stage.from) ? `\${state.${stage.from[0]}}` : `\${state.${stage.from}}`, ctx.config, state, null) : null;
          return executeAction(branch.use, { ...branch, input: branchInput }, state, ctx);
@@ -121,18 +114,6 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
   const resolvedParams = resolveParams(params, ctx.config, state, item);
 
   return await handler(resolvedParams, state, ctx.config);
-}
-
-/**
- * Sentinel: Centralized security helper to prevent prototype pollution.
- */
-function isValidStateKey(key: any): boolean {
-  return (
-    typeof key === 'string' &&
-    key !== '__proto__' &&
-    key !== 'constructor' &&
-    key !== 'prototype'
-  );
 }
 
 /**
@@ -206,25 +187,47 @@ export function resolveParams(params: any, config: any, state: any, item: any): 
 
   if (Array.isArray(params)) {
     const len = params.length;
-    const resolved = new Array(len);
+    let resolved: any[] | undefined;
     for (let i = 0; i < len; i++) {
-        resolved[i] = resolveParams(params[i], config, state, item);
+      const val = params[i];
+      const res = resolveParams(val, config, state, item);
+      if (resolved) {
+        resolved[i] = res;
+      } else if (res !== val) {
+        resolved = new Array(len);
+        for (let j = 0; j < i; j++) resolved[j] = params[j];
+        resolved[i] = res;
+      }
     }
-    return resolved;
+    return resolved || params;
   }
 
   if (params && typeof params === 'object') {
-    const resolved: any = {};
+    let resolved: any | undefined;
     const keys = Object.keys(params);
     for (let i = 0; i < keys.length; i++) {
       const k = keys[i];
       // Sentinel: Block prototype pollution during object iteration
       if (!isValidStateKey(k)) {
+        if (!resolved) {
+          resolved = {};
+          for (let j = 0; j < i; j++) resolved[keys[j]] = params[keys[j]];
+        }
         continue;
       }
-      resolved[k] = resolveParams(params[k], config, state, item);
+
+      const val = params[k];
+      const res = resolveParams(val, config, state, item);
+
+      if (resolved) {
+        resolved[k] = res;
+      } else if (res !== val) {
+        resolved = {};
+        for (let j = 0; j < i; j++) resolved[keys[j]] = params[keys[j]];
+        resolved[k] = res;
+      }
     }
-    return resolved;
+    return resolved || params;
   }
 
   return params;
