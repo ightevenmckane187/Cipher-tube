@@ -21,14 +21,21 @@ export const sessionCache = new LRUCache<string, string>({
     ttl: 5 * 1000, // 5 seconds (Fast propagation)
 });
 
-// Bolt Optimization: Cache to throttle Redis EXPIRE calls and reduce write load.
+// Bolt Optimization: Cache to throttle Redis EXPIRE calls (Activity Refresh)
 export const sessionUpdateCache = new LRUCache<string, boolean>({
-    max: 1000,
-    ttl: 60 * 1000, // 60 seconds
+  max: 1000,
+  ttl: 60 * 1000, // 60 seconds throttle
 });
 
 // Sentinel: Constant for negative caching to prevent Cache Penetration DoS
 const SESSION_NOT_FOUND = "__NOT_FOUND__";
+
+// Bolt Optimization: Cache to throttle Redis EXPIRE calls (Activity Refresh)
+// Sentinel: TTL of 60s matches the throttling logic in ensureSessionOwner.
+export const sessionUpdateCache = new LRUCache<string, boolean>({
+    max: 1000,
+    ttl: 60 * 1000,
+});
 
 const UUID_V4_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -390,8 +397,8 @@ app.get("/", (req: Request, res: Response) => {
                 <nav aria-label="Main Navigation">
                      <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: bold; color: var(--primary);">Cipher Tube</span>
-                        <button class="theme-toggle" id="theme-toggle-header" aria-label="Switch Theme" aria-pressed="false">
-                            <span class="theme-icon" aria-hidden="true">🌙</span>
+                        <button class="theme-toggle" aria-label="Switch to Dark Mode" aria-pressed="false">
+                            <span class="theme-icon" aria-hidden="true" id="theme-icon">🌙</span>
                             <span class="theme-text">Switch to Dark</span>
                             <kbd aria-hidden="true" class="kb-shortcut">(t)</kbd>
                         </button>
@@ -554,9 +561,6 @@ app.get("/", (req: Request, res: Response) => {
                         status.style.color = isError ? '#f28b82' : '#2ecc71';
                         statusTimeout = setTimeout(() => status.textContent = '', 3000);
                     };
-
-                    extendBtn.disabled = true;
-                    extendBtnText.textContent = 'Extending...';
 
                     try {
                         btn.disabled = true;
