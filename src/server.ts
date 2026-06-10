@@ -540,7 +540,7 @@ app.get("/", (req: Request, res: Response) => {
 
                 // Session Timeout Simulation
                 let timeoutWarning;
-                let currentSessionId = null;
+                window.currentSessionId = null;
                 const SESSION_DURATION = 3600 * 1000;
                 const WARNING_TIME = 60 * 1000;
 
@@ -566,6 +566,9 @@ app.get("/", (req: Request, res: Response) => {
                         statusTimeout = setTimeout(() => status.textContent = '', 3000);
                     };
 
+                    extendBtn.disabled = true;
+                    extendBtn.textContent = 'Extending...';
+
                     try {
                         btn.disabled = true;
                         btnText.textContent = 'Extending...';
@@ -577,15 +580,18 @@ app.get("/", (req: Request, res: Response) => {
                             });
                             if (response.ok) {
                                 resetTimer();
-                                showStatus('Extended!');
+                                extendBtn.innerHTML = 'Extended! ✅';
+                                showStatus('Success');
                             } else {
                                 showStatus('Failed', true);
+                                extendBtn.innerHTML = originalBtnHtml;
                             }
                         } else {
                             // Simulation mode
                             await new Promise(resolve => setTimeout(resolve, 500));
                             resetTimer();
-                            showStatus('Reset!');
+                            extendBtn.innerHTML = 'Reset! ✅';
+                            showStatus('Reset');
                         }
                     } catch (err) {
                         console.error('Extension failed:', err);
@@ -602,7 +608,7 @@ app.get("/", (req: Request, res: Response) => {
                     const response = await originalFetch(...args);
                     if (typeof args[0] === 'string' && args[0].includes('/mcp') && args[1]?.method === 'POST') {
                         const data = await response.clone().json();
-                        if (data.sessionId) currentSessionId = data.sessionId;
+                        if (data.sessionId) window.currentSessionId = data.sessionId;
                     }
                     return response;
                 };
