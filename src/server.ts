@@ -17,8 +17,14 @@ const PORT = process.env.PORT || 3000;
 // Sentinel: TTL reduced to 5s to ensure fast propagation of session revocations.
 // Sentinel: Negative caching of non-existent sessions to prevent cache penetration.
 export const sessionCache = new LRUCache<string, string>({
-    max: 1000,
-    ttl: 5 * 1000, // 5 seconds (Fast propagation)
+  max: 1000,
+  ttl: 5 * 1000, // 5 seconds (Fast propagation)
+});
+
+// Bolt Optimization: Cache to throttle Redis EXPIRE calls (Availability/DoS fix)
+export const sessionUpdateCache = new LRUCache<string, boolean>({
+  max: 1000,
+  ttl: 60 * 1000, // 60 seconds
 });
 
 // Sentinel: Constant for negative caching to prevent Cache Penetration DoS
@@ -384,6 +390,10 @@ app.get("/", (req: Request, res: Response) => {
                 <nav aria-label="Main Navigation">
                      <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: bold; color: var(--primary);">Cipher Tube</span>
+                        <button class="theme-toggle" id="theme-toggle" aria-label="Toggle Theme">
+                            <span class="theme-icon">🌙</span>
+                            <span class="theme-text">Switch to Dark</span>
+                        </button>
                     </div>
                 </nav>
             </header>
@@ -745,7 +755,10 @@ app.post(
   validateUserId,
   ensureSessionOwner,
   (req: Request, res: Response) => {
-    res.json({ message: "Session extended", expiresIn: SESSION_TTL });
+    res.json({
+      message: "Session extended successfully",
+      expiresIn: SESSION_TTL,
+    });
   }
 );
 
