@@ -63,7 +63,7 @@
 **Learning:** Even if individual path resolution is protected, a recursive function that iterates over object entries and assigns them to a new object can still be vulnerable to prototype pollution if it encounters a `__proto__` key in the input object.
 **Prevention:** Always filter out sensitive keys like `__proto__`, `constructor`, and `prototype` when iterating over untrusted object entries and creating new objects based on them.
 
-## 2026-07-05 - Prototype Pollution via State Key Assignment
-**Vulnerability:** Prototype pollution via dynamic key assignment to the orchestrator's internal `state` object.
-**Learning:** Preventing prototype pollution during path resolution or object iteration is insufficient if the orchestrator allows untrusted definitions to specify reserved keys (like `__proto__`) as targets for output assignment (e.g., `step.output`, `stage.emit`). This allows an attacker to pollute the prototype of the local `state` object, potentially affecting all logic relying on that object or its descendants.
-**Prevention:** Centralize prototype pollution checks in a helper like `isValidStateKey` and apply it consistently to ALL dynamic key assignments, including those coming from workflow or pipeline definitions.
+## 2026-06-26 - Cache Penetration via Non-Existent Sessions
+**Vulnerability:** Denial of Service (DoS) via Cache Penetration.
+**Learning:** The application was vulnerable to resource exhaustion because it only cached successful session lookups. Attackers could flood the system with requests for non-existent session IDs, forcing a Redis lookup for every request and bypassing the in-memory cache entirely.
+**Prevention:** Implement negative caching by storing a sentinel value (e.g., "__NOT_FOUND__") in the local cache for keys that do not exist in the primary database. This ensures that repeated lookups for missing resources are handled at the cache layer, protecting the database from exhaustion.
