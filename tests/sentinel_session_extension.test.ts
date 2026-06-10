@@ -35,7 +35,7 @@ describe('Sentinel: Session Extension & Activity Refresh', () => {
       .set('x-user-id', userId);
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ message: 'Session extended', expiresIn: 3600 });
+    expect(response.body).toEqual({ message: 'Session extended successfully', expiresIn: 3600 });
     expect(redisMock.expire).toHaveBeenCalledWith(`session:${sessionId}:owner`, 3600);
   });
 

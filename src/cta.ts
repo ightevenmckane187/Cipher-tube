@@ -51,11 +51,14 @@ for (let i = 0; i < NUM_INTEGRITY_TUBES; i++) {
   AUDIT_VERIFY_TUBE[i] = `Verified hash-lock tube ${i}`;
 }
 
+// Bolt Optimization: Hoist feature check for high-performance one-shot hashing
+const HAS_ONE_SHOT_HASH = typeof (crypto as any).hash === 'function';
+
 /**
  * Bolt Optimization: High-performance one-shot hashing with fallback for older Node versions.
  */
 function fastHash(algorithm: string, data: crypto.BinaryLike): Buffer {
-  if (typeof (crypto as any).hash === 'function') {
+  if (HAS_ONE_SHOT_HASH) {
     return (crypto as any).hash(algorithm, data, 'buffer');
   }
   return crypto.createHash(algorithm).update(data).digest();
@@ -95,7 +98,6 @@ export function buildCipherTube(
   const integrityHash = fastHash('sha512', current).toString('hex');
 
   for (let i = 0; i < NUM_INTEGRITY_TUBES; i++) {
-    // Bolt Optimization: Use buffer.toString('hex', start, end) for range-based hex conversion
     const saltHex = entropyPool.toString('hex', entropyOffset, entropyOffset + 16);
     entropyOffset += 16;
 
@@ -115,11 +117,9 @@ export function buildCipherTube(
   for (let j = 0; j < NUM_ENCRYPTION_LAYERS; j++) {
     const layerId = NUM_INTEGRITY_TUBES + j;
     const salt = entropyPool.subarray(entropyOffset, entropyOffset + 16);
-    // Bolt Optimization: Use buffer.toString('hex', start, end)
     const saltHex = entropyPool.toString('hex', entropyOffset, entropyOffset + 16);
     entropyOffset += 16;
     const iv = entropyPool.subarray(entropyOffset, entropyOffset + 12);
-    // Bolt Optimization: Use buffer.toString('hex', start, end)
     const ivHex = entropyPool.toString('hex', entropyOffset, entropyOffset + 12);
     entropyOffset += 12;
 
@@ -133,7 +133,9 @@ export function buildCipherTube(
     const tag = cipher.getAuthTag();
 
     // Bolt Optimization: Avoid Buffer.concat if final is empty (common for GCM)
-    current = final.length > 0 ? Buffer.concat([iv, tag, update, final]) : Buffer.concat([iv, tag, update]);
+    // Pass total length to Buffer.concat to avoid extra length calculation pass
+    const totalLen = 12 + 16 + update.length + final.length;
+    current = final.length > 0 ? Buffer.concat([iv, tag, update, final], totalLen) : Buffer.concat([iv, tag, update], totalLen);
 
     tubes[layerId] = {
       layer: layerId,
@@ -247,7 +249,7 @@ export function decryptCipherTube(
   }
 
   // === Verify 12 hash-lock tubes in reverse ===
-  // Bolt Optimization: Use one-shot fastHash
+  // Bolt Optimization: Use fastHash for one-shot performance
   const computedHashBuffer = fastHash('sha512', current);
   let lastHash: string | undefined;
   let lastVerified = false;
