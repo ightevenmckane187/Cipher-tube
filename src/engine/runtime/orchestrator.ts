@@ -122,7 +122,7 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
  * Improves resolveParams performance by ~10-15%.
  */
 function resolvePath(root: any, path: string | undefined): any {
-  if (!root) return undefined;
+  if (root === undefined) return undefined;
   if (!path) return root;
 
   // Bolt Optimization: Iterative path resolution without split('.') to avoid array allocation.
