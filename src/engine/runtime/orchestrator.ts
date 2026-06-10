@@ -124,6 +124,18 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
 }
 
 /**
+ * Sentinel: Centralized security helper to prevent prototype pollution.
+ */
+function isValidStateKey(key: any): boolean {
+  return (
+    typeof key === 'string' &&
+    key !== '__proto__' &&
+    key !== 'constructor' &&
+    key !== 'prototype'
+  );
+}
+
+/**
  * Sentinel: Secure path resolution helper to prevent prototype pollution.
  * Bolt Optimization: Fast path for single-level keys and optimized loop for deep paths.
  * Improves resolveParams performance by ~10-15%.
