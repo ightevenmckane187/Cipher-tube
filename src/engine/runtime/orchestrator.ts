@@ -154,13 +154,14 @@ export function resolveParams(params: any, config: any, state: any, item: any): 
     // Bolt Optimization: Short-circuit for static strings
     if (!params.includes('$')) return params;
 
-    // Bolt Optimization: Fast check for direct matches to avoid regex overhead on non-matching strings.
+    // Bolt Optimization: Fast check for direct matches using string operations to avoid regex overhead.
     if (params.startsWith('${') && params.endsWith('}')) {
-      const directMatch = params.match(/^\${(config|state|params|item)(?:\.([^}]+))?}$/);
-      if (directMatch) {
-          const [, type, path] = directMatch;
+      const content = params.slice(2, -1);
+      const dotIdx = content.indexOf('.');
+      const type = dotIdx === -1 ? content : content.slice(0, dotIdx);
 
-          // Bolt Optimization: Use direct root selection instead of ternary chain or helper.
+      if (type === 'state' || type === 'config' || type === 'params' || type === 'item') {
+          const path = dotIdx === -1 ? undefined : content.slice(dotIdx + 1);
           let root;
           if (type === 'state') root = state;
           else if (type === 'config') root = config;
