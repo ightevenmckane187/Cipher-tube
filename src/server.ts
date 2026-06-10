@@ -21,10 +21,10 @@ export const sessionCache = new LRUCache<string, string>({
     ttl: 5 * 1000, // 5 seconds (Fast propagation)
 });
 
-// Bolt Optimization: Throttling cache for Redis EXPIRE calls
+// Bolt Optimization: Cache to throttle Redis EXPIRE calls (Activity Refresh)
 export const sessionUpdateCache = new LRUCache<string, boolean>({
   max: 1000,
-  ttl: 60 * 1000, // 60 seconds
+  ttl: 60 * 1000, // 60 seconds throttle
 });
 
 // Sentinel: Constant for negative caching to prevent Cache Penetration DoS
@@ -549,9 +549,6 @@ app.get("/", (req: Request, res: Response) => {
                         status.style.color = isError ? '#f28b82' : '#2ecc71';
                         statusTimeout = setTimeout(() => status.textContent = '', 3000);
                     };
-
-                    extendBtn.disabled = true;
-                    extendBtnText.textContent = 'Extending...';
 
                     try {
                         btn.disabled = true;
