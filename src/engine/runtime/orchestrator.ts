@@ -16,6 +16,13 @@ export interface ExecContext {
   registry?: Record<string, any>;
 }
 
+/**
+ * Sentinel: Centralized utility to block sensitive keys that could be used for prototype pollution.
+ */
+function isValidStateKey(key: string | undefined): boolean {
+  return !!key && key !== '__proto__' && key !== 'constructor' && key !== 'prototype';
+}
+
 export async function executeWorkflow(def: any, ctx: ExecContext, params: Record<string, any> = {}) {
   const state: Record<string, any> = { params };
   console.log(`Executing Workflow: ${def.name}`);
