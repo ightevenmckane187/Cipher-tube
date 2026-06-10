@@ -30,13 +30,6 @@ export const sessionUpdateCache = new LRUCache<string, boolean>({
 // Sentinel: Constant for negative caching to prevent Cache Penetration DoS
 const SESSION_NOT_FOUND = "__NOT_FOUND__";
 
-// Bolt Optimization: Cache to throttle Redis EXPIRE calls (Activity Refresh)
-// Sentinel: TTL of 60s matches the throttling logic in ensureSessionOwner.
-export const sessionUpdateCache = new LRUCache<string, boolean>({
-    max: 1000,
-    ttl: 60 * 1000,
-});
-
 const UUID_V4_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -230,6 +223,16 @@ app.get("/", (req: Request, res: Response) => {
                     70% { box-shadow: 0 0 0 10px transparent; }
                     100% { box-shadow: 0 0 0 0 transparent; }
                 }
+                @keyframes slideUp {
+                    from { transform: translate(-50%, 100%); opacity: 0; }
+                    to { transform: translate(-50%, 0); opacity: 1; }
+                }
+                .theme-toggle, .copy-button, #extend-session-btn {
+                    transition: transform 0.1s;
+                }
+                .theme-toggle:active, .copy-button:active, #extend-session-btn:active {
+                    transform: scale(0.98);
+                }
                 .theme-toggle {
                     background: none;
                     border: 1px solid var(--border-color);
@@ -380,6 +383,7 @@ app.get("/", (req: Request, res: Response) => {
                     z-index: 1000;
                     align-items: center;
                     gap: 16px;
+                    animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
                 }
                 #extend-session-btn {
                     background: white;
@@ -566,9 +570,6 @@ app.get("/", (req: Request, res: Response) => {
                         statusTimeout = setTimeout(() => status.textContent = '', 3000);
                     };
 
-                    extendBtn.disabled = true;
-                    extendBtn.textContent = 'Extending...';
-
                     try {
                         btn.disabled = true;
                         btnText.textContent = 'Extending...';
@@ -580,25 +581,26 @@ app.get("/", (req: Request, res: Response) => {
                             });
                             if (response.ok) {
                                 resetTimer();
-                                extendBtn.innerHTML = 'Extended! ✅';
+                                btnText.textContent = 'Extended! ✅';
                                 showStatus('Success');
                             } else {
                                 showStatus('Failed', true);
-                                extendBtn.innerHTML = originalBtnHtml;
                             }
                         } else {
                             // Simulation mode
                             await new Promise(resolve => setTimeout(resolve, 500));
                             resetTimer();
-                            extendBtn.innerHTML = 'Reset! ✅';
+                            btnText.textContent = 'Reset! ✅';
                             showStatus('Reset');
                         }
                     } catch (err) {
                         console.error('Extension failed:', err);
                         showStatus('Error', true);
                     } finally {
-                        btn.disabled = false;
-                        btnText.textContent = 'Extend Session';
+                        setTimeout(() => {
+                            btn.disabled = false;
+                            btnText.textContent = 'Extend Session';
+                        }, 2000);
                     }
                 });
 
@@ -625,16 +627,6 @@ app.get("/health", (req: Request, res: Response) => {
 });
 
 const jsonParser = express.json({ limit: "10kb" });
-
-/**
- * Sentinel: Disable caching for sensitive data.
- */
-const noCache = (req: Request, res: Response, next: NextFunction) => {
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-  res.setHeader("Pragma", "no-cache");
-  res.setHeader("Expires", "0");
-  next();
-};
 
 const validateUserId = (req: Request, res: Response, next: NextFunction) => {
   let userId = req.headers["x-user-id"];
