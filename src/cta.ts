@@ -51,11 +51,14 @@ for (let i = 0; i < NUM_INTEGRITY_TUBES; i++) {
   AUDIT_VERIFY_TUBE[i] = `Verified hash-lock tube ${i}`;
 }
 
+// Bolt Optimization: Hoist feature check for high-performance one-shot hashing
+const HAS_ONE_SHOT_HASH = typeof (crypto as any).hash === 'function';
+
 /**
  * Bolt Optimization: High-performance one-shot hashing with fallback for older Node versions.
  */
 function fastHash(algorithm: string, data: crypto.BinaryLike): Buffer {
-  if (typeof (crypto as any).hash === 'function') {
+  if (HAS_ONE_SHOT_HASH) {
     return (crypto as any).hash(algorithm, data, 'buffer');
   }
   return crypto.createHash(algorithm).update(data).digest();
