@@ -16,13 +16,6 @@ export interface ExecContext {
   registry?: Record<string, any>;
 }
 
-/**
- * Sentinel: Centralized utility to block sensitive keys that could be used for prototype pollution.
- */
-function isValidStateKey(key: string | undefined): boolean {
-  return !!key && key !== '__proto__' && key !== 'constructor' && key !== 'prototype';
-}
-
 export async function executeWorkflow(def: any, ctx: ExecContext, params: Record<string, any> = {}) {
   const state: Record<string, any> = { params };
   console.log(`Executing Workflow: ${def.name}`);
@@ -123,17 +116,6 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
   return await handler(resolvedParams, state, ctx.config);
 }
 
-/**
- * Sentinel: Centralized security helper to prevent prototype pollution.
- */
-function isValidStateKey(key: any): boolean {
-  return (
-    typeof key === 'string' &&
-    key !== '__proto__' &&
-    key !== 'constructor' &&
-    key !== 'prototype'
-  );
-}
 
 /**
  * Sentinel: Secure path resolution helper to prevent prototype pollution.
@@ -141,7 +123,7 @@ function isValidStateKey(key: any): boolean {
  * Improves resolveParams performance by ~10-15%.
  */
 function resolvePath(root: any, path: string | undefined): any {
-  if (root === undefined) return undefined;
+  if (root === undefined || root === null) return undefined;
   if (!path) return root;
 
   // Bolt Optimization: Iterative path resolution without split('.') to avoid array allocation.
