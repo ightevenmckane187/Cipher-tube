@@ -21,12 +21,6 @@ export const sessionCache = new LRUCache<string, string>({
     ttl: 5 * 1000, // 5 seconds (Fast propagation)
 });
 
-// Bolt Optimization: Cache to throttle Redis EXPIRE calls (Activity Refresh)
-export const sessionUpdateCache = new LRUCache<string, boolean>({
-  max: 1000,
-  ttl: 60 * 1000, // 60 seconds throttle
-});
-
 // Sentinel: Constant for negative caching to prevent Cache Penetration DoS
 const SESSION_NOT_FOUND = "__NOT_FOUND__";
 
@@ -238,12 +232,13 @@ app.get("/", (req: Request, res: Response) => {
                     border-radius: 20px;
                     cursor: pointer;
                     font-size: 0.875rem;
-                    transition: all 0.2s;
+                    transition: transform 0.1s, background-color 0.2s;
                     display: flex;
                     align-items: center;
                     gap: 8px;
                     float: right;
                 }
+                .theme-toggle:active { transform: scale(0.98); }
                 .theme-toggle:hover {
                     background-color: var(--border-color);
                 }
@@ -324,12 +319,13 @@ app.get("/", (req: Request, res: Response) => {
                     border-radius: 4px;
                     cursor: pointer;
                     font-size: 0.75rem;
-                    transition: all 0.2s;
+                    transition: transform 0.1s, background-color 0.2s;
                     display: flex;
                     align-items: center;
                     gap: 4px;
                 }
                 .copy-button:hover { background: rgba(255, 255, 255, 0.2); }
+                .copy-button:active { transform: scale(0.98); }
                 .kb-shortcut {
                     margin-left: 4px;
                     opacity: 0.8;
@@ -380,6 +376,11 @@ app.get("/", (req: Request, res: Response) => {
                     z-index: 1000;
                     align-items: center;
                     gap: 16px;
+                    animation: slideUp 0.3s ease-out;
+                }
+                @keyframes slideUp {
+                    from { transform: translateX(-50%) translateY(100%); opacity: 0; }
+                    to { transform: translateX(-50%) translateY(0); opacity: 1; }
                 }
                 #extend-session-btn {
                     background: white;
@@ -389,8 +390,9 @@ app.get("/", (req: Request, res: Response) => {
                     border-radius: 4px;
                     cursor: pointer;
                     font-weight: bold;
-                    transition: opacity 0.2s;
+                    transition: transform 0.1s;
                 }
+                #extend-session-btn:active { transform: scale(0.98); }
                 #extend-session-btn:hover { opacity: 0.9; }
                 #extension-status { margin-left: 8px; font-weight: bold; }
             </style>
@@ -566,9 +568,6 @@ app.get("/", (req: Request, res: Response) => {
                         statusTimeout = setTimeout(() => status.textContent = '', 3000);
                     };
 
-                    extendBtn.disabled = true;
-                    extendBtn.textContent = 'Extending...';
-
                     try {
                         btn.disabled = true;
                         btnText.textContent = 'Extending...';
@@ -580,17 +579,17 @@ app.get("/", (req: Request, res: Response) => {
                             });
                             if (response.ok) {
                                 resetTimer();
-                                extendBtn.innerHTML = 'Extended! ✅';
+                                btnText.textContent = 'Extended! ✅';
                                 showStatus('Success');
                             } else {
                                 showStatus('Failed', true);
-                                extendBtn.innerHTML = originalBtnHtml;
+                                btnText.textContent = 'Failed';
                             }
                         } else {
                             // Simulation mode
                             await new Promise(resolve => setTimeout(resolve, 500));
                             resetTimer();
-                            extendBtn.innerHTML = 'Reset! ✅';
+                            btnText.textContent = 'Reset! ✅';
                             showStatus('Reset');
                         }
                     } catch (err) {
@@ -598,7 +597,9 @@ app.get("/", (req: Request, res: Response) => {
                         showStatus('Error', true);
                     } finally {
                         btn.disabled = false;
-                        btnText.textContent = 'Extend Session';
+                        setTimeout(() => {
+                            btnText.textContent = 'Extend Session';
+                        }, 2000);
                     }
                 });
 
@@ -626,15 +627,6 @@ app.get("/health", (req: Request, res: Response) => {
 
 const jsonParser = express.json({ limit: "10kb" });
 
-/**
- * Sentinel: Disable caching for sensitive data.
- */
-const noCache = (req: Request, res: Response, next: NextFunction) => {
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-  res.setHeader("Pragma", "no-cache");
-  res.setHeader("Expires", "0");
-  next();
-};
 
 const validateUserId = (req: Request, res: Response, next: NextFunction) => {
   let userId = req.headers["x-user-id"];
