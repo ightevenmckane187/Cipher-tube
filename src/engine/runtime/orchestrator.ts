@@ -16,13 +16,6 @@ export interface ExecContext {
   registry?: Record<string, any>;
 }
 
-/**
- * Sentinel: Centralized utility to block sensitive keys that could be used for prototype pollution.
- */
-function isValidStateKey(key: string | undefined): boolean {
-  return !!key && key !== '__proto__' && key !== 'constructor' && key !== 'prototype';
-}
-
 export async function executeWorkflow(def: any, ctx: ExecContext, params: Record<string, any> = {}) {
   const state: Record<string, any> = { params };
   console.log(`Executing Workflow: ${def.name}`);
@@ -124,18 +117,6 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
 }
 
 /**
- * Sentinel: Centralized security helper to prevent prototype pollution.
- */
-function isValidStateKey(key: any): boolean {
-  return (
-    typeof key === 'string' &&
-    key !== '__proto__' &&
-    key !== 'constructor' &&
-    key !== 'prototype'
-  );
-}
-
-/**
  * Sentinel: Secure path resolution helper to prevent prototype pollution.
  * Bolt Optimization: Fast path for single-level keys and optimized loop for deep paths.
  * Improves resolveParams performance by ~10-15%.
@@ -206,25 +187,48 @@ export function resolveParams(params: any, config: any, state: any, item: any): 
 
   if (Array.isArray(params)) {
     const len = params.length;
-    const resolved = new Array(len);
     for (let i = 0; i < len; i++) {
-        resolved[i] = resolveParams(params[i], config, state, item);
+        const val = params[i];
+        const res = resolveParams(val, config, state, item);
+        if (res !== val) {
+            const resolved = new Array(len);
+            for (let j = 0; j < i; j++) resolved[j] = params[j];
+            resolved[i] = res;
+            for (let k = i + 1; k < len; k++) resolved[k] = resolveParams(params[k], config, state, item);
+            return resolved;
+        }
     }
-    return resolved;
+    return params;
   }
 
   if (params && typeof params === 'object') {
-    const resolved: any = {};
     const keys = Object.keys(params);
-    for (let i = 0; i < keys.length; i++) {
+    const len = keys.length;
+    for (let i = 0; i < len; i++) {
       const k = keys[i];
-      // Sentinel: Block prototype pollution during object iteration
       if (!isValidStateKey(k)) {
-        continue;
+        const resolved: any = {};
+        for (let j = 0; j < i; j++) resolved[keys[j]] = params[keys[j]];
+        for (let j = i + 1; j < len; j++) {
+            const k2 = keys[j];
+            if (isValidStateKey(k2)) resolved[k2] = resolveParams(params[k2], config, state, item);
+        }
+        return resolved;
       }
-      resolved[k] = resolveParams(params[k], config, state, item);
+      const val = params[k];
+      const res = resolveParams(val, config, state, item);
+      if (res !== val) {
+        const resolved: any = {};
+        for (let j = 0; j < i; j++) resolved[keys[j]] = params[keys[j]];
+        resolved[k] = res;
+        for (let j = i + 1; j < len; j++) {
+            const k2 = keys[j];
+            if (isValidStateKey(k2)) resolved[k2] = resolveParams(params[k2], config, state, item);
+        }
+        return resolved;
+      }
     }
-    return resolved;
+    return params;
   }
 
   return params;
