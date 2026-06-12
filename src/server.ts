@@ -22,6 +22,7 @@ export const sessionCache = new LRUCache<string, string>({
 });
 
 // Bolt Optimization: Cache to throttle Redis EXPIRE calls (Activity Refresh)
+// Sentinel: TTL of 60s matches the throttling logic in ensureSessionOwner.
 export const sessionUpdateCache = new LRUCache<string, boolean>({
   max: 1000,
   ttl: 60 * 1000, // 60 seconds throttle
@@ -29,13 +30,6 @@ export const sessionUpdateCache = new LRUCache<string, boolean>({
 
 // Sentinel: Constant for negative caching to prevent Cache Penetration DoS
 const SESSION_NOT_FOUND = "__NOT_FOUND__";
-
-// Bolt Optimization: Cache to throttle Redis EXPIRE calls (Activity Refresh)
-// Sentinel: TTL of 60s matches the throttling logic in ensureSessionOwner.
-export const sessionUpdateCache = new LRUCache<string, boolean>({
-    max: 1000,
-    ttl: 60 * 1000,
-});
 
 const UUID_V4_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -371,7 +365,7 @@ app.get("/", (req: Request, res: Response) => {
                     position: fixed;
                     bottom: 20px;
                     left: 50%;
-                    transform: translateX(-50%);
+                    transform: translateX(-50%) translateY(100px);
                     background: var(--primary);
                     color: white;
                     padding: 12px 24px;
@@ -380,6 +374,13 @@ app.get("/", (req: Request, res: Response) => {
                     z-index: 1000;
                     align-items: center;
                     gap: 16px;
+                    opacity: 0;
+                    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s;
+                }
+                #timeout-banner.visible {
+                    display: flex;
+                    transform: translateX(-50%) translateY(0);
+                    opacity: 1;
                 }
                 #extend-session-btn {
                     background: white;
@@ -442,7 +443,7 @@ app.get("/", (req: Request, res: Response) => {
             </main>
 
             <div id="timeout-banner" role="alert">
-                <span>Session expires in 1 minute.</span>
+                <span>Session expires in <span id="countdown-display" aria-live="polite">60</span> seconds.</span>
                 <button id="extend-session-btn" aria-keyshortcuts="e"><span id="extend-btn-text">Extend Session</span> <kbd aria-hidden="true" style="font-size: 0.7em; opacity: 0.8; border: 1px solid rgba(255,255,255,0.4); padding: 1px 3px; border-radius: 3px; margin-left: 4px;">(e)</kbd></button>
                 <span id="extension-status" aria-live="polite"></span>
             </div>
@@ -540,17 +541,40 @@ app.get("/", (req: Request, res: Response) => {
 
                 // Session Timeout Simulation
                 let timeoutWarning;
+                let countdownInterval;
                 window.currentSessionId = null;
                 const SESSION_DURATION = 3600 * 1000;
                 const WARNING_TIME = 60 * 1000;
 
                 function resetTimer() {
                     if (timeoutWarning) clearTimeout(timeoutWarning);
-                    document.getElementById('timeout-banner').style.display = 'none';
+                    if (countdownInterval) clearInterval(countdownInterval);
+                    const banner = document.getElementById('timeout-banner');
+                    banner.classList.remove('visible');
+                    setTimeout(() => { banner.style.display = 'none'; }, 400);
 
                     timeoutWarning = setTimeout(() => {
-                        document.getElementById('timeout-banner').style.display = 'flex';
+                        banner.style.display = 'flex';
+                        setTimeout(() => {
+                            banner.classList.add('visible');
+                            startCountdown(60);
+                        }, 10);
                     }, SESSION_DURATION - WARNING_TIME);
+                }
+
+                function startCountdown(seconds) {
+                    if (countdownInterval) clearInterval(countdownInterval);
+                    const display = document.getElementById('countdown-display');
+                    let remaining = seconds;
+                    display.textContent = remaining;
+
+                    countdownInterval = setInterval(() => {
+                        remaining--;
+                        display.textContent = remaining;
+                        if (remaining <= 0) {
+                            clearInterval(countdownInterval);
+                        }
+                    }, 1000);
                 }
 
                 let statusTimeout;
@@ -566,31 +590,26 @@ app.get("/", (req: Request, res: Response) => {
                         statusTimeout = setTimeout(() => status.textContent = '', 3000);
                     };
 
-                    extendBtn.disabled = true;
-                    extendBtn.textContent = 'Extending...';
-
                     try {
                         btn.disabled = true;
                         btnText.textContent = 'Extending...';
 
                         if (currentSessionId) {
+                            const userId = document.getElementById('user-id-input').value.trim() || 'demo-user';
                             const response = await fetch('/session/' + currentSessionId + '/extend', {
                                 method: 'POST',
-                                headers: { 'x-user-id': 'demo-user' }
+                                headers: { 'x-user-id': userId }
                             });
                             if (response.ok) {
                                 resetTimer();
-                                extendBtn.innerHTML = 'Extended! ✅';
                                 showStatus('Success');
                             } else {
                                 showStatus('Failed', true);
-                                extendBtn.innerHTML = originalBtnHtml;
                             }
                         } else {
                             // Simulation mode
                             await new Promise(resolve => setTimeout(resolve, 500));
                             resetTimer();
-                            extendBtn.innerHTML = 'Reset! ✅';
                             showStatus('Reset');
                         }
                     } catch (err) {
@@ -606,9 +625,12 @@ app.get("/", (req: Request, res: Response) => {
                 const originalFetch = window.fetch;
                 window.fetch = async (...args) => {
                     const response = await originalFetch(...args);
-                    if (typeof args[0] === 'string' && args[0].includes('/mcp') && args[1]?.method === 'POST') {
-                        const data = await response.clone().json();
-                        if (data.sessionId) window.currentSessionId = data.sessionId;
+                    if (response.ok) {
+                        resetTimer(); // Sync TTL on all successful actions
+                        if (typeof args[0] === 'string' && args[0].includes('/mcp') && args[1]?.method === 'POST') {
+                            const data = await response.clone().json();
+                            if (data.sessionId) window.currentSessionId = data.sessionId;
+                        }
                     }
                     return response;
                 };
@@ -625,16 +647,6 @@ app.get("/health", (req: Request, res: Response) => {
 });
 
 const jsonParser = express.json({ limit: "10kb" });
-
-/**
- * Sentinel: Disable caching for sensitive data.
- */
-const noCache = (req: Request, res: Response, next: NextFunction) => {
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-  res.setHeader("Pragma", "no-cache");
-  res.setHeader("Expires", "0");
-  next();
-};
 
 const validateUserId = (req: Request, res: Response, next: NextFunction) => {
   let userId = req.headers["x-user-id"];
