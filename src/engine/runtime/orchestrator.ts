@@ -16,12 +16,6 @@ export interface ExecContext {
   registry?: Record<string, any>;
 }
 
-/**
- * Sentinel: Centralized utility to block sensitive keys that could be used for prototype pollution.
- */
-function isValidStateKey(key: string | undefined): boolean {
-  return !!key && key !== '__proto__' && key !== 'constructor' && key !== 'prototype';
-}
 
 export async function executeWorkflow(def: any, ctx: ExecContext, params: Record<string, any> = {}) {
   const state: Record<string, any> = { params };
@@ -123,17 +117,6 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
   return await handler(resolvedParams, state, ctx.config);
 }
 
-/**
- * Sentinel: Centralized security helper to prevent prototype pollution.
- */
-function isValidStateKey(key: any): boolean {
-  return (
-    typeof key === 'string' &&
-    key !== '__proto__' &&
-    key !== 'constructor' &&
-    key !== 'prototype'
-  );
-}
 
 /**
  * Sentinel: Secure path resolution helper to prevent prototype pollution.
@@ -206,25 +189,50 @@ export function resolveParams(params: any, config: any, state: any, item: any): 
 
   if (Array.isArray(params)) {
     const len = params.length;
-    const resolved = new Array(len);
+    let resolved: any[] | undefined;
     for (let i = 0; i < len; i++) {
-        resolved[i] = resolveParams(params[i], config, state, item);
+      const val = params[i];
+      const res = resolveParams(val, config, state, item);
+      if (resolved) {
+        resolved[i] = res;
+      } else if (res !== val) {
+        // Bolt Optimization: Copy-on-Write. Only allocate new array if a value actually changed.
+        resolved = new Array(len);
+        for (let j = 0; j < i; j++) resolved[j] = params[j];
+        resolved[i] = res;
+      }
     }
-    return resolved;
+    return resolved || params;
   }
 
   if (params && typeof params === 'object') {
-    const resolved: any = {};
+    let resolved: any | undefined;
     const keys = Object.keys(params);
     for (let i = 0; i < keys.length; i++) {
       const k = keys[i];
       // Sentinel: Block prototype pollution during object iteration
       if (!isValidStateKey(k)) {
+        if (!resolved) {
+          // Bolt Optimization: Copy-on-Write. Allocate if we need to filter out a key.
+          resolved = {};
+          for (let j = 0; j < i; j++) resolved[keys[j]] = params[keys[j]];
+        }
         continue;
       }
-      resolved[k] = resolveParams(params[k], config, state, item);
+
+      const val = params[k];
+      const res = resolveParams(val, config, state, item);
+
+      if (resolved) {
+        resolved[k] = res;
+      } else if (res !== val) {
+        // Bolt Optimization: Copy-on-Write. Only allocate new object if a value changed.
+        resolved = {};
+        for (let j = 0; j < i; j++) resolved[keys[j]] = params[keys[j]];
+        resolved[k] = res;
+      }
     }
-    return resolved;
+    return resolved || params;
   }
 
   return params;
