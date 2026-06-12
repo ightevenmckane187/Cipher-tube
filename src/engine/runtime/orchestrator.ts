@@ -16,12 +16,6 @@ export interface ExecContext {
   registry?: Record<string, any>;
 }
 
-/**
- * Sentinel: Centralized utility to block sensitive keys that could be used for prototype pollution.
- */
-function isValidStateKey(key: string | undefined): boolean {
-  return !!key && key !== '__proto__' && key !== 'constructor' && key !== 'prototype';
-}
 
 export async function executeWorkflow(def: any, ctx: ExecContext, params: Record<string, any> = {}) {
   const state: Record<string, any> = { params };
@@ -123,17 +117,6 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
   return await handler(resolvedParams, state, ctx.config);
 }
 
-/**
- * Sentinel: Centralized security helper to prevent prototype pollution.
- */
-function isValidStateKey(key: any): boolean {
-  return (
-    typeof key === 'string' &&
-    key !== '__proto__' &&
-    key !== 'constructor' &&
-    key !== 'prototype'
-  );
-}
 
 /**
  * Sentinel: Secure path resolution helper to prevent prototype pollution.
@@ -185,6 +168,7 @@ export function resolveParams(params: any, config: any, state: any, item: any): 
           else if (type === 'params') root = state?.params;
           else if (type === 'item') root = item;
 
+          if (type === 'item' && !path && root === null) return undefined;
           return resolvePath(root, path);
       }
     }
