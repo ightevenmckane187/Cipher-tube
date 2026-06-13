@@ -22,6 +22,7 @@ export const sessionCache = new LRUCache<string, string>({
 });
 
 // Bolt Optimization: Cache to throttle Redis EXPIRE calls (Activity Refresh)
+// Sentinel: TTL of 60s matches the throttling logic in ensureSessionOwner.
 export const sessionUpdateCache = new LRUCache<string, boolean>({
   max: 1000,
   ttl: 60 * 1000, // 60 seconds throttle
@@ -29,13 +30,6 @@ export const sessionUpdateCache = new LRUCache<string, boolean>({
 
 // Sentinel: Constant for negative caching to prevent Cache Penetration DoS
 const SESSION_NOT_FOUND = "__NOT_FOUND__";
-
-// Bolt Optimization: Cache to throttle Redis EXPIRE calls (Activity Refresh)
-// Sentinel: TTL of 60s matches the throttling logic in ensureSessionOwner.
-export const sessionUpdateCache = new LRUCache<string, boolean>({
-    max: 1000,
-    ttl: 60 * 1000,
-});
 
 const UUID_V4_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -96,23 +90,22 @@ app.use(
   }),
 );
 
-// Sentinel: Manually apply Permissions-Policy as helmet 8.x seems to lack built-in support in some environments
+// Sentinel: Manually apply hardened Permissions-Policy as helmet 8.x seems to lack built-in support.
+// Applied before the rate limiter to ensure all responses (including 429) are protected.
 app.use((req: Request, res: Response, next: NextFunction) => {
-  res.setHeader("Permissions-Policy", "geolocation=(), camera=(), microphone=()");
+  res.setHeader(
+    "Permissions-Policy",
+    "accelerometer=(), ambient-light-sensor=(), autoplay=(), battery=(), camera=(), display-capture=(), document-domain=(), encrypted-media=(), fullscreen=(), gamepad=(), geolocation=(), gyroscope=(), layout-animations=(), legacy-image-formats=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), speaker-selection=(), screen-wake-lock=(), sync-xhr=(), usb=(), web-share=(), xr-spatial-tracking=(), interest-cohort=()"
+  );
   next();
 });
 app.disable("x-powered-by"); // Further ensures the header is removed
 
 app.use(apiLimiter); // Sentinel: Apply global rate limiting after core security headers are set
 
-// CSP and Nonce: Applied only to requests that pass the rate limiter
+// Nonce generation: Applied only to requests that pass the rate limiter
 app.use((req: Request, res: Response, next: NextFunction) => {
   res.locals.nonce = crypto.randomBytes(16).toString("base64");
-  // Sentinel: Harden browser security by restricting sensitive features (Defense-in-depth)
-  res.setHeader(
-    "Permissions-Policy",
-    "accelerometer=(), ambient-light-sensor=(), autoplay=(), battery=(), camera=(), display-capture=(), document-domain=(), encrypted-media=(), fullscreen=(), gamepad=(), geolocation=(), gyroscope=(), layout-animations=(), legacy-image-formats=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), speaker-selection=(), screen-wake-lock=(), sync-xhr=(), usb=(), web-share=(), xr-spatial-tracking=(), interest-cohort=()",
-  );
   next();
 });
 
@@ -566,9 +559,6 @@ app.get("/", (req: Request, res: Response) => {
                         statusTimeout = setTimeout(() => status.textContent = '', 3000);
                     };
 
-                    extendBtn.disabled = true;
-                    extendBtn.textContent = 'Extending...';
-
                     try {
                         btn.disabled = true;
                         btnText.textContent = 'Extending...';
@@ -580,18 +570,24 @@ app.get("/", (req: Request, res: Response) => {
                             });
                             if (response.ok) {
                                 resetTimer();
-                                extendBtn.innerHTML = 'Extended! ✅';
+                                btnText.textContent = 'Extended! ✅';
                                 showStatus('Success');
+                                setTimeout(() => {
+                                    btnText.textContent = 'Extend Session';
+                                }, 2000);
                             } else {
                                 showStatus('Failed', true);
-                                extendBtn.innerHTML = originalBtnHtml;
+                                btnText.textContent = 'Extend Session';
                             }
                         } else {
                             // Simulation mode
                             await new Promise(resolve => setTimeout(resolve, 500));
                             resetTimer();
-                            extendBtn.innerHTML = 'Reset! ✅';
+                            btnText.textContent = 'Reset! ✅';
                             showStatus('Reset');
+                            setTimeout(() => {
+                                btnText.textContent = 'Extend Session';
+                            }, 2000);
                         }
                     } catch (err) {
                         console.error('Extension failed:', err);
@@ -626,15 +622,6 @@ app.get("/health", (req: Request, res: Response) => {
 
 const jsonParser = express.json({ limit: "10kb" });
 
-/**
- * Sentinel: Disable caching for sensitive data.
- */
-const noCache = (req: Request, res: Response, next: NextFunction) => {
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-  res.setHeader("Pragma", "no-cache");
-  res.setHeader("Expires", "0");
-  next();
-};
 
 const validateUserId = (req: Request, res: Response, next: NextFunction) => {
   let userId = req.headers["x-user-id"];
