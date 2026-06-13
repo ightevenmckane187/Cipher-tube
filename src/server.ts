@@ -231,7 +231,7 @@ app.get("/", (req: Request, res: Response) => {
                     border-radius: 20px;
                     cursor: pointer;
                     font-size: 0.875rem;
-                    transition: all 0.2s;
+                    transition: all 0.2s, transform 0.1s;
                     display: flex;
                     align-items: center;
                     gap: 8px;
@@ -239,6 +239,9 @@ app.get("/", (req: Request, res: Response) => {
                 }
                 .theme-toggle:hover {
                     background-color: var(--border-color);
+                }
+                .theme-toggle:active {
+                    transform: scale(0.98);
                 }
                 .header-container {
                     display: flex;
@@ -317,12 +320,15 @@ app.get("/", (req: Request, res: Response) => {
                     border-radius: 4px;
                     cursor: pointer;
                     font-size: 0.75rem;
-                    transition: all 0.2s;
+                    transition: all 0.2s, transform 0.1s;
                     display: flex;
                     align-items: center;
                     gap: 4px;
                 }
                 .copy-button:hover { background: rgba(255, 255, 255, 0.2); }
+                .copy-button:active {
+                    transform: scale(0.98);
+                }
                 .kb-shortcut {
                     margin-left: 4px;
                     opacity: 0.8;
@@ -360,11 +366,11 @@ app.get("/", (req: Request, res: Response) => {
                 #user-id-counter { font-size: 0.75rem; opacity: 0.7; }
                 #user-id-counter.near-limit { color: #d63031; opacity: 1; font-weight: bold; }
                 #timeout-banner {
-                    display: none;
+                    display: flex;
                     position: fixed;
                     bottom: 20px;
                     left: 50%;
-                    transform: translateX(-50%);
+                    transform: translateX(-50%) translateY(20px);
                     background: var(--primary);
                     color: white;
                     padding: 12px 24px;
@@ -373,6 +379,14 @@ app.get("/", (req: Request, res: Response) => {
                     z-index: 1000;
                     align-items: center;
                     gap: 16px;
+                    opacity: 0;
+                    visibility: hidden;
+                    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s, visibility 0.3s;
+                }
+                #timeout-banner.visible {
+                    opacity: 1;
+                    visibility: visible;
+                    transform: translateX(-50%) translateY(0);
                 }
                 #extend-session-btn {
                     background: white;
@@ -382,9 +396,16 @@ app.get("/", (req: Request, res: Response) => {
                     border-radius: 4px;
                     cursor: pointer;
                     font-weight: bold;
-                    transition: opacity 0.2s;
+                    transition: opacity 0.2s, transform 0.1s;
                 }
                 #extend-session-btn:hover { opacity: 0.9; }
+                #extend-session-btn:active:not(:disabled) {
+                    transform: scale(0.98);
+                }
+                #extend-session-btn:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
                 #extension-status { margin-left: 8px; font-weight: bold; }
             </style>
         </head>
@@ -434,8 +455,8 @@ app.get("/", (req: Request, res: Response) => {
                 </div>
             </main>
 
-            <div id="timeout-banner" role="alert">
-                <span>Session expires in 1 minute.</span>
+            <div id="timeout-banner" role="alert" aria-live="assertive">
+                <span>Session expires in <strong id="countdown-display">60</strong> seconds.</span>
                 <button id="extend-session-btn" aria-keyshortcuts="e"><span id="extend-btn-text">Extend Session</span> <kbd aria-hidden="true" style="font-size: 0.7em; opacity: 0.8; border: 1px solid rgba(255,255,255,0.4); padding: 1px 3px; border-radius: 3px; margin-left: 4px;">(e)</kbd></button>
                 <span id="extension-status" aria-live="polite"></span>
             </div>
@@ -533,16 +554,32 @@ app.get("/", (req: Request, res: Response) => {
 
                 // Session Timeout Simulation
                 let timeoutWarning;
+                let countdownInterval;
                 window.currentSessionId = null;
                 const SESSION_DURATION = 3600 * 1000;
                 const WARNING_TIME = 60 * 1000;
 
+                function startCountdown() {
+                    let seconds = 60;
+                    const display = document.getElementById('countdown-display');
+                    if (countdownInterval) clearInterval(countdownInterval);
+
+                    display.textContent = seconds;
+                    countdownInterval = setInterval(() => {
+                        seconds--;
+                        display.textContent = seconds;
+                        if (seconds <= 0) clearInterval(countdownInterval);
+                    }, 1000);
+                }
+
                 function resetTimer() {
                     if (timeoutWarning) clearTimeout(timeoutWarning);
-                    document.getElementById('timeout-banner').style.display = 'none';
+                    if (countdownInterval) clearInterval(countdownInterval);
+                    document.getElementById('timeout-banner').classList.remove('visible');
 
                     timeoutWarning = setTimeout(() => {
-                        document.getElementById('timeout-banner').style.display = 'flex';
+                        document.getElementById('timeout-banner').classList.add('visible');
+                        startCountdown();
                     }, SESSION_DURATION - WARNING_TIME);
                 }
 
@@ -572,29 +609,28 @@ app.get("/", (req: Request, res: Response) => {
                                 resetTimer();
                                 btnText.textContent = 'Extended! ✅';
                                 showStatus('Success');
-                                setTimeout(() => {
-                                    btnText.textContent = 'Extend Session';
-                                }, 2000);
                             } else {
                                 showStatus('Failed', true);
                                 btnText.textContent = 'Extend Session';
                             }
                         } else {
                             // Simulation mode
-                            await new Promise(resolve => setTimeout(resolve, 500));
+                            await new Promise(resolve => setTimeout(resolve, 800));
                             resetTimer();
                             btnText.textContent = 'Reset! ✅';
                             showStatus('Reset');
-                            setTimeout(() => {
-                                btnText.textContent = 'Extend Session';
-                            }, 2000);
                         }
                     } catch (err) {
                         console.error('Extension failed:', err);
                         showStatus('Error', true);
-                    } finally {
-                        btn.disabled = false;
                         btnText.textContent = 'Extend Session';
+                    } finally {
+                        setTimeout(() => {
+                            btn.disabled = false;
+                            if (btnText.textContent.includes('✅')) {
+                                btnText.textContent = 'Extend Session';
+                            }
+                        }, 2000);
                     }
                 });
 
