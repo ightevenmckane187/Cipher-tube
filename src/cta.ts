@@ -201,14 +201,33 @@ export function decryptCipherTube(
   const poolSalts: Buffer[] = new Array(101);
   const poolHashes: Buffer[] = new Array(101);
 
+  // Bolt Optimization: Cache for hash string to Buffer conversion to avoid redundant allocations.
+  // This is highly effective because multiple integrity layers share the same hash lock.
+  // Note: These buffers are only used for read-only comparison via timingSafeEqual.
+  let lastHashStr: string | undefined;
+  let lastHashBuf: Buffer | undefined;
+
   for (const tube of tubes) {
     if (!tube || typeof tube !== 'object' || typeof tube.layer !== 'number') continue;
     const layer = tube.layer;
     if (layer < 0 || layer > 100) continue;
 
     poolTubes[layer] = tube;
-    if (typeof tube.salt === 'string') poolSalts[layer] = Buffer.from(tube.salt, 'hex');
-    if (typeof tube.hash === 'string') poolHashes[layer] = Buffer.from(tube.hash, 'hex');
+
+    // Bolt Optimization: Selectively convert fields based on tube type to avoid redundant work.
+    if (tube.type === 'aes-256-gcm') {
+      if (typeof tube.salt === 'string') poolSalts[layer] = Buffer.from(tube.salt, 'hex');
+    } else if (tube.type === 'hash-lock') {
+      if (typeof tube.hash === 'string') {
+        if (tube.hash === lastHashStr && lastHashBuf) {
+          poolHashes[layer] = lastHashBuf;
+        } else {
+          lastHashStr = tube.hash;
+          lastHashBuf = Buffer.from(tube.hash, 'hex');
+          poolHashes[layer] = lastHashBuf;
+        }
+      }
+    }
   }
 
   // === Decrypt 13 encryption layers in reverse ===
