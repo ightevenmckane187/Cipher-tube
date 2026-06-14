@@ -102,11 +102,17 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
     return { invoked: workflowName };
   }
 
-  const [ns, fn] = actionStr.split('.');
+  const parts = actionStr.split('.');
+  if (parts.length !== 2 || !isValidStateKey(parts[0]) || !isValidStateKey(parts[1])) {
+    console.warn(`Invalid or insecure action string: ${actionStr}`);
+    return null;
+  }
+
+  const [ns, fn] = parts;
   const handler = ctx.actions[ns]?.[fn];
 
-  if (!handler) {
-    console.warn(`Unknown action: ${actionStr}`);
+  if (typeof handler !== 'function') {
+    console.warn(`Action handler not found or not a function: ${actionStr}`);
     return null;
   }
 
@@ -122,7 +128,7 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
  * Improves resolveParams performance by ~10-15%.
  */
 function resolvePath(root: any, path: string | undefined): any {
-  if (root === undefined) return undefined;
+  if (root === undefined || root === null) return undefined;
   if (!path) return root;
 
   // Bolt Optimization: Iterative path resolution without split('.') to avoid array allocation.

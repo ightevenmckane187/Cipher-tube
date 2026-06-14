@@ -67,3 +67,8 @@
 **Vulnerability:** Denial of Service (DoS) via Cache Penetration.
 **Learning:** The application was vulnerable to resource exhaustion because it only cached successful session lookups. Attackers could flood the system with requests for non-existent session IDs, forcing a Redis lookup for every request and bypassing the in-memory cache entirely.
 **Prevention:** Implement negative caching by storing a sentinel value (e.g., "__NOT_FOUND__") in the local cache for keys that do not exist in the primary database. This ensures that repeated lookups for missing resources are handled at the cache layer, protecting the database from exhaustion.
+
+## 2026-06-27 - Action Injection and Type Confusion in Orchestrator
+**Vulnerability:** Action strings could be used to access prototype properties or non-function members, leading to prototype pollution or runtime TypeErrors.
+**Learning:** Splitting user-controlled action strings (e.g., "ns.fn") without validating the resulting keys against prototype pollution (like "__proto__") or verifying that the final handler is actually a function can allow attackers to bypass security boundaries or crash the service.
+**Prevention:** Always validate every segment of a dynamic action string using "isValidStateKey" and perform an explicit "typeof handler === 'function'" check before execution.
