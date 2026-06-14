@@ -17,8 +17,8 @@ const PORT = process.env.PORT || 3000;
 // Sentinel: TTL reduced to 5s to ensure fast propagation of session revocations.
 // Sentinel: Negative caching of non-existent sessions to prevent cache penetration.
 export const sessionCache = new LRUCache<string, string>({
-    max: 1000,
-    ttl: 5 * 1000, // 5 seconds (Fast propagation)
+  max: 1000,
+  ttl: 5 * 1000, // 5 seconds (Fast propagation)
 });
 
 // Bolt Optimization: Cache to throttle Redis EXPIRE calls (Activity Refresh)
@@ -95,7 +95,7 @@ app.use(
 app.use((req: Request, res: Response, next: NextFunction) => {
   res.setHeader(
     "Permissions-Policy",
-    "accelerometer=(), ambient-light-sensor=(), autoplay=(), battery=(), camera=(), display-capture=(), document-domain=(), encrypted-media=(), fullscreen=(), gamepad=(), geolocation=(), gyroscope=(), layout-animations=(), legacy-image-formats=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), speaker-selection=(), screen-wake-lock=(), sync-xhr=(), usb=(), web-share=(), xr-spatial-tracking=(), interest-cohort=()"
+    "accelerometer=(), ambient-light-sensor=(), autoplay=(), battery=(), camera=(), display-capture=(), document-domain=(), encrypted-media=(), fullscreen=(), gamepad=(), geolocation=(), gyroscope=(), layout-animations=(), legacy-image-formats=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), speaker-selection=(), screen-wake-lock=(), sync-xhr=(), usb=(), web-share=(), xr-spatial-tracking=(), interest-cohort=()",
   );
   next();
 });
@@ -131,7 +131,7 @@ app.use(
 );
 
 // Serve accessible documentation (WCAG 602.3 compliance)
-app.use('/docs', express.static(path.join(__dirname, '../docs')));
+app.use("/docs", express.static(path.join(__dirname, "../docs")));
 
 export const redisClient: RedisClientType = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
@@ -417,20 +417,39 @@ app.get("/", (req: Request, res: Response) => {
                 <h2>Quick Start</h2>
                 <div class="input-group">
                     <div class="counter-container">
-                        <label for="user-id-input">Customize your User ID:</label>
-                        <span id="user-id-counter" aria-live="polite">0 of 128 characters used</span>
+                        <label for="user-id-input">User ID</label>
+                        <span id="user-id-counter" aria-live="polite">0 / 128</span>
                     </div>
                     <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter">
                 </div>
-                <p>To get started, create a session via the API:</p>
+                <p>To get started, create a session via the API or GUI:</p>
                 <div class="code-container">
-                    <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard" aria-keyshortcuts="c">
-                        <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-                        <svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                        <span id="copy-text" aria-live="polite">Copy</span>
-                        <kbd aria-hidden="true" class="kb-shortcut">(c)</kbd>
-                    </button>
+                    <div class="code-header">
+                        <span style="font-size: 0.75rem; color: #aaa; font-family: monospace; font-weight: bold;">Terminal</span>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="copy-button" id="create-session-btn" aria-label="Create new session" aria-keyshortcuts="n">
+                                <span id="create-btn-text">Create Session</span>
+                                <kbd aria-hidden="true" class="kb-shortcut">(n)</kbd>
+                            </button>
+                            <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard" aria-keyshortcuts="c">
+                                <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                                <svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                <span id="copy-text" aria-live="polite">Copy</span>
+                                <kbd aria-hidden="true" class="kb-shortcut">(c)</kbd>
+                            </button>
+                        </div>
+                    </div>
                     <pre tabindex="0" role="region" aria-label="Terminal command example"><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
+                </div>
+
+                <div id="session-display" class="code-container" style="display: none; border-color: var(--success);">
+                    <div class="code-header">
+                        <span style="font-size: 0.75rem; color: var(--success); font-weight: bold;">Active Session</span>
+                        <button class="copy-button" id="copy-session-id" aria-label="Copy Session ID" style="background: var(--success); border: none; color: white;">
+                            <span id="copy-session-text">Copy</span>
+                        </button>
+                    </div>
+                    <pre style="padding: 1rem;"><code id="active-session-id" style="color: #2ecc71; font-weight: bold;"></code></pre>
                 </div>
             </main>
 
@@ -476,52 +495,56 @@ app.get("/", (req: Request, res: Response) => {
                     });
                 });
 
-                const copyButton = document.getElementById('copy-curl');
-                const copyText = document.getElementById('copy-text');
-                const curlCommand = document.getElementById('curl-command');
-                const userIdInput = document.getElementById('user-id-input');
+                const copyButton = document.getElementById('copy-curl'), copyText = document.getElementById('copy-text');
+                const curlCommand = document.getElementById('curl-command'), createSessionBtn = document.getElementById('create-session-btn');
+                const createBtnText = document.getElementById('create-btn-text'), sessionDisplay = document.getElementById('session-display');
+                const activeSessionId = document.getElementById('active-session-id'), copySessionBtn = document.getElementById('copy-session-id');
+                const copySessionText = document.getElementById('copy-session-text'), userIdInput = document.getElementById('user-id-input');
                 const userIdCounter = document.getElementById('user-id-counter');
 
                 function updateCurlCommand() {
-                    const currentOrigin = window.location.origin;
                     const userId = userIdInput.value.trim() || 'demo-user';
-                    curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: \${userId}"\`;
+                    curlCommand.textContent = \`curl -X POST \${window.location.origin}/mcp -H "x-user-id: \${userId}"\`;
+                    userIdCounter.textContent = \`\${userIdInput.value.length} / 128\`;
+                    userIdCounter.classList.toggle('near-limit', userIdInput.value.length >= 120);
+                }
+                userIdInput.addEventListener('input', updateCurlCommand); updateCurlCommand();
 
-                    const length = userIdInput.value.length;
-                    userIdCounter.textContent = \`\${length} of 128 characters used\`;
-                    if (length >= 120) {
-                        userIdCounter.classList.add('near-limit');
-                    } else {
-                        userIdCounter.classList.remove('near-limit');
-                    }
+                async function copyToClipboard(text, button, textEl, originalLabel, copiedLabel) {
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        button.classList.add('copied'); button.setAttribute('aria-label', copiedLabel);
+                        const originalText = textEl.textContent; textEl.textContent = 'Copied! ✅';
+                        setTimeout(() => {
+                            button.classList.remove('copied'); button.setAttribute('aria-label', originalLabel);
+                            textEl.textContent = originalText;
+                        }, 2000);
+                    } catch (err) { console.error('Failed to copy: ', err); }
                 }
 
-                userIdInput.addEventListener('input', updateCurlCommand);
-                updateCurlCommand();
+                copyButton.addEventListener('click', () => copyToClipboard(curlCommand.textContent, copyButton, copyText, 'Copy command to clipboard', 'Command copied to clipboard'));
+                copySessionBtn.addEventListener('click', () => copyToClipboard(activeSessionId.textContent, copySessionBtn, copySessionText, 'Copy Session ID', 'Session ID copied to clipboard'));
 
-                copyButton.addEventListener('click', async () => {
+                createSessionBtn.addEventListener('click', async () => {
                     try {
-                        await navigator.clipboard.writeText(curlCommand.textContent);
-                        copyButton.classList.add('copied');
-                        copyButton.setAttribute('aria-label', 'Command copied to clipboard');
-                        copyText.textContent = 'Copied!';
-                        setTimeout(() => {
-                            copyButton.classList.remove('copied');
-                            copyButton.setAttribute('aria-label', 'Copy command to clipboard');
-                            copyText.textContent = 'Copy';
-                        }, 2000);
-                    } catch (err) {
-                        console.error('Failed to copy: ', err);
-                    }
+                        createSessionBtn.disabled = true; createBtnText.textContent = 'Creating...';
+                        const res = await fetch('/mcp', { method: 'POST', headers: { 'x-user-id': userIdInput.value.trim() || 'demo-user', 'Content-Type': 'application/json' }, body: '{}' });
+                        if (res.ok) {
+                            const data = await res.json();
+                            activeSessionId.textContent = data.sessionId; sessionDisplay.style.display = 'block';
+                            createBtnText.textContent = 'Created! ✅';
+                        } else createBtnText.textContent = 'Failed ❌';
+                        setTimeout(() => createBtnText.textContent = 'Create Session', 2000);
+                    } catch (err) { createBtnText.textContent = 'Error ❌'; } finally { createSessionBtn.disabled = false; }
                 });
 
                 // Global Shortcuts
                 window.addEventListener('keydown', (e) => {
                     if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
                     if (e.ctrlKey || e.metaKey || e.altKey) return;
-                    if (e.key === 'c') {
-                        document.getElementById('copy-curl')?.click();
-                    } else if (e.key === 't') {
+                    if (e.key === 'c') document.getElementById('copy-curl')?.click();
+                    else if (e.key === 'n') document.getElementById('create-session-btn')?.click();
+                    else if (e.key === 't') {
                         document.querySelector('.theme-toggle')?.click();
                     } else if (e.key === 'e') {
                         const btn = document.getElementById('extend-session-btn');
@@ -622,7 +645,6 @@ app.get("/health", (req: Request, res: Response) => {
 
 const jsonParser = express.json({ limit: "10kb" });
 
-
 const validateUserId = (req: Request, res: Response, next: NextFunction) => {
   let userId = req.headers["x-user-id"];
 
@@ -698,7 +720,8 @@ const ensureSessionOwner = async (
     // Sentinel: Activity Refresh - Extend Redis TTL on every successful access
     // Bolt Optimization: Throttle Redis EXPIRE calls to once per 60 seconds to reduce write load
     if (typeof redisClient.expire === "function") {
-      const needsUpdate = process.env.NODE_ENV === 'test' || !sessionUpdateCache.has(sessionId);
+      const needsUpdate =
+        process.env.NODE_ENV === "test" || !sessionUpdateCache.has(sessionId);
       if (needsUpdate) {
         await redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL);
         sessionUpdateCache.set(sessionId, true);
@@ -728,8 +751,8 @@ app.post(
     const sessionId = crypto.randomUUID();
     const sessionKey = `session:${sessionId}:owner`;
     try {
-        // Store session ownership with security-compliant TTL (3600 seconds)
-        await redisClient.set(sessionKey, userId, { EX: SESSION_TTL });
+      // Store session ownership with security-compliant TTL (3600 seconds)
+      await redisClient.set(sessionKey, userId, { EX: SESSION_TTL });
 
       // Optimization: Pre-warm the in-memory cache to skip the first Redis lookup (Bolt Optimization)
       sessionCache.set(sessionId, userId);
@@ -767,8 +790,11 @@ app.post(
   validateUserId,
   ensureSessionOwner,
   (req: Request, res: Response) => {
-    res.json({ message: "Session extended successfully", expiresIn: SESSION_TTL });
-  }
+    res.json({
+      message: "Session extended successfully",
+      expiresIn: SESSION_TTL,
+    });
+  },
 );
 
 /**
@@ -854,40 +880,49 @@ app.post(
       );
       res.json(result);
     } catch (err: any) {
-        // Sentinel: Log only message to avoid leaking sensitive internal state
-        console.error('Decryption failed:', err?.message || 'Unknown error');
+      // Sentinel: Log only message to avoid leaking sensitive internal state
+      console.error("Decryption failed:", err?.message || "Unknown error");
 
-        // Sentinel: Map cryptographic and validation errors to 400 Bad Request
-        const errorMessage = err.message || '';
-        const isClientError =
-            errorMessage.includes('Invalid ciphertext') ||
-            errorMessage.includes('Invalid tube metadata') ||
-            errorMessage.includes('Missing encryption tube') ||
-            errorMessage.includes('Missing hash-lock tube') ||
-            errorMessage.includes('Integrity check failed') ||
-            errorMessage.includes('bad decrypt') ||
-            errorMessage.includes('Wrong tag') ||
-            errorMessage.includes('Unsupported state') ||
-            errorMessage.includes('first argument must be of type string') ||
-            errorMessage.includes('Invalid tag length');
+      // Sentinel: Map cryptographic and validation errors to 400 Bad Request
+      const errorMessage = err.message || "";
+      const isClientError =
+        errorMessage.includes("Invalid ciphertext") ||
+        errorMessage.includes("Invalid tube metadata") ||
+        errorMessage.includes("Missing encryption tube") ||
+        errorMessage.includes("Missing hash-lock tube") ||
+        errorMessage.includes("Integrity check failed") ||
+        errorMessage.includes("bad decrypt") ||
+        errorMessage.includes("Wrong tag") ||
+        errorMessage.includes("Unsupported state") ||
+        errorMessage.includes("first argument must be of type string") ||
+        errorMessage.includes("Invalid tag length");
 
-        if (isClientError) {
-             // Sentinel: Return 400 for all client-side crypto/validation errors.
-             // We use the original error message if it's explicitly allowed in the test expectations,
-             // otherwise we return a generic message to prevent info leakage.
-             const allowedMessages = ['Integrity check failed'];
-             const returnedMessage = allowedMessages.some(msg => errorMessage.includes(msg))
-                 ? 'Decryption failed: ' + errorMessage
-                 : 'Decryption failed';
+      if (isClientError) {
+        // Sentinel: Return 400 for all client-side crypto/validation errors.
+        // We use the original error message if it's explicitly allowed in the test expectations,
+        // otherwise we return a generic message to prevent info leakage.
+        const allowedMessages = ["Integrity check failed"];
+        const returnedMessage = allowedMessages.some((msg) =>
+          errorMessage.includes(msg),
+        )
+          ? "Decryption failed: " + errorMessage
+          : "Decryption failed";
 
-             // Bolt Optimization: Ensure compatibility with tests/cta_api.test.ts expectations
-             // while maintaining Sentinel's fail-secure principles.
-             const finalError = errorMessage.includes('Integrity check failed') ? `Decryption failed: ${errorMessage}` : returnedMessage;
+        // Bolt Optimization: Ensure compatibility with tests/cta_api.test.ts expectations
+        // while maintaining Sentinel's fail-secure principles.
+        const finalError = errorMessage.includes("Integrity check failed")
+          ? `Decryption failed: ${errorMessage}`
+          : returnedMessage;
 
-             return res.status(400).json({ error: finalError });
-        }
+        return res.status(400).json({ error: finalError });
+      }
 
-        res.status(500).json({ error: 'Internal server error: An unexpected error occurred during decryption.' });
+      res
+        .status(500)
+        .json({
+          error:
+            "Internal server error: An unexpected error occurred during decryption.",
+        });
     }
   },
 );
@@ -921,7 +956,6 @@ app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
 app.use((req: Request, res: Response) => {
   res.status(404).json({ error: "Not Found" });
 });
-
 
 if (process.env.NODE_ENV !== "test") {
   app.listen(PORT, () => {

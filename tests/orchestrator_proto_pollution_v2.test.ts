@@ -1,12 +1,14 @@
-import { resolveParams } from '../src/engine/runtime/orchestrator';
+import { resolveParams } from "../src/engine/runtime/orchestrator";
 
-describe('resolveParams Prototype Pollution Protection', () => {
+describe("resolveParams Prototype Pollution Protection", () => {
   const config = {};
   const state = {};
   const item = {};
 
-  it('should skip sensitive keys during object iteration', () => {
-    const malicious = JSON.parse('{"__proto__": {"polluted": "yes"}, "safe": "value"}');
+  it("should skip sensitive keys during object iteration", () => {
+    const malicious = JSON.parse(
+      '{"__proto__": {"polluted": "yes"}, "safe": "value"}',
+    );
 
     // reset global prototype just in case
     delete (Object.prototype as any).polluted;
@@ -19,20 +21,20 @@ describe('resolveParams Prototype Pollution Protection', () => {
     expect(({} as any).polluted).toBeUndefined();
   });
 
-  it('should skip constructor and prototype keys', () => {
+  it("should skip constructor and prototype keys", () => {
     const malicious = {
-      constructor: { polluted: 'yes' },
-      prototype: { polluted: 'yes' },
-      normal: 'data'
+      constructor: { polluted: "yes" },
+      prototype: { polluted: "yes" },
+      normal: "data",
     };
 
     const resolved = resolveParams(malicious, config, state, item);
-    expect(resolved).toEqual({ normal: 'data' });
+    expect(resolved).toEqual({ normal: "data" });
   });
 
-  it('should protect nested objects', () => {
+  it("should protect nested objects", () => {
     const malicious = {
-      nested: JSON.parse('{"__proto__": {"polluted": "yes"}}')
+      nested: JSON.parse('{"__proto__": {"polluted": "yes"}}'),
     };
 
     const resolved = resolveParams(malicious, config, state, item);

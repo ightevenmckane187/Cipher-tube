@@ -1,8 +1,10 @@
-import { buildCipherTube, decryptCipherTube } from '../src/cta';
-import crypto from 'crypto';
+import { buildCipherTube, decryptCipherTube } from "../src/cta";
+import crypto from "crypto";
 
 const masterSeed = crypto.randomBytes(32);
-const message = Buffer.from('This is a secret message for benchmarking the Cipher Tube Assembly.');
+const message = Buffer.from(
+  "This is a secret message for benchmarking the Cipher Tube Assembly.",
+);
 
 function benchmark() {
   const iterations = 1000;

@@ -1,5 +1,5 @@
-import { WizardEngine, logger } from './engine.js';
-import { generateMarkdownReport } from './reporter.js';
+import { WizardEngine, logger } from "./engine.js";
+import { generateMarkdownReport } from "./reporter.js";
 
 async function main() {
   const engine = new WizardEngine();
@@ -8,16 +8,16 @@ async function main() {
   const markdown = generateMarkdownReport(report);
   console.log(markdown);
 
-  if (process.argv.includes('--fix')) {
+  if (process.argv.includes("--fix")) {
     await engine.repair(report);
   }
 
-  if (process.argv.includes('--json')) {
+  if (process.argv.includes("--json")) {
     process.stdout.write(JSON.stringify(report, null, 2));
   }
 }
 
-main().catch(err => {
+main().catch((err) => {
   logger.error(err);
   process.exit(1);
 });

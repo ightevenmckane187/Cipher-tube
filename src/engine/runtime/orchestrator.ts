@@ -16,21 +16,31 @@ export interface ExecContext {
   registry?: Record<string, any>;
 }
 
-export async function executeWorkflow(def: any, ctx: ExecContext, params: Record<string, any> = {}) {
+export async function executeWorkflow(
+  def: any,
+  ctx: ExecContext,
+  params: Record<string, any> = {},
+) {
   const state: Record<string, any> = { params };
   console.log(`Executing Workflow: ${def.name}`);
 
   for (const step of def.steps ?? []) {
     if (step.foreach) {
-      const items = resolveParams(state[step.foreach] || `\${state.${step.foreach}}`, ctx.config, state, null);
+      const items = resolveParams(
+        state[step.foreach] || `\${state.${step.foreach}}`,
+        ctx.config,
+        state,
+        null,
+      );
       if (Array.isArray(items)) {
-          for (const item of items) {
-            await executeAction(step.action, step, state, ctx, item);
-          }
+        for (const item of items) {
+          await executeAction(step.action, step, state, ctx, item);
+        }
       }
     } else {
       const result = await executeAction(step.action, step, state, ctx);
-      if (step.output && isValidStateKey(step.output)) state[step.output] = result;
+      if (step.output && isValidStateKey(step.output))
+        state[step.output] = result;
     }
   }
 
@@ -53,25 +63,46 @@ export async function executePipeline(def: any, ctx: ExecContext) {
   // Process stages
   for (const stage of def.stages ?? []) {
     if (stage.parallel) {
-       console.log(`Executing Stage Parallel: ${stage.name}`);
-       const branchPromises = Object.entries(stage.branches || {}).map(async ([name, branch]: [string, any]) => {
-         // Pass input data from 'from' if specified
-         const branchInput = stage.from ? resolveParams(Array.isArray(stage.from) ? `\${state.${stage.from[0]}}` : `\${state.${stage.from}}`, ctx.config, state, null) : null;
-         return executeAction(branch.use, { ...branch, input: branchInput }, state, ctx);
-       });
-       await Promise.all(branchPromises);
+      console.log(`Executing Stage Parallel: ${stage.name}`);
+      const branchPromises = Object.entries(stage.branches || {}).map(
+        async ([name, branch]: [string, any]) => {
+          // Pass input data from 'from' if specified
+          const branchInput = stage.from
+            ? resolveParams(
+                Array.isArray(stage.from)
+                  ? `\${state.${stage.from[0]}}`
+                  : `\${state.${stage.from}}`,
+                ctx.config,
+                state,
+                null,
+              )
+            : null;
+          return executeAction(
+            branch.use,
+            { ...branch, input: branchInput },
+            state,
+            ctx,
+          );
+        },
+      );
+      await Promise.all(branchPromises);
     } else {
       // Basic support for 'from' - pass it as 'input' to the handler
       let input = null;
       if (stage.from) {
-          if (Array.isArray(stage.from)) {
-              input = stage.from.map((f: string) => state[f]);
-          } else {
-              input = state[stage.from];
-          }
+        if (Array.isArray(stage.from)) {
+          input = stage.from.map((f: string) => state[f]);
+        } else {
+          input = state[stage.from];
+        }
       }
 
-      const result = await executeAction(stage.use, { ...stage, input }, state, ctx);
+      const result = await executeAction(
+        stage.use,
+        { ...stage, input },
+        state,
+        ctx,
+      );
       // Sentinel: Validate emit key to prevent prototype pollution
       if (stage.emit && isValidStateKey(stage.emit)) {
         state[stage.emit] = result;
@@ -83,11 +114,11 @@ export async function executePipeline(def: any, ctx: ExecContext) {
   for (const sink of def.sinks ?? []) {
     let input = null;
     if (sink.from) {
-        if (Array.isArray(sink.from)) {
-            input = sink.from.map((f: string) => state[f]);
-        } else {
-            input = state[sink.from];
-        }
+      if (Array.isArray(sink.from)) {
+        input = sink.from.map((f: string) => state[f]);
+      } else {
+        input = state[sink.from];
+      }
     }
     await executeAction(sink.use, { ...sink, input }, state, ctx);
   }
@@ -95,14 +126,22 @@ export async function executePipeline(def: any, ctx: ExecContext) {
   return state;
 }
 
-async function executeAction(actionStr: string, step: any, state: Record<string, any>, ctx: ExecContext, item: any = null) {
+async function executeAction(
+  actionStr: string,
+  step: any,
+  state: Record<string, any>,
+  ctx: ExecContext,
+  item: any = null,
+) {
   if (actionStr === "workflow.invoke") {
-    const workflowName = step.params?.[0] || step.action?.split('(')[1]?.split(')')[0].replace(/'|"/g, '');
+    const workflowName =
+      step.params?.[0] ||
+      step.action?.split("(")[1]?.split(")")[0].replace(/'|"/g, "");
     console.log(`Invoking internal workflow: ${workflowName}`);
     return { invoked: workflowName };
   }
 
-  const [ns, fn] = actionStr.split('.');
+  const [ns, fn] = actionStr.split(".");
   const handler = ctx.actions[ns]?.[fn];
 
   if (!handler) {
@@ -128,7 +167,7 @@ function resolvePath(root: any, path: string | undefined): any {
   // Bolt Optimization: Iterative path resolution without split('.') to avoid array allocation.
   let current = root;
   let start = 0;
-  let dotIdx = path.indexOf('.');
+  let dotIdx = path.indexOf(".");
 
   while (dotIdx !== -1) {
     const key = path.substring(start, dotIdx);
@@ -136,7 +175,7 @@ function resolvePath(root: any, path: string | undefined): any {
     current = current?.[key];
     if (current === undefined || current === null) return undefined;
     start = dotIdx + 1;
-    dotIdx = path.indexOf('.', start);
+    dotIdx = path.indexOf(".", start);
   }
 
   const lastKey = path.substring(start);
@@ -147,61 +186,75 @@ function resolvePath(root: any, path: string | undefined): any {
 /**
  * Sentinel: Resolves template variables in a single pass to prevent template injection (double expansion).
  */
-export function resolveParams(params: any, config: any, state: any, item: any): any {
-  if (typeof params === 'string') {
+export function resolveParams(
+  params: any,
+  config: any,
+  state: any,
+  item: any,
+): any {
+  if (typeof params === "string") {
     // Bolt Optimization: Short-circuit for static strings
-    if (!params.includes('$')) return params;
+    if (!params.includes("$")) return params;
 
     // Bolt Optimization: Fast check for direct matches using string operations to avoid regex overhead.
-    if (params.startsWith('${') && params.endsWith('}')) {
+    if (params.startsWith("${") && params.endsWith("}")) {
       const content = params.slice(2, -1);
-      const dotIdx = content.indexOf('.');
+      const dotIdx = content.indexOf(".");
       const type = dotIdx === -1 ? content : content.slice(0, dotIdx);
 
-      if (type === 'state' || type === 'config' || type === 'params' || type === 'item') {
-          const path = dotIdx === -1 ? undefined : content.slice(dotIdx + 1);
-          let root;
-          if (type === 'state') root = state;
-          else if (type === 'config') root = config;
-          else if (type === 'params') root = state?.params;
-          else if (type === 'item') root = item;
+      if (
+        type === "state" ||
+        type === "config" ||
+        type === "params" ||
+        type === "item"
+      ) {
+        const path = dotIdx === -1 ? undefined : content.slice(dotIdx + 1);
+        let root;
+        if (type === "state") root = state;
+        else if (type === "config") root = config;
+        else if (type === "params") root = state?.params;
+        else if (type === "item") root = item;
 
-          return resolvePath(root, path);
+        return resolvePath(root, path);
       }
     }
 
     // Sentinel: Mixed string interpolation using a single-pass regex to avoid template injection.
     // This ensures that values containing template syntax are NOT recursively expanded.
-    return params.replace(/\${(config|state|params|item)(?:\.([^}]+))?}/g, (_, type, path) => {
+    return params.replace(
+      /\${(config|state|params|item)(?:\.([^}]+))?}/g,
+      (_, type, path) => {
         let root;
-        if (type === 'state') root = state;
-        else if (type === 'config') root = config;
-        else if (type === 'params') root = state?.params;
-        else if (type === 'item') root = item;
+        if (type === "state") root = state;
+        else if (type === "config") root = config;
+        else if (type === "params") root = state?.params;
+        else if (type === "item") root = item;
 
         const val = resolvePath(root, path);
         // Handle falsy values (0, false, null) correctly during string interpolation
-        return (val !== undefined && val !== null) ? String(val) : '';
-    });
+        return val !== undefined && val !== null ? String(val) : "";
+      },
+    );
   }
 
   if (Array.isArray(params)) {
     const len = params.length;
     for (let i = 0; i < len; i++) {
-        const val = params[i];
-        const res = resolveParams(val, config, state, item);
-        if (res !== val) {
-            const resolved = new Array(len);
-            for (let j = 0; j < i; j++) resolved[j] = params[j];
-            resolved[i] = res;
-            for (let k = i + 1; k < len; k++) resolved[k] = resolveParams(params[k], config, state, item);
-            return resolved;
-        }
+      const val = params[i];
+      const res = resolveParams(val, config, state, item);
+      if (res !== val) {
+        const resolved = new Array(len);
+        for (let j = 0; j < i; j++) resolved[j] = params[j];
+        resolved[i] = res;
+        for (let k = i + 1; k < len; k++)
+          resolved[k] = resolveParams(params[k], config, state, item);
+        return resolved;
+      }
     }
     return params;
   }
 
-  if (params && typeof params === 'object') {
+  if (params && typeof params === "object") {
     const keys = Object.keys(params);
     const len = keys.length;
     for (let i = 0; i < len; i++) {
@@ -210,8 +263,9 @@ export function resolveParams(params: any, config: any, state: any, item: any): 
         const resolved: any = {};
         for (let j = 0; j < i; j++) resolved[keys[j]] = params[keys[j]];
         for (let j = i + 1; j < len; j++) {
-            const k2 = keys[j];
-            if (isValidStateKey(k2)) resolved[k2] = resolveParams(params[k2], config, state, item);
+          const k2 = keys[j];
+          if (isValidStateKey(k2))
+            resolved[k2] = resolveParams(params[k2], config, state, item);
         }
         return resolved;
       }
@@ -222,8 +276,9 @@ export function resolveParams(params: any, config: any, state: any, item: any): 
         for (let j = 0; j < i; j++) resolved[keys[j]] = params[keys[j]];
         resolved[k] = res;
         for (let j = i + 1; j < len; j++) {
-            const k2 = keys[j];
-            if (isValidStateKey(k2)) resolved[k2] = resolveParams(params[k2], config, state, item);
+          const k2 = keys[j];
+          if (isValidStateKey(k2))
+            resolved[k2] = resolveParams(params[k2], config, state, item);
         }
         return resolved;
       }

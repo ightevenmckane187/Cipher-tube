@@ -1,5 +1,7 @@
 export async function invokeAsync(workflowName: string, params: any) {
-  console.log(`[Async] Enqueuing workflow: ${workflowName} with params: ${JSON.stringify(params)}`);
+  console.log(
+    `[Async] Enqueuing workflow: ${workflowName} with params: ${JSON.stringify(params)}`,
+  );
   // Mock async execution
   return { jobId: Math.random().toString(36).substring(7) };
 }

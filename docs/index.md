@@ -22,4 +22,5 @@ We are proud to announce **v1.5.0**, a major update focusing on security, user e
 - [API Reference](./API.md) - Technical documentation for the MCP endpoints.
 
 ---
+
 © 2026 Jesse Mckane Gonzales.
