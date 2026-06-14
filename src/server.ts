@@ -643,6 +643,16 @@ const validateUserId = (req: Request, res: Response, next: NextFunction) => {
       .status(400)
       .json({ error: "Invalid x-user-id: exceeds maximum length" });
   }
+
+  // Sentinel: Block prototype-polluting strings in User ID
+  if (
+    userId === "__proto__" ||
+    userId === "constructor" ||
+    userId === "prototype"
+  ) {
+    return res.status(400).json({ error: "Invalid x-user-id: restricted value" });
+  }
+
   next();
 };
 

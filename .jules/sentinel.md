@@ -67,3 +67,8 @@
 **Vulnerability:** Denial of Service (DoS) via Cache Penetration.
 **Learning:** The application was vulnerable to resource exhaustion because it only cached successful session lookups. Attackers could flood the system with requests for non-existent session IDs, forcing a Redis lookup for every request and bypassing the in-memory cache entirely.
 **Prevention:** Implement negative caching by storing a sentinel value (e.g., "__NOT_FOUND__") in the local cache for keys that do not exist in the primary database. This ensures that repeated lookups for missing resources are handled at the cache layer, protecting the database from exhaustion.
+
+## 2026-06-27 - Prototype Pollution in Action Execution and User IDs
+**Vulnerability:** Action injection and prototype pollution via `executeAction` and `x-user-id` header.
+**Learning:** Even with string-based key validation, dynamic action execution is vulnerable if it doesn't enforce a strict format (segment count) and fails to use `hasOwnProperty` when accessing the internal action registry. This could allow execution of inherited prototype methods (e.g., `toString`). Additionally, custom identity headers like `x-user-id` must explicitly block prototype keys to prevent pollution of downstream caches or state objects.
+**Prevention:** Enforce strict `namespace.function` format and mandatory `hasOwnProperty` checks for all dynamic registry lookups. Implement a blocklist for prototype-polluting strings (`__proto__`, `constructor`, `prototype`) in all security-critical input headers.
