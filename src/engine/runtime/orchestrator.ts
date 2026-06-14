@@ -202,6 +202,14 @@ export function resolveParams(params: any, config: any, state: any, item: any): 
   }
 
   if (params && typeof params === 'object') {
+    // Bolt Optimization: Return Buffers immediately to avoid expensive Object.keys() on large binary data.
+    if (typeof Buffer !== 'undefined' && Buffer.isBuffer(params)) return params;
+
+    // Bolt Optimization: Skip non-plain objects like Dates or Maps which shouldn't be traversed for templates.
+    // We explicitly check for null prototype and Object prototype to allow plain objects.
+    const proto = Object.getPrototypeOf(params);
+    if (proto !== null && proto !== Object.prototype) return params;
+
     const keys = Object.keys(params);
     const len = keys.length;
     for (let i = 0; i < len; i++) {
