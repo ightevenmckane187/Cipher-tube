@@ -50,6 +50,22 @@ describe("Security Validation", () => {
       expect(response.status).toBe(400);
       expect(response.body.error).toContain("Invalid x-user-id");
     });
+
+    it("should reject prototype-polluting x-user-id values", async () => {
+      const response = await request(app)
+        .post("/mcp")
+        .set("x-user-id", "__proto__");
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe("Invalid x-user-id: restricted value");
+
+      const response2 = await request(app)
+        .post("/mcp")
+        .set("x-user-id", "constructor");
+
+      expect(response2.status).toBe(400);
+      expect(response2.body.error).toBe("Invalid x-user-id: restricted value");
+    });
   });
 
   describe("Sanitized Error Logging", () => {

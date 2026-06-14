@@ -95,20 +95,51 @@ export async function executePipeline(def: any, ctx: ExecContext) {
   return state;
 }
 
-async function executeAction(actionStr: string, step: any, state: Record<string, any>, ctx: ExecContext, item: any = null) {
+async function executeAction(
+  actionStr: string,
+  step: any,
+  state: Record<string, any>,
+  ctx: ExecContext,
+  item: any = null,
+) {
   if (actionStr === "workflow.invoke") {
-    const workflowName = step.params?.[0] || step.action?.split('(')[1]?.split(')')[0].replace(/'|"/g, '');
+    const workflowName =
+      step.params?.[0] ||
+      step.action?.split("(")[1]?.split(")")[0].replace(/'|"/g, "");
     console.log(`Invoking internal workflow: ${workflowName}`);
     return { invoked: workflowName };
   }
 
-  const [ns, fn] = actionStr.split('.');
-  const handler = ctx.actions[ns]?.[fn];
-
-  if (!handler) {
-    console.warn(`Unknown action: ${actionStr}`);
+  const segments = actionStr.split(".");
+  // Sentinel: Strict segment count validation to prevent action injection
+  if (segments.length !== 2) {
+    console.warn(`Invalid action format: ${actionStr}`);
     return null;
   }
+
+  const [ns, fn] = segments;
+
+  // Sentinel: Validate action segments and ensure only own properties of the actions registry are accessed
+  if (
+    !isValidStateKey(ns) ||
+    !isValidStateKey(fn) ||
+    !Object.prototype.hasOwnProperty.call(ctx.actions, ns)
+  ) {
+    console.warn(`Blocked or unknown action namespace: ${ns}`);
+    return null;
+  }
+
+  const namespace = ctx.actions[ns];
+  if (
+    !namespace ||
+    !Object.prototype.hasOwnProperty.call(namespace, fn) ||
+    typeof namespace[fn] !== "function"
+  ) {
+    console.warn(`Blocked or unknown action: ${fn} in namespace ${ns}`);
+    return null;
+  }
+
+  const handler = namespace[fn];
 
   const params = step.params || step;
   const resolvedParams = resolveParams(params, ctx.config, state, item);
@@ -161,10 +192,10 @@ export function resolveParams(params: any, config: any, state: any, item: any): 
       if (type === 'state' || type === 'config' || type === 'params' || type === 'item') {
           const path = dotIdx === -1 ? undefined : content.slice(dotIdx + 1);
           let root;
-          if (type === 'state') root = state;
-          else if (type === 'config') root = config;
-          else if (type === 'params') root = state?.params;
-          else if (type === 'item') root = item;
+          if (type === "state") root = state;
+          else if (type === "config") root = config;
+          else if (type === "params") root = state?.params;
+          else if (type === "item") root = item ?? undefined;
 
           return resolvePath(root, path);
       }
@@ -172,12 +203,14 @@ export function resolveParams(params: any, config: any, state: any, item: any): 
 
     // Sentinel: Mixed string interpolation using a single-pass regex to avoid template injection.
     // This ensures that values containing template syntax are NOT recursively expanded.
-    return params.replace(/\${(config|state|params|item)(?:\.([^}]+))?}/g, (_, type, path) => {
+    return params.replace(
+      /\${(config|state|params|item)(?:\.([^}]+))?}/g,
+      (_, type, path) => {
         let root;
-        if (type === 'state') root = state;
-        else if (type === 'config') root = config;
-        else if (type === 'params') root = state?.params;
-        else if (type === 'item') root = item;
+        if (type === "state") root = state;
+        else if (type === "config") root = config;
+        else if (type === "params") root = state?.params;
+        else if (type === "item") root = item ?? undefined;
 
         const val = resolvePath(root, path);
         // Handle falsy values (0, false, null) correctly during string interpolation
