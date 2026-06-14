@@ -1,25 +1,25 @@
-***
+---
 
 # Cipher Tube Assembly & Session Service
 
 This repository combines two main pieces:
 
-- A Redis + Express service that enforces per‑user session ownership and basic monitoring.  
+- A Redis + Express service that enforces per‑user session ownership and basic monitoring.
 - Design and reference material for the **Cipher Tube Assembly (CTA)**, a multi‑layer cryptographic architecture.
 
 ## Features
 
-- Per‑user session ownership stored in Redis (`session:{sessionId}:owner`).  
-- Middleware to ensure only the owning user can use a session.  
-- Redis utilities to inspect and monitor live sessions.  
+- Per‑user session ownership stored in Redis (`session:{sessionId}:owner`).
+- Middleware to ensure only the owning user can use a session.
+- Redis utilities to inspect and monitor live sessions.
 - Documentation and LaTeX/IEEE whitepaper templates for the Cipher Tube Assembly.
 - **Optimized encryption/decryption** with ~0.44ms average decryption speed (v1.5.0 Bolt optimization).
 - **Security-hardened** endpoints with comprehensive validation and error handling.
 
 ## Prerequisites
 
-- Node.js (LTS, e.g. 18+).  
-- Redis running locally (or accessible via `REDIS_URL`).  
+- Node.js (LTS, e.g. 18+).
+- Redis running locally (or accessible via `REDIS_URL`).
 - npm or pnpm/yarn for dependencies.
 
 ## Installation
@@ -62,7 +62,7 @@ The server listens on the port defined in `BASE_URI` (default `http://localhost:
 
 `POST /mcp`
 
-- Auth: user id taken from header `x-user-id` (or from your auth middleware, depending on your setup).  
+- Auth: user id taken from header `x-user-id` (or from your auth middleware, depending on your setup).
 - Response:
 
 ```json
@@ -81,15 +81,15 @@ session:{sessionId}:owner -> userId
 
 `GET /mcp/:sessionId/check`
 
-- Requires `x-user-id` header.  
+- Requires `x-user-id` header.
 - Returns `200` only if the calling user owns the session.
 
 ### Ownership Enforcement Middleware
 
 Routes that use `ensureSessionOwner` will:
 
-- Return `401` if no user id is present.  
-- Return `400` if `sessionId` is missing.  
+- Return `401` if no user id is present.
+- Return `400` if `sessionId` is missing.
 - Return `403` if the user does not own the session.
 
 ## Redis CLI Helpers
@@ -136,6 +136,7 @@ npx tsx perf-tests/cta_benchmark.ts
 ```
 
 **v1.5.0 Improvements (Bolt):**
+
 - Optimized entropy handling: switched to `toString('hex', start, end)` for efficient range extraction
 - One-shot hashing via `fastHash` helper in hot paths
 - Critical bug fixes: variable redeclarations, missing imports, undefined references
@@ -147,8 +148,8 @@ npx tsx perf-tests/cta_benchmark.ts
 This repo also contains:
 
 - A technical concept for **Cipher Tube Assembly**:  
-  12 hash‑lock tubes (integrity layers) and 13 encryption layers wrapped in an outer "What Happened" audit envelope.  
-- LaTeX and IEEE‑style templates to generate a whitepaper PDF.  
+  12 hash‑lock tubes (integrity layers) and 13 encryption layers wrapped in an outer "What Happened" audit envelope.
+- LaTeX and IEEE‑style templates to generate a whitepaper PDF.
 - Pseudocode describing the build (encryption) and verify (decryption) phases.
 - **CTA Endpoints:** `/assemble` (POST) and `/cta/decrypt` (POST) for creating and decrypting cipher tubes.
 
@@ -157,6 +158,7 @@ The CTA material can be used as a reference design for future cryptographic modu
 ## Recent Updates (v1.5.0 - May 2026)
 
 ### Security & Stability (Sentinel)
+
 - Fixed critical ReferenceError in session management (`sessionKey` undefined in POST /mcp)
 - Reduced `SESSION_TTL` from 24 hours to **1 hour (3600s)** for better security posture
 - Hardened `x-user-id` header validation and normalization
@@ -165,6 +167,7 @@ The CTA material can be used as a reference design for future cryptographic modu
 - Ported security fixes from multiple Sentinel PRs (#111, #75, #69, #15, #98)
 
 ### Performance (Bolt)
+
 - Optimized entropy-to-hex conversion with range-specific `toString('hex', start, end)`
 - Implemented one-shot hashing for cryptographic operations
 - Removed redundant global rate limiter calls
@@ -172,11 +175,13 @@ The CTA material can be used as a reference design for future cryptographic modu
 - **Result:** 100% test pass rate (68 tests), ~0.44ms average decryption
 
 ### Governance & Compliance (M-25-22)
+
 - Implemented Authority-Chain Manifest validator
 - Structural validation for CTA metadata
 - Comprehensive error handling with descriptive messages
 
 ### Documentation
+
 - Updated comprehensive documentation in `docs/` directory
 - GitHub Pages deployment configured
 - Accessibility statement and VPAT 2.4 ACR compliance documentation
@@ -194,6 +199,7 @@ This project implements authority chain validation through the M-25-22 governanc
 ## Security Audit
 
 A comprehensive security audit is available in `SECURITY_AUDIT.md`, covering:
+
 - Critical security fixes ported from Sentinel PRs
 - Session hardening measures
 - Structural validation improvements
@@ -214,7 +220,7 @@ For code in this repository, you can adapt or replace the license section with y
 
 See `CHANGELOG.md` for detailed version history and release notes.
 
-***
+---
 
 If you tell which files you actually have in your repo (names/paths), a more tailored README can reference them directly.
 

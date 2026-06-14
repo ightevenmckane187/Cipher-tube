@@ -5,12 +5,14 @@ Upgrading to Cipher Tube v1.5.0 is a straightforward process with no breaking ch
 ## Steps to Upgrade
 
 1. **Update Dependencies**:
+
    ```bash
    npm install @ciphertube/core@1.5.0
    ```
 
 2. **Update Environment Variables**:
    While not strictly required, you can now explicitly enable AES-256-GCM:
+
    ```env
    ENABLE_AES256=true
    ```
