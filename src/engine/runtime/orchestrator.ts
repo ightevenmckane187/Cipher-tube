@@ -102,13 +102,31 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
     return { invoked: workflowName };
   }
 
-  const [ns, fn] = actionStr.split('.');
-  const handler = ctx.actions[ns]?.[fn];
-
-  if (!handler) {
-    console.warn(`Unknown action: ${actionStr}`);
+  const parts = actionStr.split('.');
+  if (parts.length !== 2) {
+    console.warn(`Invalid action format: ${actionStr}. Expected 'ns.fn'`);
     return null;
   }
+
+  const [ns, fn] = parts;
+  if (!isValidStateKey(ns) || !isValidStateKey(fn)) {
+    console.warn(`Blocked potentially malicious action: ${actionStr}`);
+    return null;
+  }
+
+  // Sentinel: Use hasOwnProperty to avoid prototype method execution (e.g., toString)
+  if (!Object.prototype.hasOwnProperty.call(ctx.actions, ns)) {
+    console.warn(`Unknown namespace: ${ns}`);
+    return null;
+  }
+
+  const nsActions = ctx.actions[ns];
+  if (!Object.prototype.hasOwnProperty.call(nsActions, fn)) {
+    console.warn(`Unknown action: ${fn} in namespace: ${ns}`);
+    return null;
+  }
+
+  const handler = nsActions[fn];
 
   const params = step.params || step;
   const resolvedParams = resolveParams(params, ctx.config, state, item);
@@ -124,6 +142,7 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
 function resolvePath(root: any, path: string | undefined): any {
   if (root === undefined) return undefined;
   if (!path) return root;
+  if (root === null) return undefined;
 
   // Bolt Optimization: Iterative path resolution without split('.') to avoid array allocation.
   let current = root;
