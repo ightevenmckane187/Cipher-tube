@@ -67,3 +67,8 @@
 **Vulnerability:** Denial of Service (DoS) via Cache Penetration.
 **Learning:** The application was vulnerable to resource exhaustion because it only cached successful session lookups. Attackers could flood the system with requests for non-existent session IDs, forcing a Redis lookup for every request and bypassing the in-memory cache entirely.
 **Prevention:** Implement negative caching by storing a sentinel value (e.g., "__NOT_FOUND__") in the local cache for keys that do not exist in the primary database. This ensures that repeated lookups for missing resources are handled at the cache layer, protecting the database from exhaustion.
+
+## 2026-06-27 - Action Injection via Prototype Bypass
+**Vulnerability:** Action injection and prototype pollution in Predator orchestrator action resolution.
+**Learning:** Resolving actions by splitting a string and indexing into a registry without validation allows attackers to invoke built-in prototype methods (e.g., `constructor.assign`) if the registry is a plain object. Even if the key is blocked, a missing `hasOwnProperty` check can lead to prototype bypass.
+**Prevention:** Enforce a strict format for dynamic action strings (e.g., exactly two segments `ns.fn`). Validate all segments against prototype pollution keys. Use `Object.prototype.hasOwnProperty.call` to ensure the namespace and function exist directly on the registry, and verify that the resolved handler is a function before invocation.
