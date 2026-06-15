@@ -421,8 +421,12 @@ app.get("/", (req: Request, res: Response) => {
                         <span id="user-id-counter" aria-live="polite">0 of 128 characters used</span>
                     </div>
                     <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter">
+                    <div style="margin-top: 1rem;">
+                        <button id="create-session-btn" style="background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: transform 0.1s;" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'">Create Session</button>
+                        <span id="session-created-msg" style="margin-left: 10px; font-weight: bold; color: var(--success); display: none;" aria-live="polite">Created!</span>
+                    </div>
                 </div>
-                <p>To get started, create a session via the API:</p>
+                <p>Alternatively, create a session via the API:</p>
                 <div class="code-container">
                     <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard" aria-keyshortcuts="c">
                         <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
@@ -499,6 +503,26 @@ app.get("/", (req: Request, res: Response) => {
                 userIdInput.addEventListener('input', updateCurlCommand);
                 updateCurlCommand();
 
+                const createBtn = document.getElementById('create-session-btn');
+                createBtn.addEventListener('click', async () => {
+                    const userId = userIdInput.value.trim() || 'demo-user';
+                    try {
+                        createBtn.disabled = true;
+                        const response = await fetch('/mcp', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'x-user-id': userId }
+                        });
+                        if (response.ok) {
+                            const data = await response.json();
+                            window.currentSessionId = data.sessionId;
+                            const msg = document.getElementById('session-created-msg');
+                            msg.style.display = 'inline';
+                            resetTimer();
+                            setTimeout(() => { msg.style.display = 'none'; createBtn.disabled = false; }, 3000);
+                        }
+                    } catch (err) { console.error(err); createBtn.disabled = false; }
+                });
+
                 copyButton.addEventListener('click', async () => {
                     try {
                         await navigator.clipboard.writeText(curlCommand.textContent);
@@ -528,6 +552,9 @@ app.get("/", (req: Request, res: Response) => {
                         if (btn && window.getComputedStyle(document.getElementById('timeout-banner')).display !== 'none') {
                             btn.click();
                         }
+                    } else if (e.key === '/') {
+                        e.preventDefault();
+                        userIdInput.focus();
                     }
                 });
 
@@ -566,7 +593,7 @@ app.get("/", (req: Request, res: Response) => {
                         if (currentSessionId) {
                             const response = await fetch('/session/' + currentSessionId + '/extend', {
                                 method: 'POST',
-                                headers: { 'x-user-id': 'demo-user' }
+                                headers: { 'x-user-id': userIdInput.value.trim() || 'demo-user' }
                             });
                             if (response.ok) {
                                 resetTimer();
