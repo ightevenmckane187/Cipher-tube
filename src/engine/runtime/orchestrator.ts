@@ -10,6 +10,16 @@ export function isValidStateKey(key: any): boolean {
   );
 }
 
+/**
+ * Bolt Optimization: Identifies plain objects to support Object.create(null)
+ * while skipping complex types like Buffer, Date, etc.
+ */
+function isPlainObject(obj: any): boolean {
+  if (typeof obj !== "object" || obj === null) return false;
+  const proto = Object.getPrototypeOf(obj);
+  return proto === Object.prototype || proto === null;
+}
+
 export interface ExecContext {
   actions: Record<string, Record<string, Function>>;
   config: Record<string, any>;
@@ -122,7 +132,7 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
  * Improves resolveParams performance by ~10-15%.
  */
 function resolvePath(root: any, path: string | undefined): any {
-  if (root === undefined) return undefined;
+  if (root == null) return undefined;
   if (!path) return root;
 
   // Bolt Optimization: Iterative path resolution without split('.') to avoid array allocation.
@@ -201,7 +211,7 @@ export function resolveParams(params: any, config: any, state: any, item: any): 
     return params;
   }
 
-  if (params && typeof params === 'object') {
+  if (isPlainObject(params)) {
     const keys = Object.keys(params);
     const len = keys.length;
     for (let i = 0; i < len; i++) {
