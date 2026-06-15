@@ -102,11 +102,33 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
     return { invoked: workflowName };
   }
 
-  const [ns, fn] = actionStr.split('.');
-  const handler = ctx.actions[ns]?.[fn];
+  // Sentinel: Enforce strict two-segment format and block prototype pollution
+  const segments = actionStr.split('.');
+  if (segments.length !== 2) {
+    console.warn(`Invalid action format: ${actionStr}. Expected 'ns.fn'`);
+    return null;
+  }
 
-  if (!handler) {
-    console.warn(`Unknown action: ${actionStr}`);
+  const [ns, fn] = segments;
+  if (!isValidStateKey(ns) || !isValidStateKey(fn)) {
+    console.warn(`Blocked potentially malicious action: ${actionStr}`);
+    return null;
+  }
+
+  // Sentinel: Use hasOwnProperty to prevent prototype bypass
+  if (!Object.prototype.hasOwnProperty.call(ctx.actions, ns)) {
+    console.warn(`Unknown namespace: ${ns}`);
+    return null;
+  }
+
+  const nsActions = ctx.actions[ns];
+  if (!nsActions || !Object.prototype.hasOwnProperty.call(nsActions, fn)) {
+    console.warn(`Unknown function: ${fn} in namespace ${ns}`);
+    return null;
+  }
+
+  const handler = nsActions[fn];
+  if (typeof handler !== 'function') {
     return null;
   }
 
@@ -122,7 +144,7 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
  * Improves resolveParams performance by ~10-15%.
  */
 function resolvePath(root: any, path: string | undefined): any {
-  if (root === undefined) return undefined;
+  if (root === undefined || root === null) return undefined;
   if (!path) return root;
 
   // Bolt Optimization: Iterative path resolution without split('.') to avoid array allocation.
