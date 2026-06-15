@@ -67,3 +67,8 @@
 **Vulnerability:** Denial of Service (DoS) via Cache Penetration.
 **Learning:** The application was vulnerable to resource exhaustion because it only cached successful session lookups. Attackers could flood the system with requests for non-existent session IDs, forcing a Redis lookup for every request and bypassing the in-memory cache entirely.
 **Prevention:** Implement negative caching by storing a sentinel value (e.g., "__NOT_FOUND__") in the local cache for keys that do not exist in the primary database. This ensures that repeated lookups for missing resources are handled at the cache layer, protecting the database from exhaustion.
+
+## 2026-06-27 - Action Registry Prototype Bypass
+**Vulnerability:** Workflow actions could execute arbitrary prototype methods (e.g., `toString`, `valueOf`) if the action registry lookup didn't enforce "own" property checks.
+**Learning:** Using `ctx.actions[ns]?.[fn]` without verification allows attackers to trigger methods inherited from `Object.prototype` or `Function.prototype`, potentially leading to `TypeError` crashes or information disclosure if the method's output is captured in the workflow state.
+**Prevention:** Enforce a strict `ns.fn` format for all action strings. Use `Object.prototype.hasOwnProperty.call(registry, key)` to verify that both the namespace and the function name are explicitly defined in the action registry before execution.
