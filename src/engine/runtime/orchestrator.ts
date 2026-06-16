@@ -102,11 +102,32 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
     return { invoked: workflowName };
   }
 
-  const [ns, fn] = actionStr.split('.');
-  const handler = ctx.actions[ns]?.[fn];
+  // Sentinel: Enforce strict ns.fn format and prevent action injection via prototype.
+  const parts = actionStr.split('.');
+  if (parts.length !== 2) {
+    console.warn(`Invalid action format: ${actionStr}`);
+    return null;
+  }
 
-  if (!handler) {
-    console.warn(`Unknown action: ${actionStr}`);
+  const [ns, fn] = parts;
+
+  // Use hasOwnProperty to ensure we only execute actions explicitly defined in the context,
+  // blocking access to inherited methods like toString, constructor, etc.
+  if (!Object.prototype.hasOwnProperty.call(ctx.actions, ns)) {
+    console.warn(`Unknown action namespace: ${ns}`);
+    return null;
+  }
+
+  const namespaceObj = ctx.actions[ns];
+  if (!Object.prototype.hasOwnProperty.call(namespaceObj, fn)) {
+    console.warn(`Unknown action function: ${fn} in namespace ${ns}`);
+    return null;
+  }
+
+  const handler = (namespaceObj as any)[fn];
+
+  if (typeof handler !== 'function') {
+    console.warn(`Action is not a function: ${actionStr}`);
     return null;
   }
 
