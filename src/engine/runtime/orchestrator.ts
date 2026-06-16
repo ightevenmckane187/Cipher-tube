@@ -102,8 +102,23 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
     return { invoked: workflowName };
   }
 
-  const [ns, fn] = actionStr.split('.');
-  const handler = ctx.actions[ns]?.[fn];
+  // Sentinel: Enforce strict ns.fn format and prevent prototype method execution.
+  const parts = actionStr.split('.');
+  if (parts.length !== 2 || !isValidStateKey(parts[0]) || !isValidStateKey(parts[1])) {
+    console.warn(`Invalid or unauthorized action format: ${actionStr}`);
+    return null;
+  }
+
+  const [ns, fn] = parts;
+
+  // Sentinel: Use hasOwnProperty to ensure we only call registered namespaces and actions, not prototype methods.
+  const namespace = (ctx.actions && Object.prototype.hasOwnProperty.call(ctx.actions, ns))
+    ? ctx.actions[ns]
+    : null;
+
+  const handler = (namespace && Object.prototype.hasOwnProperty.call(namespace, fn))
+    ? namespace[fn]
+    : null;
 
   if (!handler) {
     console.warn(`Unknown action: ${actionStr}`);
