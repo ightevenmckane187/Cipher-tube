@@ -417,10 +417,10 @@ app.get("/", (req: Request, res: Response) => {
                 <h2>Quick Start</h2>
                 <div class="input-group">
                     <div class="counter-container">
-                        <label for="user-id-input">Customize your User ID:</label>
+                        <label for="user-id-input">Customize your User ID: <kbd aria-hidden="true" class="kb-shortcut">/</kbd></label>
                         <span id="user-id-counter" aria-live="polite">0 of 128 characters used</span>
                     </div>
-                    <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter">
+                    <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter" aria-keyshortcuts="/">
                 </div>
                 <p>To get started, create a session via the API:</p>
                 <div class="code-container">
@@ -521,6 +521,10 @@ app.get("/", (req: Request, res: Response) => {
                     if (e.ctrlKey || e.metaKey || e.altKey) return;
                     if (e.key === 'c') {
                         document.getElementById('copy-curl')?.click();
+                    } else if (e.key === '/') {
+                        e.preventDefault();
+                        userIdInput?.focus();
+                        userIdInput?.select();
                     } else if (e.key === 't') {
                         document.querySelector('.theme-toggle')?.click();
                     } else if (e.key === 'e') {
