@@ -67,3 +67,8 @@
 **Vulnerability:** Denial of Service (DoS) via Cache Penetration.
 **Learning:** The application was vulnerable to resource exhaustion because it only cached successful session lookups. Attackers could flood the system with requests for non-existent session IDs, forcing a Redis lookup for every request and bypassing the in-memory cache entirely.
 **Prevention:** Implement negative caching by storing a sentinel value (e.g., "__NOT_FOUND__") in the local cache for keys that do not exist in the primary database. This ensures that repeated lookups for missing resources are handled at the cache layer, protecting the database from exhaustion.
+
+## 2026-06-16 - Action Injection in Orchestrator
+**Vulnerability:** Action injection via prototype methods in the Predator orchestrator.
+**Learning:** Using dynamic string splitting to resolve object properties (e.g., `ctx.actions[ns][fn]`) allows attackers to execute inherited prototype methods like `toString` or `constructor` if the namespaces or functions are not validated as own properties.
+**Prevention:** Always use `Object.prototype.hasOwnProperty.call(obj, prop)` to verify that a property exists directly on an object before accessing it dynamically, especially in security-critical dispatch logic. Enforce strict format validation (e.g., exactly two parts for `ns.fn`) to further reduce attack surface.
