@@ -67,3 +67,8 @@
 **Vulnerability:** Denial of Service (DoS) via Cache Penetration.
 **Learning:** The application was vulnerable to resource exhaustion because it only cached successful session lookups. Attackers could flood the system with requests for non-existent session IDs, forcing a Redis lookup for every request and bypassing the in-memory cache entirely.
 **Prevention:** Implement negative caching by storing a sentinel value (e.g., "__NOT_FOUND__") in the local cache for keys that do not exist in the primary database. This ensures that repeated lookups for missing resources are handled at the cache layer, protecting the database from exhaustion.
+
+## 2026-06-27 - Prototype Injection in Action Execution
+**Vulnerability:** Action injection and unauthorized prototype method execution in Orchestrator.
+**Learning:** The orchestrator's `executeAction` logic was vulnerable to executing any property found on the action registry or its prototype chain (e.g., `constructor`, `toString`, `hasOwnProperty`). If a namespace or function name matched a built-in property, it could be triggered with user-controlled parameters.
+**Prevention:** Enforce a strict format for action strings (e.g., exactly two segments `ns.fn`). Use `Object.prototype.hasOwnProperty.call` at every level of the object traversal (both namespace and function) to ensure only explicitly registered actions are executed, bypassing the prototype chain entirely.
