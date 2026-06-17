@@ -102,11 +102,23 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
     return { invoked: workflowName };
   }
 
-  const [ns, fn] = actionStr.split('.');
-  const handler = ctx.actions[ns]?.[fn];
+  // Sentinel: Enforce strict two-segment ns.fn format and prevent action injection
+  const parts = actionStr.split('.');
+  if (parts.length !== 2) {
+    console.warn(`Invalid action format (expected ns.fn): ${actionStr}`);
+    return null;
+  }
 
-  if (!handler) {
-    console.warn(`Unknown action: ${actionStr}`);
+  const [ns, fn] = parts;
+
+  // Sentinel: Use hasOwnProperty to block prototype methods from being executed as actions
+  if (!isValidStateKey(ns) || !isValidStateKey(fn)) return null;
+
+  const nsObj = Object.prototype.hasOwnProperty.call(ctx.actions, ns) ? ctx.actions[ns] : null;
+  const handler = (nsObj && Object.prototype.hasOwnProperty.call(nsObj, fn)) ? nsObj[fn] : null;
+
+  if (typeof handler !== 'function') {
+    console.warn(`Unknown or invalid action handler: ${actionStr}`);
     return null;
   }
 
