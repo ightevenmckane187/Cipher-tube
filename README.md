@@ -15,6 +15,7 @@ This repository combines two main pieces:
 - Documentation and LaTeX/IEEE whitepaper templates for the Cipher Tube Assembly.
 - **Optimized encryption/decryption** with ~0.44ms average decryption speed (v1.5.0 Bolt optimization).
 - **Security-hardened** endpoints with comprehensive validation and error handling.
+- **CypherTube External Plugin (v2.0.0)**: Department of War compliant external capability plugin for Agentic AI frameworks (Model Context Protocol support).
 
 ## Prerequisites
 
