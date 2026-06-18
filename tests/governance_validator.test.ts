@@ -20,6 +20,9 @@ describe('AuthorityChainValidator', () => {
         conditions: [],
         mandatory_signatures: ['admin'],
         mandatory_artifacts: []
+      },
+      vendor_lockin_prevention: {
+        mandatory_artifacts: []
       }
     },
     escalation_paths: {}
