@@ -7,8 +7,15 @@ import path from "path";
 import rateLimit from "express-rate-limit";
 import { LRUCache } from "lru-cache";
 import { buildCipherTube, decryptCipherTube } from "./cta";
+import { getBlindedRedisKey } from "./session_rotator";
+import { otelSDK } from "./telemetry/provider";
+import { logger } from "./telemetry/logger";
+import { sanitizeUserId } from "./middleware/sanitizer";
 
 dotenv.config();
+
+// Start OpenTelemetry SDK
+otelSDK.start();
 
 export const app: Application = express();
 const PORT = process.env.PORT || 3000;
@@ -430,7 +437,7 @@ app.get("/", (req: Request, res: Response) => {
                         <span id="copy-text" aria-live="polite">Copy</span>
                         <kbd aria-hidden="true" class="kb-shortcut">(c)</kbd>
                     </button>
-                    <pre tabindex="0" role="region" aria-label="Terminal command example"><code id="curl-command">curl -X POST http://localhost:3000/mcp -H "x-user-id: demo-user"</code></pre>
+                    <pre tabindex="0" role="region" aria-label="Terminal command example"><code id="curl-command">curl -X POST http://localhost:3000/session -H "x-user-id: demo-user"</code></pre>
                 </div>
             </main>
 
@@ -485,7 +492,7 @@ app.get("/", (req: Request, res: Response) => {
                 function updateCurlCommand() {
                     const currentOrigin = window.location.origin;
                     const userId = userIdInput.value.trim() || 'demo-user';
-                    curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: \${userId}"\`;
+                    curlCommand.textContent = \`curl -X POST \${currentOrigin}/session -H "x-user-id: \${userId}"\`;
 
                     const length = userIdInput.value.length;
                     userIdCounter.textContent = \`\${length} of 128 characters used\`;
@@ -602,7 +609,7 @@ app.get("/", (req: Request, res: Response) => {
                 const originalFetch = window.fetch;
                 window.fetch = async (...args) => {
                     const response = await originalFetch(...args);
-                    if (typeof args[0] === 'string' && args[0].includes('/mcp') && args[1]?.method === 'POST') {
+                    if (typeof args[0] === 'string' && args[0].includes('/session') && args[1]?.method === 'POST') {
                         const data = await response.clone().json();
                         if (data.sessionId) window.currentSessionId = data.sessionId;
                     }
@@ -678,7 +685,8 @@ const ensureSessionOwner = async (
 
   try {
     if (!ownerId) {
-      ownerId = (await redisClient.get(`session:${sessionId}:owner`)) as string;
+      const sessionKey = getBlindedRedisKey(sessionId);
+      ownerId = (await redisClient.get(sessionKey)) as string;
       if (!ownerId) {
         // Sentinel: Implement negative caching to prevent redundant Redis lookups
         sessionCache.set(sessionId, SESSION_NOT_FOUND);
@@ -700,7 +708,8 @@ const ensureSessionOwner = async (
     if (typeof redisClient.expire === "function") {
       const needsUpdate = process.env.NODE_ENV === 'test' || !sessionUpdateCache.has(sessionId);
       if (needsUpdate) {
-        await redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL);
+        const sessionKey = getBlindedRedisKey(sessionId);
+        await redisClient.expire(sessionKey, SESSION_TTL);
         sessionUpdateCache.set(sessionId, true);
       }
     }
@@ -717,16 +726,17 @@ const ensureSessionOwner = async (
 
 // Session Creation Endpoint
 app.post(
-  "/mcp",
+  "/session",
   sessionLimiter,
   noCache,
   jsonParser,
+  sanitizeUserId,
   validateUserId,
   async (req: Request, res: Response) => {
     const userId = req.headers["x-user-id"] as string;
 
     const sessionId = crypto.randomUUID();
-    const sessionKey = `session:${sessionId}:owner`;
+    const sessionKey = getBlindedRedisKey(sessionId);
     try {
         // Store session ownership with security-compliant TTL (3600 seconds)
         await redisClient.set(sessionKey, userId, { EX: SESSION_TTL });
@@ -745,9 +755,10 @@ app.post(
 );
 
 app.get(
-  "/mcp/:sessionId/check",
+  "/session/:sessionId/check",
   sessionLimiter,
   noCache,
+  sanitizeUserId,
   validateUserId,
   ensureSessionOwner,
   (req: Request, res: Response) => {
@@ -764,6 +775,7 @@ app.post(
   "/session/:sessionId/extend",
   sessionLimiter,
   noCache,
+  sanitizeUserId,
   validateUserId,
   ensureSessionOwner,
   (req: Request, res: Response) => {
@@ -775,10 +787,11 @@ app.post(
  * CTA Encryption Endpoint
  */
 app.post(
-  "/mcp/:sessionId/encrypt",
+  "/session/:sessionId/encrypt",
   sessionLimiter,
   noCache,
   jsonParser,
+  sanitizeUserId,
   validateUserId,
   ensureSessionOwner,
   (req: Request, res: Response) => {
@@ -817,10 +830,11 @@ app.post(
  * CTA Decryption Endpoint
  */
 app.post(
-  "/mcp/:sessionId/decrypt",
+  "/session/:sessionId/decrypt",
   sessionLimiter,
   noCache,
   jsonParser,
+  sanitizeUserId,
   validateUserId,
   ensureSessionOwner,
   (req: Request, res: Response) => {

@@ -26,12 +26,12 @@ describe('Rate Limiting Security', () => {
     // Let's try 101 requests.
     for (let i = 0; i < 100; i++) {
         await request(app)
-            .get(`/mcp/${sessionId}/check`)
+            .get(`/session/${sessionId}/check`)
             .set('x-user-id', 'user-id');
     }
 
     const response = await request(app)
-        .get(`/mcp/${sessionId}/check`)
+        .get(`/session/${sessionId}/check`)
         .set('x-user-id', 'user-id');
 
     expect(response.status).toBe(429);

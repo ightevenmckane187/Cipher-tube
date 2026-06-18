@@ -4,7 +4,7 @@ import { app } from '../src/server';
 describe('Global Error Handling', () => {
   it('should return 400 for malformed JSON instead of leaking details', async () => {
     const response = await request(app)
-      .post('/mcp')
+      .post('/session')
       .set('Content-Type', 'application/json')
       .set('x-user-id', 'test-user')
       .send('{"invalid": json}'); // Malformed JSON
@@ -17,7 +17,7 @@ describe('Global Error Handling', () => {
   it('should return 413 for oversized payloads', async () => {
     const oversizedBody = { data: 'a'.repeat(20000) }; // > 10kb
     const response = await request(app)
-      .post('/mcp')
+      .post('/session')
       .set('x-user-id', 'test-user')
       .send(oversizedBody);
 

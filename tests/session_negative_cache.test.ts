@@ -36,7 +36,7 @@ describe('Session Cache Penetration (Negative Caching)', () => {
 
     // First request
     const res1 = await request(app)
-      .get(`/mcp/${sessionId}/check`)
+      .get(`/session/${sessionId}/check`)
       .set('x-user-id', userId);
 
     expect(res1.status).toBe(404);
@@ -44,7 +44,7 @@ describe('Session Cache Penetration (Negative Caching)', () => {
 
     // Second request for the same missing session
     const res2 = await request(app)
-      .get(`/mcp/${sessionId}/check`)
+      .get(`/session/${sessionId}/check`)
       .set('x-user-id', userId);
 
     expect(res2.status).toBe(404);

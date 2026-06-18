@@ -50,10 +50,14 @@
     "npm": ">=10.0.0"
   },
   "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/auto-instrumentations-node": "^0.77.0",
+    "@opentelemetry/sdk-node": "^0.219.0",
     "@types/js-yaml": "^4.0.9",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.4.1",
+    "express-validator": "^7.3.2",
     "helmet": "^8.1.0",
     "js-yaml": "^4.1.0",
     "lru-cache": "^11.3.5",

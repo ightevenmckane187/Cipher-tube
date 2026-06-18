@@ -30,36 +30,36 @@ describe("Security Validation", () => {
   });
 
   describe("x-user-id validation", () => {
-    it("should reject x-user-id longer than 128 characters in POST /mcp", async () => {
+    it("should reject x-user-id longer than 128 characters in POST /session", async () => {
       const longUserId = "a".repeat(129);
       const response = await request(app)
-        .post("/mcp")
+        .post("/session")
         .set("x-user-id", longUserId);
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain("Invalid x-user-id");
+      expect(response.body.errors[0].msg).toContain("User ID exceeds maximum length");
     });
 
-    it("should reject x-user-id longer than 128 characters in GET /mcp/:sessionId/check", async () => {
+    it("should reject x-user-id longer than 128 characters in GET /session/:sessionId/check", async () => {
       const longUserId = "a".repeat(129);
       const sessionId = "550e8400-e29b-41d4-8716-446655440000";
       const response = await request(app)
-        .get(`/mcp/${sessionId}/check`)
+        .get(`/session/${sessionId}/check`)
         .set("x-user-id", longUserId);
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain("Invalid x-user-id");
+      expect(response.body.errors[0].msg).toContain("User ID exceeds maximum length");
     });
   });
 
   describe("Sanitized Error Logging", () => {
-    it("should log only err.message on Redis failure in POST /mcp", async () => {
+    it("should log only err.message on Redis failure in POST /session", async () => {
       const complexError = new Error("Redis connection failed");
       (complexError as any).sensitiveInfo = "secret-password-123";
 
       redisMock.set.mockRejectedValueOnce(complexError);
 
-      await request(app).post("/mcp").set("x-user-id", "user123");
+      await request(app).post("/session").set("x-user-id", "user123");
 
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining("Session creation failed:"),
@@ -79,7 +79,7 @@ describe("Security Validation", () => {
       const sessionId = "550e8400-e29b-41d4-8716-446655440000";
 
       await request(app)
-        .get(`/mcp/${sessionId}/check`)
+        .get(`/session/${sessionId}/check`)
         .set("x-user-id", "user123");
 
       expect(consoleSpy).toHaveBeenCalledWith(
@@ -100,7 +100,7 @@ describe("Security Validation", () => {
 
     it("should return 400 for too short ciphertext", async () => {
       const response = await request(app)
-        .post(`/mcp/${sessionId}/decrypt`)
+        .post(`/session/${sessionId}/decrypt`)
         .set("x-user-id", userId)
         .send({
           ciphertext: "00112233",
@@ -123,7 +123,7 @@ describe("Security Validation", () => {
 
     it("should return 400 for invalid hex in ciphertext", async () => {
       const response = await request(app)
-        .post(`/mcp/${sessionId}/decrypt`)
+        .post(`/session/${sessionId}/decrypt`)
         .set("x-user-id", userId)
         .send({
           ciphertext: "not-hex-at-all",
@@ -146,7 +146,7 @@ describe("Security Validation", () => {
 
     it("should return 400 for missing tube fields", async () => {
       const response = await request(app)
-        .post(`/mcp/${sessionId}/decrypt`)
+        .post(`/session/${sessionId}/decrypt`)
         .set("x-user-id", userId)
         .send({
           ciphertext: "0".repeat(800),
@@ -162,7 +162,7 @@ describe("Security Validation", () => {
 
     it('should return 400 for malformed tubes array (null element)', async () => {
         const response = await request(app)
-          .post(`/mcp/${sessionId}/decrypt`)
+          .post(`/session/${sessionId}/decrypt`)
           .set('x-user-id', userId)
           .send({
             ciphertext: '0'.repeat(800),
@@ -176,7 +176,7 @@ describe("Security Validation", () => {
 
     it('should return 400 for missing or invalid fields in encryption tube', async () => {
         const response = await request(app)
-          .post(`/mcp/${sessionId}/decrypt`)
+          .post(`/session/${sessionId}/decrypt`)
           .set('x-user-id', userId)
           .send({
             ciphertext: '0'.repeat(800),
@@ -192,7 +192,7 @@ describe("Security Validation", () => {
 
     it('should return 400 for invalid layer indexing', async () => {
         const response = await request(app)
-          .post(`/mcp/${sessionId}/decrypt`)
+          .post(`/session/${sessionId}/decrypt`)
           .set('x-user-id', userId)
           .send({
             ciphertext: '0'.repeat(800),

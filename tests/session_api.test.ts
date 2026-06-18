@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { app } from '../src/server';
+import { getBlindedRedisKey } from '../src/session_rotator';
 
 // Mock Redis client
 jest.mock('redis', () => {
@@ -16,7 +17,7 @@ jest.mock('redis', () => {
 
 import { createClient } from 'redis';
 
-describe('MCP Session Management', () => {
+describe('Session API Management', () => {
   let redisMock: any;
 
   beforeEach(() => {
@@ -24,43 +25,47 @@ describe('MCP Session Management', () => {
     redisMock = (createClient as jest.Mock)();
   });
 
-  describe('POST /mcp', () => {
+  describe('POST /session', () => {
     it('should create a session for a valid user', async () => {
       const response = await request(app)
-        .post('/mcp')
+        .post('/session')
         .set('x-user-id', 'user123');
 
       expect(response.status).toBe(201);
       expect(response.body.sessionId).toBeDefined();
       expect(redisMock.set).toHaveBeenCalledWith(
-        expect.stringContaining(response.body.sessionId),
+        getBlindedRedisKey(response.body.sessionId),
         'user123',
         { EX: 3600 }
       );
     });
 
     it('should return 401 if x-user-id is missing', async () => {
-      const response = await request(app).post('/mcp');
-      expect(response.status).toBe(401);
+      const response = await request(app).post('/session');
+      expect(response.status).toBe(400); // Now 400 due to express-validator
     });
 
     it('should return 400 if x-user-id is too long', async () => {
       const longUserId = 'a'.repeat(129);
       const response = await request(app)
-        .post('/mcp')
+        .post('/session')
         .set('x-user-id', longUserId);
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain('exceeds maximum length');
+      expect(response.body.errors[0].msg).toContain('exceeds maximum length');
     });
   });
 
-  describe('GET /mcp/:sessionId/check', () => {
+  describe('GET /session/:sessionId/check', () => {
     it('should verify ownership for the correct user', async () => {
       const sessionId = '550e8400-e29b-41d4-8716-446655440001';
-      redisMock.get.mockResolvedValueOnce('user123');
+      const blindedKey = getBlindedRedisKey(sessionId);
+      redisMock.get.mockImplementation((key: string) => {
+        if (key === blindedKey) return Promise.resolve('user123');
+        return Promise.resolve(null);
+      });
 
       const response = await request(app)
-        .get(`/mcp/${sessionId}/check`)
+        .get(`/session/${sessionId}/check`)
         .set('x-user-id', 'user123');
 
       expect(response.status).toBe(200);
@@ -72,7 +77,7 @@ describe('MCP Session Management', () => {
       redisMock.get.mockResolvedValueOnce('user123');
 
       const response = await request(app)
-        .get(`/mcp/${sessionId}/check`)
+        .get(`/session/${sessionId}/check`)
         .set('x-user-id', 'otherUser');
 
       expect(response.status).toBe(403);
@@ -83,7 +88,7 @@ describe('MCP Session Management', () => {
       redisMock.get.mockResolvedValueOnce(null);
 
       const response = await request(app)
-        .get(`/mcp/${sessionId}/check`)
+        .get(`/session/${sessionId}/check`)
         .set('x-user-id', 'user123');
 
       expect(response.status).toBe(404);
@@ -93,7 +98,7 @@ describe('MCP Session Management', () => {
       const sessionId = '550e8400-e29b-41d4-8716-446655440001';
       const longUserId = 'a'.repeat(129);
       const response = await request(app)
-        .get(`/mcp/${sessionId}/check`)
+        .get(`/session/${sessionId}/check`)
         .set('x-user-id', longUserId);
       expect(response.status).toBe(400);
     });
@@ -104,13 +109,13 @@ describe('MCP Session Management', () => {
 
       // First request - hits Redis
       const resp1 = await request(app)
-        .get(`/mcp/${sessionId}/check`)
+        .get(`/session/${sessionId}/check`)
         .set('x-user-id', 'user456');
       expect(resp1.status).toBe(200);
 
       // Second request - should hit cache
       const resp2 = await request(app)
-        .get(`/mcp/${sessionId}/check`)
+        .get(`/session/${sessionId}/check`)
         .set('x-user-id', 'user456');
       expect(resp2.status).toBe(200);
 
@@ -121,7 +126,7 @@ describe('MCP Session Management', () => {
     it('should pre-warm the cache during session creation (Bolt Optimization)', async () => {
       // Create session
       const createResponse = await request(app)
-        .post('/mcp')
+        .post('/session')
         .set('x-user-id', 'prewarm-user');
 
       const sessionId = createResponse.body.sessionId;
@@ -132,7 +137,7 @@ describe('MCP Session Management', () => {
 
       // Check session - should hit pre-warmed cache and NOT call Redis
       const checkResponse = await request(app)
-        .get(`/mcp/${sessionId}/check`)
+        .get(`/session/${sessionId}/check`)
         .set('x-user-id', 'prewarm-user');
 
       expect(checkResponse.status).toBe(200);

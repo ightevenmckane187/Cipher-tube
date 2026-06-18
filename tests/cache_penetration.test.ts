@@ -29,7 +29,7 @@ describe('Cache Penetration Fix Verification', () => {
 
     // First request
     const res1 = await request(app)
-      .get(`/mcp/${nonExistentSessionId}/check`)
+      .get(`/session/${nonExistentSessionId}/check`)
       .set('x-user-id', userId);
 
     expect(res1.status).toBe(404);
@@ -37,7 +37,7 @@ describe('Cache Penetration Fix Verification', () => {
 
     // Second request for the SAME non-existent session
     const res2 = await request(app)
-      .get(`/mcp/${nonExistentSessionId}/check`)
+      .get(`/session/${nonExistentSessionId}/check`)
       .set('x-user-id', userId);
 
     expect(res2.status).toBe(404);

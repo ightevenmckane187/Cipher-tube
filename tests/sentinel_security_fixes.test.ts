@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { app, redisClient, sessionCache } from '../src/server';
 import { executeWorkflow, ExecContext } from '../src/engine/runtime/orchestrator';
+import { getBlindedRedisKey } from '../src/session_rotator';
 
 // Mock Redis client
 jest.mock('redis', () => {
@@ -113,14 +114,26 @@ describe('Sentinel Security Fixes', () => {
     });
 
     it('should extend Redis TTL on every authorized request (Activity Refresh)', async () => {
+        const blindedKey = getBlindedRedisKey(sessionId);
+        redisMock.get.mockImplementation((key: string) => {
+            if (key === blindedKey) return Promise.resolve(userId);
+            return Promise.resolve(null);
+        });
+
         await request(app)
-            .get(`/mcp/${sessionId}/check`)
+            .get(`/session/${sessionId}/check`)
             .set('x-user-id', userId);
 
-        expect(redisMock.expire).toHaveBeenCalledWith(`session:${sessionId}:owner`, 3600);
+        expect(redisMock.expire).toHaveBeenCalledWith(blindedKey, 3600);
     });
 
     it('should allow explicit session extension via POST /session/:sessionId/extend', async () => {
+        const blindedKey = getBlindedRedisKey(sessionId);
+        redisMock.get.mockImplementation((key: string) => {
+            if (key === blindedKey) return Promise.resolve(userId);
+            return Promise.resolve(null);
+        });
+
         const response = await request(app)
             .post(`/session/${sessionId}/extend`)
             .set('x-user-id', userId);
@@ -128,7 +141,7 @@ describe('Sentinel Security Fixes', () => {
         expect(response.status).toBe(200);
         expect(response.body.message).toBe('Session extended successfully');
         expect(response.body.expiresIn).toBe(3600);
-        expect(redisMock.expire).toHaveBeenCalledWith(`session:${sessionId}:owner`, 3600);
+        expect(redisMock.expire).toHaveBeenCalledWith(blindedKey, 3600);
     });
   });
 });

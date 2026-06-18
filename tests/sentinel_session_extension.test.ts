@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { app, sessionCache } from '../src/server';
 import { createClient } from 'redis';
+import { getBlindedRedisKey } from '../src/session_rotator';
 
 // Mock Redis client
 jest.mock('redis', () => {
@@ -28,7 +29,11 @@ describe('Sentinel: Session Extension & Activity Refresh', () => {
   });
 
   it('POST /session/:sessionId/extend should extend session TTL', async () => {
-    redisMock.get.mockResolvedValue(userId);
+    const blindedKey = getBlindedRedisKey(sessionId);
+    redisMock.get.mockImplementation((key: string) => {
+        if (key === blindedKey) return Promise.resolve(userId);
+        return Promise.resolve(null);
+    });
 
     const response = await request(app)
       .post(`/session/${sessionId}/extend`)
@@ -36,32 +41,37 @@ describe('Sentinel: Session Extension & Activity Refresh', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ message: 'Session extended successfully', expiresIn: 3600 });
-    expect(redisMock.expire).toHaveBeenCalledWith(`session:${sessionId}:owner`, 3600);
+    expect(redisMock.expire).toHaveBeenCalledWith(blindedKey, 3600);
   });
 
   it('ensureSessionOwner should trigger activity refresh on lookup', async () => {
-    redisMock.get.mockResolvedValue(userId);
+    const blindedKey = getBlindedRedisKey(sessionId);
+    redisMock.get.mockImplementation((key: string) => {
+        if (key === blindedKey) return Promise.resolve(userId);
+        return Promise.resolve(null);
+    });
 
     const response = await request(app)
-      .get(`/mcp/${sessionId}/check`)
+      .get(`/session/${sessionId}/check`)
       .set('x-user-id', userId);
 
     expect(response.status).toBe(200);
-    expect(redisMock.get).toHaveBeenCalledWith(`session:${sessionId}:owner`);
-    expect(redisMock.expire).toHaveBeenCalledWith(`session:${sessionId}:owner`, 3600);
+    expect(redisMock.get).toHaveBeenCalledWith(blindedKey);
+    expect(redisMock.expire).toHaveBeenCalledWith(blindedKey, 3600);
   });
 
   it('ensureSessionOwner should trigger activity refresh even on cache hit', async () => {
     // Pre-warm cache
     sessionCache.set(sessionId, userId);
+    const blindedKey = getBlindedRedisKey(sessionId);
 
     const response = await request(app)
-      .get(`/mcp/${sessionId}/check`)
+      .get(`/session/${sessionId}/check`)
       .set('x-user-id', userId);
 
     expect(response.status).toBe(200);
     expect(redisMock.get).not.toHaveBeenCalled();
-    expect(redisMock.expire).toHaveBeenCalledWith(`session:${sessionId}:owner`, 3600);
+    expect(redisMock.expire).toHaveBeenCalledWith(blindedKey, 3600);
   });
 
   it('POST /session/:sessionId/extend should return 403 if not owner', async () => {

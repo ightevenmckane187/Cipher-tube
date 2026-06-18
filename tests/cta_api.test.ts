@@ -28,7 +28,7 @@ describe('CTA API Integration', () => {
 
     // Create a session to use for tests
     const response = await request(app)
-      .post('/mcp')
+      .post('/session')
       .set('x-user-id', userId);
 
     sessionId = response.body.sessionId;
@@ -44,12 +44,12 @@ describe('CTA API Integration', () => {
     await redisClient.quit();
   });
 
-  describe('POST /mcp/:sessionId/encrypt', () => {
+  describe('POST /session/:sessionId/encrypt', () => {
     it('should successfully encrypt a message', async () => {
       redisMock.get.mockResolvedValueOnce(userId);
       const message = 'Secret message';
       const response = await request(app)
-        .post(`/mcp/${sessionId}/encrypt`)
+        .post(`/session/${sessionId}/encrypt`)
         .set('x-user-id', userId)
         .send({ message, masterSeed });
 
@@ -64,7 +64,7 @@ describe('CTA API Integration', () => {
       sessionCache.clear();
 
       const response = await request(app)
-        .post(`/mcp/${sessionId}/encrypt`)
+        .post(`/session/${sessionId}/encrypt`)
         .set('x-user-id', 'wrong-user')
         .send({ message: 'test', masterSeed });
 
@@ -72,13 +72,13 @@ describe('CTA API Integration', () => {
     });
   });
 
-  describe('POST /mcp/:sessionId/decrypt', () => {
+  describe('POST /session/:sessionId/decrypt', () => {
     let encryptionResult: any;
 
     beforeAll(async () => {
       redisMock.get.mockResolvedValueOnce(userId);
       const response = await request(app)
-        .post(`/mcp/${sessionId}/encrypt`)
+        .post(`/session/${sessionId}/encrypt`)
         .set('x-user-id', userId)
         .send({ message: 'Hello world', masterSeed });
 
@@ -88,7 +88,7 @@ describe('CTA API Integration', () => {
     it('should successfully decrypt a message', async () => {
       redisMock.get.mockResolvedValueOnce(userId);
       const response = await request(app)
-        .post(`/mcp/${sessionId}/decrypt`)
+        .post(`/session/${sessionId}/decrypt`)
         .set('x-user-id', userId)
         .send({
           ciphertext: encryptionResult.ciphertext,
@@ -107,7 +107,7 @@ describe('CTA API Integration', () => {
       tamperedTubes[0] = { ...tamperedTubes[0], hash: 'wrong-hash' };
 
       const response = await request(app)
-        .post(`/mcp/${sessionId}/decrypt`)
+        .post(`/session/${sessionId}/decrypt`)
         .set('x-user-id', userId)
         .send({
           ciphertext: encryptionResult.ciphertext,
@@ -124,7 +124,7 @@ describe('CTA API Integration', () => {
       redisMock.get.mockResolvedValueOnce(userId);
       const wrongSeed = crypto.randomBytes(32).toString('hex');
       const response = await request(app)
-        .post(`/mcp/${sessionId}/decrypt`)
+        .post(`/session/${sessionId}/decrypt`)
         .set('x-user-id', userId)
         .send({
           ciphertext: encryptionResult.ciphertext,

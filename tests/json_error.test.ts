@@ -4,7 +4,7 @@ import { app } from '../src/server';
 describe('JSON Parsing Error Handling', () => {
   it('should return a 400 JSON error for malformed JSON', async () => {
     const response = await request(app)
-      .post('/mcp')
+      .post('/session')
       .set('x-user-id', 'test-user')
       .set('Content-Type', 'application/json')
       .send('{"invalid": json}'); // Malformed JSON
