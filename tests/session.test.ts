@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { app, redisClient, sessionCache } from '../src/server';
 import crypto from 'crypto';
+import { getBlindedRedisKey } from '../src/session_rotator';
 
 jest.mock('redis', () => {
   const mRedis = {
@@ -27,6 +28,7 @@ describe('Session Ownership API', () => {
         redisMock = createClient();
         redisMock.get.mockImplementation((key: string) => {
             if (key.includes('non-existent') || key.includes('440004')) return Promise.resolve(null);
+            // Default mock behavior for blinded keys
             return Promise.resolve(userId);
         });
     });
@@ -43,9 +45,9 @@ describe('Session Ownership API', () => {
         expect(res.status).toBe(201);
         expect(res.body).toHaveProperty('sessionId');
 
-        // We can't expect sessionId in the key anymore because we store blinded hashes
+        const expectedBlindedKey = getBlindedRedisKey(res.body.sessionId);
         expect(redisMock.set).toHaveBeenCalledWith(
-            expect.stringMatching(/^session:[0-9a-f]{64}:owner$/),
+            expectedBlindedKey,
             userId,
             expect.any(Object)
         );
@@ -57,8 +59,15 @@ describe('Session Ownership API', () => {
     });
 
     it('should allow the owner to check their session', async () => {
-        const sessionToken = '550e8400-e29b-41d4-8716-446655440000';
-        redisMock.get.mockResolvedValueOnce(userId);
+        // We use a real UUID for sessionId to satisfy validation
+        const sessionId = '550e8400-e29b-41d4-8716-446655440000';
+        const blindedKey = getBlindedRedisKey(sessionId);
+
+        // Mock redisClient.get to return the owner when called with blinded key
+        redisMock.get.mockImplementation((key: string) => {
+            if (key === blindedKey) return Promise.resolve(userId);
+            return Promise.resolve(null);
+        });
 
         const checkRes = await request(app)
             .get(`/mcp/check`)
@@ -67,6 +76,7 @@ describe('Session Ownership API', () => {
 
         expect(checkRes.status).toBe(200);
         expect(checkRes.body.status).toBe('owned');
+        expect(redisMock.get).toHaveBeenCalledWith(blindedKey);
     });
 
     it('should return 403 if a different user checks the session', async () => {
