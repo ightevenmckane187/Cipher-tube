@@ -1,4 +1,13 @@
 /**
+ * Bolt Optimization: Helper to identify plain objects to avoid expensive iteration on complex types like Buffer.
+ */
+function isPlainObject(obj: any): boolean {
+  if (typeof obj !== "object" || obj === null) return false;
+  const proto = Object.getPrototypeOf(obj);
+  return proto === Object.prototype || proto === null;
+}
+
+/**
  * Sentinel: Centralized validator to block prototype pollution keys.
  */
 export function isValidStateKey(key: any): boolean {
@@ -231,6 +240,10 @@ export function resolveParams(params: any, config: any, state: any, item: any): 
   }
 
   if (params && typeof params === 'object') {
+    // Bolt Optimization: Skip expensive property iteration on non-plain objects (Buffer, Date, etc.)
+    // Note: Arrays are handled in the previous block and will not reach here.
+    if (!isPlainObject(params)) return params;
+
     const keys = Object.keys(params);
     const len = keys.length;
     for (let i = 0; i < len; i++) {
