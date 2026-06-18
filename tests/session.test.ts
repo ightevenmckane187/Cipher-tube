@@ -70,8 +70,9 @@ describe('Session Ownership API', () => {
         });
 
         const checkRes = await request(app)
-            .get(`/mcp/${sessionId}/check`)
-            .set('x-user-id', userId);
+            .get(`/mcp/check`)
+            .set('x-user-id', userId)
+            .set('x-session-token', sessionToken);
 
         expect(checkRes.status).toBe(200);
         expect(checkRes.body.status).toBe('owned');
@@ -79,25 +80,25 @@ describe('Session Ownership API', () => {
     });
 
     it('should return 403 if a different user checks the session', async () => {
-        const sessionId = '550e8400-e29b-41d4-8716-446655440000';
-
-        // Mock redisClient.get to return the original owner
+        const sessionToken = '550e8400-e29b-41d4-8716-446655440000';
         redisMock.get.mockResolvedValueOnce(userId);
 
         const checkRes = await request(app)
-            .get(`/mcp/${sessionId}/check`)
-            .set('x-user-id', otherUserId);
+            .get(`/mcp/check`)
+            .set('x-user-id', otherUserId)
+            .set('x-session-token', sessionToken);
 
         expect(checkRes.status).toBe(403);
     });
 
     it('should return 404 if the session does not exist', async () => {
-        const sessionId = '550e8400-e29b-41d4-8716-446655440004';
+        const sessionToken = '550e8400-e29b-41d4-8716-446655440004';
         redisMock.get.mockResolvedValueOnce(null);
 
         const checkRes = await request(app)
-            .get(`/mcp/${sessionId}/check`)
-            .set('x-user-id', userId);
+            .get(`/mcp/check`)
+            .set('x-user-id', userId)
+            .set('x-session-token', sessionToken);
 
         expect(checkRes.status).toBe(404);
     });

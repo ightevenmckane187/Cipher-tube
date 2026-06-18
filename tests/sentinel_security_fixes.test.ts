@@ -107,7 +107,7 @@ describe('Sentinel Security Fixes', () => {
 
   describe('Server: Session Activity Refresh & Extension', () => {
     const userId = 'sentinel-user';
-    const sessionId = '550e8400-e29b-41d4-a716-446655440000';
+    const sessionToken = 'sentinel-token';
 
     beforeEach(() => {
         redisMock.get.mockResolvedValue(userId);
@@ -121,8 +121,9 @@ describe('Sentinel Security Fixes', () => {
         });
 
         await request(app)
-            .get(`/mcp/${sessionId}/check`)
-            .set('x-user-id', userId);
+            .get(`/mcp/check`)
+            .set('x-user-id', userId)
+            .set('x-session-token', sessionToken);
 
         expect(redisMock.expire).toHaveBeenCalledWith(blindedKey, 3600);
     });
@@ -135,8 +136,9 @@ describe('Sentinel Security Fixes', () => {
         });
 
         const response = await request(app)
-            .post(`/session/${sessionId}/extend`)
-            .set('x-user-id', userId);
+            .post(`/session/extend`)
+            .set('x-user-id', userId)
+            .set('x-session-token', sessionToken);
 
         expect(response.status).toBe(200);
         expect(response.body.message).toBe('Session extended successfully');

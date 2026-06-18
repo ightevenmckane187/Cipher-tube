@@ -29,16 +29,18 @@ describe('Cache Penetration Fix Verification', () => {
 
     // First request
     const res1 = await request(app)
-      .get(`/mcp/${nonExistentSessionId}/check`)
-      .set('x-user-id', userId);
+      .get(`/mcp/check`)
+      .set('x-user-id', userId)
+      .set('x-session-token', nonExistentSessionId);
 
     expect(res1.status).toBe(404);
     expect(redisClient.get).toHaveBeenCalledTimes(1);
 
     // Second request for the SAME non-existent session
     const res2 = await request(app)
-      .get(`/mcp/${nonExistentSessionId}/check`)
-      .set('x-user-id', userId);
+      .get(`/mcp/check`)
+      .set('x-user-id', userId)
+      .set('x-session-token', nonExistentSessionId);
 
     expect(res2.status).toBe(404);
 
