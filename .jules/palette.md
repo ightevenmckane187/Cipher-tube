@@ -29,3 +29,7 @@
 ## 2026-05-20 - [Consolidating Interactive Controls and Robust Layouts]
 **Learning:** Adding new UI elements like navigation bars can lead to redundant controls (e.g., dual theme toggles), which confuses users. Furthermore, descriptive accessibility text (e.g., "X of Y characters used") requires more space than simple counters, necessitating robust layout strategies like `flex-shrink: 0` and `white-space: nowrap` to prevent awkward wrapping.
 **Action:** Always audit for redundant interactive elements when modifying headers or navigation. Use flexible container properties and sufficient max-widths to accommodate descriptive accessibility strings without breaking visual alignment.
+
+## 2026-05-25 - [Accelerating Form Interaction with Global Keyboard Shortcuts]
+**Learning:** For landing pages where the primary user action involves a specific input (e.g., customizing a User ID), providing a global shortcut like `/` significantly enhances efficiency for power users. Pairing this with `aria-keyshortcuts` ensures accessibility, while using `e.preventDefault()` and `input.select()` provides a frictionless transition by preventing character injection and preparing the field for immediate replacement.
+**Action:** Implement the `/` shortcut to focus the main search or identifier input on landing pages. Always pair with a visual `<kbd>` hint and appropriate ARIA attributes to ensure discoverability and accessibility.

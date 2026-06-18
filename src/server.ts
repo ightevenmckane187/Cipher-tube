@@ -527,6 +527,10 @@ app.get("/", (req: Request, res: Response) => {
                     if (e.ctrlKey || e.metaKey || e.altKey) return;
                     if (e.key === 'c') {
                         document.getElementById('copy-curl')?.click();
+                    } else if (e.key === '/') {
+                        e.preventDefault();
+                        userIdInput?.focus();
+                        userIdInput?.select();
                     } else if (e.key === 't') {
                         document.querySelector('.theme-toggle')?.click();
                     } else if (e.key === 'e') {
