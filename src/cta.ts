@@ -57,11 +57,14 @@ const HAS_ONE_SHOT_HASH = typeof (crypto as any).hash === 'function';
 /**
  * Bolt Optimization: High-performance one-shot hashing with fallback for older Node versions.
  */
-function fastHash(algorithm: string, data: crypto.BinaryLike): Buffer {
+export function fastHash(algorithm: string, data: crypto.BinaryLike, encoding: 'hex'): string;
+export function fastHash(algorithm: string, data: crypto.BinaryLike, encoding?: 'buffer'): Buffer;
+export function fastHash(algorithm: string, data: crypto.BinaryLike, encoding: 'buffer' | 'hex' = 'buffer'): Buffer | string {
   if (HAS_ONE_SHOT_HASH) {
-    return (crypto as any).hash(algorithm, data, 'buffer');
+    return (crypto as any).hash(algorithm, data, encoding);
   }
-  return crypto.createHash(algorithm).update(data).digest();
+  const digest = crypto.createHash(algorithm).update(data).digest();
+  return encoding === 'hex' ? digest.toString('hex') : digest;
 }
 
 function deriveKey(master: Buffer, salt: Buffer, info: string | Buffer): ArrayBuffer {
@@ -94,8 +97,8 @@ export function buildCipherTube(
   let entropyOffset = 0;
 
   // === 12 Hash-Lock Tubes (Integrity) ===
-  // Bolt Optimization: Use fastHash for one-shot performance
-  const integrityHash = fastHash('sha512', current).toString('hex');
+  // Bolt Optimization: Use fastHash for one-shot performance and return hex directly
+  const integrityHash = fastHash('sha512', current, 'hex');
 
   for (let i = 0; i < NUM_INTEGRITY_TUBES; i++) {
     const saltHex = entropyPool.toString('hex', entropyOffset, entropyOffset + 16);
@@ -155,7 +158,7 @@ export function buildCipherTube(
     audit: {
       whatHappened: audit,
       timestamp: new Date().toISOString(),
-      seedHash: fastHash('sha256', masterSeed).toString('hex')
+      seedHash: fastHash('sha256', masterSeed, 'hex')
     }
   };
 }
