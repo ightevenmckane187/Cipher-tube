@@ -7,6 +7,7 @@ import path from "path";
 import rateLimit from "express-rate-limit";
 import { LRUCache } from "lru-cache";
 import { buildCipherTube, decryptCipherTube } from "./cta";
+import { getBlindedRedisKey } from "./session_rotator";
 
 dotenv.config();
 
@@ -678,7 +679,8 @@ const ensureSessionOwner = async (
 
   try {
     if (!ownerId) {
-      ownerId = (await redisClient.get(`session:${sessionId}:owner`)) as string;
+      const sessionKey = getBlindedRedisKey(sessionId);
+      ownerId = (await redisClient.get(sessionKey)) as string;
       if (!ownerId) {
         // Sentinel: Implement negative caching to prevent redundant Redis lookups
         sessionCache.set(sessionId, SESSION_NOT_FOUND);
@@ -700,7 +702,8 @@ const ensureSessionOwner = async (
     if (typeof redisClient.expire === "function") {
       const needsUpdate = process.env.NODE_ENV === 'test' || !sessionUpdateCache.has(sessionId);
       if (needsUpdate) {
-        await redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL);
+        const sessionKey = getBlindedRedisKey(sessionId);
+        await redisClient.expire(sessionKey, SESSION_TTL);
         sessionUpdateCache.set(sessionId, true);
       }
     }
@@ -726,7 +729,7 @@ app.post(
     const userId = req.headers["x-user-id"] as string;
 
     const sessionId = crypto.randomUUID();
-    const sessionKey = `session:${sessionId}:owner`;
+    const sessionKey = getBlindedRedisKey(sessionId);
     try {
         // Store session ownership with security-compliant TTL (3600 seconds)
         await redisClient.set(sessionKey, userId, { EX: SESSION_TTL });
