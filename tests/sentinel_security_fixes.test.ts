@@ -106,7 +106,7 @@ describe('Sentinel Security Fixes', () => {
 
   describe('Server: Session Activity Refresh & Extension', () => {
     const userId = 'sentinel-user';
-    const sessionId = '550e8400-e29b-41d4-a716-446655440000';
+    const sessionToken = 'sentinel-token';
 
     beforeEach(() => {
         redisMock.get.mockResolvedValue(userId);
@@ -114,21 +114,23 @@ describe('Sentinel Security Fixes', () => {
 
     it('should extend Redis TTL on every authorized request (Activity Refresh)', async () => {
         await request(app)
-            .get(`/mcp/${sessionId}/check`)
-            .set('x-user-id', userId);
+            .get(`/mcp/check`)
+            .set('x-user-id', userId)
+            .set('x-session-token', sessionToken);
 
-        expect(redisMock.expire).toHaveBeenCalledWith(`session:${sessionId}:owner`, 3600);
+        expect(redisMock.expire).toHaveBeenCalledWith(expect.stringMatching(/^session:[0-9a-f]{64}:owner$/), 3600);
     });
 
-    it('should allow explicit session extension via POST /session/:sessionId/extend', async () => {
+    it('should allow explicit session extension via POST /session/extend', async () => {
         const response = await request(app)
-            .post(`/session/${sessionId}/extend`)
-            .set('x-user-id', userId);
+            .post(`/session/extend`)
+            .set('x-user-id', userId)
+            .set('x-session-token', sessionToken);
 
         expect(response.status).toBe(200);
         expect(response.body.message).toBe('Session extended successfully');
         expect(response.body.expiresIn).toBe(3600);
-        expect(redisMock.expire).toHaveBeenCalledWith(`session:${sessionId}:owner`, 3600);
+        expect(redisMock.expire).toHaveBeenCalledWith(expect.stringMatching(/^session:[0-9a-f]{64}:owner$/), 3600);
     });
   });
 });
