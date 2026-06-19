@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { app } from '../src/server';
+import { getBlindedRedisKey } from '../src/session_rotator';
 
 // Mock Redis client
 jest.mock('redis', () => {
@@ -8,6 +9,7 @@ jest.mock('redis', () => {
     connect: jest.fn().mockResolvedValue(null),
     set: jest.fn().mockResolvedValue('OK'),
     get: jest.fn(),
+    expire: jest.fn().mockResolvedValue(1),
   };
   return {
     createClient: jest.fn(() => mRedis),
@@ -21,6 +23,7 @@ describe('MCP Session Management', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    sessionCache.clear();
     redisMock = (createClient as jest.Mock)();
   });
 
@@ -31,9 +34,9 @@ describe('MCP Session Management', () => {
         .set('x-user-id', 'user123');
 
       expect(response.status).toBe(201);
-      expect(response.body.sessionId).toBeDefined();
+      expect(response.body.sessionToken).toBeDefined();
       expect(redisMock.set).toHaveBeenCalledWith(
-        expect.stringContaining(response.body.sessionId),
+        getBlindedRedisKey(response.body.sessionId),
         'user123',
         { EX: 3600 }
       );
@@ -54,64 +57,74 @@ describe('MCP Session Management', () => {
     });
   });
 
-  describe('GET /mcp/:sessionId/check', () => {
+  describe('GET /mcp/check', () => {
     it('should verify ownership for the correct user', async () => {
       const sessionId = '550e8400-e29b-41d4-8716-446655440001';
-      redisMock.get.mockResolvedValueOnce('user123');
+      const blindedKey = getBlindedRedisKey(sessionId);
+      redisMock.get.mockImplementation((key: string) => {
+        if (key === blindedKey) return Promise.resolve('user123');
+        return Promise.resolve(null);
+      });
 
       const response = await request(app)
-        .get(`/mcp/${sessionId}/check`)
-        .set('x-user-id', 'user123');
+        .get(`/mcp/check`)
+        .set('x-user-id', 'user123')
+        .set('x-session-token', sessionToken);
 
       expect(response.status).toBe(200);
       expect(response.body.message).toBe('Session ownership verified');
     });
 
     it('should return 403 for the wrong user', async () => {
-      const sessionId = '550e8400-e29b-41d4-8716-446655440002';
+      const sessionToken = 'test-token';
       redisMock.get.mockResolvedValueOnce('user123');
 
       const response = await request(app)
-        .get(`/mcp/${sessionId}/check`)
-        .set('x-user-id', 'otherUser');
+        .get(`/mcp/check`)
+        .set('x-user-id', 'otherUser')
+        .set('x-session-token', sessionToken);
 
       expect(response.status).toBe(403);
     });
 
     it('should return 404 for a non-existent session', async () => {
-      const sessionId = '550e8400-e29b-41d4-8716-446655440003';
+      const sessionToken = 'non-existent';
       redisMock.get.mockResolvedValueOnce(null);
 
       const response = await request(app)
-        .get(`/mcp/${sessionId}/check`)
-        .set('x-user-id', 'user123');
+        .get(`/mcp/check`)
+        .set('x-user-id', 'user123')
+        .set('x-session-token', sessionToken);
 
       expect(response.status).toBe(404);
     });
 
     it('should return 400 if x-user-id is too long on check', async () => {
-      const sessionId = '550e8400-e29b-41d4-8716-446655440001';
+      const sessionToken = 'test-token';
       const longUserId = 'a'.repeat(129);
       const response = await request(app)
-        .get(`/mcp/${sessionId}/check`)
-        .set('x-user-id', longUserId);
+        .get(`/mcp/check`)
+        .set('x-user-id', longUserId)
+        .set('x-session-token', sessionToken);
       expect(response.status).toBe(400);
     });
 
     it('should use in-memory cache for subsequent requests (Bolt Optimization)', async () => {
-      const sessionId = '550e8400-e29b-41d4-8716-446655440004';
+      const sessionToken = 'test-token';
       redisMock.get.mockResolvedValueOnce('user456');
 
       // First request - hits Redis
       const resp1 = await request(app)
-        .get(`/mcp/${sessionId}/check`)
-        .set('x-user-id', 'user456');
+        .get(`/mcp/check`)
+        .set('x-user-id', 'user456')
+        .set('x-session-token', sessionToken);
       expect(resp1.status).toBe(200);
 
       // Second request - should hit cache
       const resp2 = await request(app)
-        .get(`/mcp/${sessionId}/check`)
-        .set('x-user-id', 'user456');
+        .get(`/mcp/check`)
+        .set('x-user-id', 'user456')
+        .set('x-session-token', sessionToken);
       expect(resp2.status).toBe(200);
 
       // Verify Redis was only called once for this specific session
@@ -124,16 +137,17 @@ describe('MCP Session Management', () => {
         .post('/mcp')
         .set('x-user-id', 'prewarm-user');
 
-      const sessionId = createResponse.body.sessionId;
-      expect(sessionId).toBeDefined();
+      const sessionToken = createResponse.body.sessionToken;
+      expect(sessionToken).toBeDefined();
 
       // Clear call history to isolate the check request
       redisMock.get.mockClear();
 
       // Check session - should hit pre-warmed cache and NOT call Redis
       const checkResponse = await request(app)
-        .get(`/mcp/${sessionId}/check`)
-        .set('x-user-id', 'prewarm-user');
+        .get(`/mcp/check`)
+        .set('x-user-id', 'prewarm-user')
+        .set('x-session-token', sessionToken);
 
       expect(checkResponse.status).toBe(200);
       expect(redisMock.get).not.toHaveBeenCalled();

@@ -67,3 +67,8 @@
 **Vulnerability:** Denial of Service (DoS) via Cache Penetration.
 **Learning:** The application was vulnerable to resource exhaustion because it only cached successful session lookups. Attackers could flood the system with requests for non-existent session IDs, forcing a Redis lookup for every request and bypassing the in-memory cache entirely.
 **Prevention:** Implement negative caching by storing a sentinel value (e.g., "__NOT_FOUND__") in the local cache for keys that do not exist in the primary database. This ensures that repeated lookups for missing resources are handled at the cache layer, protecting the database from exhaustion.
+
+## 2026-06-27 - Prototype Pollution in Map-like Governance Objects
+**Vulnerability:** Prototype pollution and bypass via malicious keys in governance manifests.
+**Learning:** In TypeScript/JavaScript, iterating over `Object.entries()` of a user-supplied object used as a map (e.g., roles, lifecycle gates) can lead to prototype pollution if keys like `__proto__` or `constructor` are present. These can overwrite global object properties or bypass logic that uses `in` or direct property access.
+**Prevention:** Explicitly block forbidden keys (`__proto__`, `constructor`, `prototype`) when iterating over keys of map-like objects in security-critical validation logic. Use `Object.prototype.hasOwnProperty.call` for existence checks instead of the `in` operator.
