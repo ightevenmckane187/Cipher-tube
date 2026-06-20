@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { app } from '../src/server';
+import { app, sessionCache } from '../src/server';
 
 // Mock Redis client
 jest.mock('redis', () => {
@@ -21,6 +21,7 @@ describe('Server Security and Health', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    sessionCache.clear();
     redisMock = (createClient as jest.Mock)();
   });
 
@@ -55,23 +56,31 @@ describe('Server Security and Health', () => {
     redisMock.get.mockResolvedValue(userId);
 
     const create = await request(app).post('/mcp').set('x-user-id', userId);
-    const sid = create.body.sessionId;
-    expect(sid).toBeDefined();
+    const token = create.body.sessionToken;
+    expect(token).toBeDefined();
 
     // Mock redis for subsequent check
     redisMock.get.mockResolvedValueOnce(userId);
 
-    redisMock.get.mockResolvedValue(userId);
-    const checkOk = await request(app).get(`/mcp/${sid}/check`).set('x-user-id', userId);
+    const checkOk = await request(app)
+      .get(`/mcp/check`)
+      .set('x-user-id', userId)
+      .set('x-session-token', token);
     expect(checkOk.status).toBe(200);
 
     // Mock redis for fail check
     redisMock.get.mockResolvedValueOnce(userId);
-    const checkFail = await request(app).get(`/mcp/${sid}/check`).set('x-user-id', other);
+    const checkFail = await request(app)
+      .get(`/mcp/check`)
+      .set('x-user-id', other)
+      .set('x-session-token', token);
     expect(checkFail.status).toBe(403);
 
-    const checkInvalid = await request(app).get('/mcp/bad/check').set('x-user-id', userId);
-    expect(checkInvalid.status).toBe(400);
+    const checkInvalid = await request(app)
+      .get('/mcp/check')
+      .set('x-user-id', userId);
+      // No x-session-token header
+    expect(checkInvalid.status).toBe(401);
   });
 
   it('should reject large JSON payloads', async () => {

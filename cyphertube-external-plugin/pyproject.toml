@@ -1,0 +1,8 @@
+[project]
+name = "cyphertube-external-plugin"
+version = "0.1.0"
+description = "CypherTube External Plugin - AWS-DoW Compliant"
+dependencies = [
+    "fastmcp",
+    "pydantic",
+]
