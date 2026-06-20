@@ -43,9 +43,9 @@ describe('Session Ownership API', () => {
             .set('x-user-id', userId);
 
         expect(res.status).toBe(201);
-        expect(res.body).toHaveProperty('sessionId');
+        expect(res.body).toHaveProperty('sessionToken');
 
-        const expectedBlindedKey = getBlindedRedisKey(res.body.sessionId);
+        const expectedBlindedKey = getBlindedRedisKey(res.body.sessionToken);
         expect(redisMock.set).toHaveBeenCalledWith(
             expectedBlindedKey,
             userId,
@@ -59,9 +59,9 @@ describe('Session Ownership API', () => {
     });
 
     it('should allow the owner to check their session', async () => {
-        // We use a real UUID for sessionId to satisfy validation
-        const sessionId = '550e8400-e29b-41d4-8716-446655440000';
-        const blindedKey = getBlindedRedisKey(sessionId);
+        // We use a real UUID for sessionToken to satisfy validation
+        const sessionToken = '550e8400-e29b-41d4-8716-446655440000';
+        const blindedKey = getBlindedRedisKey(sessionToken);
 
         // Mock redisClient.get to return the owner when called with blinded key
         redisMock.get.mockImplementation((key: string) => {
