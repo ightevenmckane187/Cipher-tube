@@ -1029,7 +1029,7 @@ app.post(
 
     // Ensure structural integrity
     for (const key of requiredKeys) {
-      if (!(key in packet)) {
+      if (!Object.prototype.hasOwnProperty.call(packet, key)) {
         return res.status(400).json({ error: `Malformed packet: Missing ${key}` });
       }
     }
@@ -1039,7 +1039,7 @@ app.post(
     }
 
     for (const key of cryptoKeys) {
-      if (!(key in packet.crypto_envelope)) {
+      if (!Object.prototype.hasOwnProperty.call(packet.crypto_envelope, key)) {
         return res.status(400).json({ error: `Malformed packet: Missing ${key} in crypto_envelope` });
       }
     }
