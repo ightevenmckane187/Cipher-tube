@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { app, sessionCache } from '../src/server';
 import { createClient } from 'redis';
-import { getBlindedRedisKey } from '../src/session_rotator';
+import { getBlindedRedisKey, blindToken } from '../src/session_rotator';
 
 // Mock Redis client
 jest.mock('redis', () => {
@@ -64,8 +64,7 @@ describe('Sentinel: Session Extension & Activity Refresh', () => {
 
   it('ensureSessionOwner should trigger activity refresh even on cache hit', async () => {
     // Pre-warm cache
-    const blindedToken = getBlindedRedisKey(sessionToken).replace('session:', '');
-    sessionCache.set(blindedToken, userId);
+    sessionCache.set(blindToken(sessionToken), userId);
     const blindedKey = getBlindedRedisKey(sessionToken);
 
     const response = await request(app)
