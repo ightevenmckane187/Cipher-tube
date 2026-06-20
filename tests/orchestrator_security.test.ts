@@ -70,12 +70,19 @@ describe('resolveParams Security', () => {
 
   it('should handle null item correctly', () => {
     const result = (resolveParams as any)('${item}', config, state, null);
-    expect(result).toBeNull();
+    expect(result).toBe(null);
   });
 
   it('should stringify falsy values in interpolation', () => {
     const customState = { zero: 0 };
     const result = (resolveParams as any)('Value: ${state.zero}', config, customState, item);
     expect(result).toBe('Value: 0');
+  });
+
+  it('should correctly resolve items inside an array', () => {
+    const input = ['${state.secret}', 'plain string', { nested: '${item.id}' }];
+    const result = (resolveParams as any)(input, config, state, item);
+
+    expect(result).toEqual(['PRIVATE_KEY_123', 'plain string', { nested: 1 }]);
   });
 });

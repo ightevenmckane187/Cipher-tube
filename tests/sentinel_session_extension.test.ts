@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { app, sessionCache } from '../src/server';
 import { createClient } from 'redis';
+import { getBlindedRedisKey, blindToken } from '../src/session_rotator';
 
 // Mock Redis client
 jest.mock('redis', () => {
@@ -28,7 +29,11 @@ describe('Sentinel: Session Extension & Activity Refresh', () => {
   });
 
   it('POST /session/extend should extend session TTL', async () => {
-    redisMock.get.mockResolvedValue(userId);
+    const blindedKey = getBlindedRedisKey(sessionToken);
+    redisMock.get.mockImplementation((key: string) => {
+        if (key === blindedKey) return Promise.resolve(userId);
+        return Promise.resolve(null);
+    });
 
     const response = await request(app)
       .post(`/session/extend`)
@@ -37,11 +42,15 @@ describe('Sentinel: Session Extension & Activity Refresh', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ message: 'Session extended successfully', expiresIn: 3600 });
-    expect(redisMock.expire).toHaveBeenCalledWith(expect.stringMatching(/^session:[0-9a-f]{64}:owner$/), 3600);
+    expect(redisMock.expire).toHaveBeenCalledWith(blindedKey, 3600);
   });
 
   it('ensureSessionOwner should trigger activity refresh on lookup', async () => {
-    redisMock.get.mockResolvedValue(userId);
+    const blindedKey = getBlindedRedisKey(sessionToken);
+    redisMock.get.mockImplementation((key: string) => {
+        if (key === blindedKey) return Promise.resolve(userId);
+        return Promise.resolve(null);
+    });
 
     const response = await request(app)
       .get(`/mcp/check`)
@@ -49,14 +58,14 @@ describe('Sentinel: Session Extension & Activity Refresh', () => {
       .set('x-session-token', sessionToken);
 
     expect(response.status).toBe(200);
-    expect(redisMock.get).toHaveBeenCalledWith(expect.stringMatching(/^session:[0-9a-f]{64}:owner$/));
-    expect(redisMock.expire).toHaveBeenCalledWith(expect.stringMatching(/^session:[0-9a-f]{64}:owner$/), 3600);
+    expect(redisMock.get).toHaveBeenCalledWith(blindedKey);
+    expect(redisMock.expire).toHaveBeenCalledWith(blindedKey, 3600);
   });
 
   it('ensureSessionOwner should trigger activity refresh even on cache hit', async () => {
-    // Pre-warm cache with blinded key
-    const { blindToken } = require('../src/session_rotator');
+    // Pre-warm cache
     sessionCache.set(blindToken(sessionToken), userId);
+    const blindedKey = getBlindedRedisKey(sessionToken);
 
     const response = await request(app)
       .get(`/mcp/check`)
@@ -65,7 +74,7 @@ describe('Sentinel: Session Extension & Activity Refresh', () => {
 
     expect(response.status).toBe(200);
     expect(redisMock.get).not.toHaveBeenCalled();
-    expect(redisMock.expire).toHaveBeenCalledWith(expect.stringMatching(/^session:[0-9a-f]{64}:owner$/), 3600);
+    expect(redisMock.expire).toHaveBeenCalledWith(blindedKey, 3600);
   });
 
   it('POST /session/extend should return 403 if not owner', async () => {

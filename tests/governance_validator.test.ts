@@ -20,6 +20,9 @@ describe('AuthorityChainValidator', () => {
         conditions: [],
         mandatory_signatures: ['admin'],
         mandatory_artifacts: []
+      },
+      vendor_lockin_prevention: {
+        mandatory_artifacts: []
       }
     },
     escalation_paths: {}
@@ -27,6 +30,10 @@ describe('AuthorityChainValidator', () => {
 
   it('should validate a correct manifest', () => {
     expect(AuthorityChainValidator.validate(validManifest)).toBe(true);
+  });
+
+  it('should throw if manifest is an array', () => {
+    expect(() => AuthorityChainValidator.validate([])).toThrow('Manifest must be an object');
   });
 
   it('should throw if roles is not an object', () => {
