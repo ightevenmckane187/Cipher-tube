@@ -28,9 +28,8 @@ describe('Sentinel: Session Extension & Activity Refresh', () => {
     sessionCache.clear();
   });
 
-  it('POST /session/:sessionId/extend should extend session TTL', async () => {
-    const blindedKey = blindToken(sessionToken);
-    const redisKey = getBlindedRedisKey(sessionToken);
+  it('POST /session/extend should extend session TTL', async () => {
+    const blindedKey = getBlindedRedisKey(sessionToken);
     redisMock.get.mockImplementation((key: string) => {
         if (key === redisKey) return Promise.resolve(userId);
         return Promise.resolve(null);
@@ -47,8 +46,7 @@ describe('Sentinel: Session Extension & Activity Refresh', () => {
   });
 
   it('ensureSessionOwner should trigger activity refresh on lookup', async () => {
-    const blindedKey = blindToken(sessionToken);
-    const redisKey = getBlindedRedisKey(sessionToken);
+    const blindedKey = getBlindedRedisKey(sessionToken);
     redisMock.get.mockImplementation((key: string) => {
         if (key === redisKey) return Promise.resolve(userId);
         return Promise.resolve(null);
@@ -66,9 +64,8 @@ describe('Sentinel: Session Extension & Activity Refresh', () => {
 
   it('ensureSessionOwner should trigger activity refresh even on cache hit', async () => {
     // Pre-warm cache
-    const blindedKey = blindToken(sessionToken) as string;
-    const redisKey = getBlindedRedisKey(sessionToken);
-    sessionCache.set(blindedKey, userId);
+    sessionCache.set(blindToken(sessionToken), userId);
+    const blindedKey = getBlindedRedisKey(sessionToken);
 
     const response = await request(app)
       .get(`/mcp/check`)

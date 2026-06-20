@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CypherTubeTransitionMatrix",
+  "type": "object",
+  "properties": {
+    "transition_id": {
+      "type": "string",
+      "pattern": "^TX_[A-Z0-9_]+$"
+    },
+    "trigger_token": {
+      "type": "string"
+    },
+    "source_state": {
+      "type": "string"
+    },
+    "target_state": {
+      "type": "string"
+    },
+    "requirements": {
+      "type": "object",
+      "properties": {
+        "min_paradox_ratio": { "type": "number" },
+        "required_stack_depth": { "type": "integer" },
+        "identity_verification": { "type": "boolean" }
+      },
+      "required": ["min_paradox_ratio", "identity_verification"]
+    },
+    "post_transition_hooks": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "required": ["transition_id", "trigger_token", "source_state", "target_state", "requirements"]
+}

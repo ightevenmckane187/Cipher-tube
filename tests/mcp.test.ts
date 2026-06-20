@@ -36,7 +36,7 @@ describe('MCP Session Management', () => {
       expect(response.status).toBe(201);
       expect(response.body.sessionToken).toBeDefined();
       expect(redisMock.set).toHaveBeenCalledWith(
-        getBlindedRedisKey(response.body.sessionId),
+        getBlindedRedisKey(response.body.sessionToken),
         'user123',
         { EX: 3600 }
       );

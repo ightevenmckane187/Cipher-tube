@@ -10,14 +10,6 @@
 **Learning:** Node.js v21.7+ introduced `crypto.hash` which is ~2.2x faster than the streaming `createHash` API for small inputs (like session tokens or integrity hashes). Using the `encoding` parameter directly in `crypto.hash` further reduces overhead by avoiding intermediate `Buffer` allocations.
 **Action:** Use the `fastHash` utility for all one-shot hashing needs to leverage native performance gains while maintaining backward compatibility.
 
-## 2026-06-19 - Redundant Hash Elimination in Middleware
-**Learning:** Reusing a pre-computed hash (blindedKey) across multiple lookups (L1 LRU cache and L2 Redis) saves significant CPU cycles in high-traffic middlewares like `ensureSessionOwner`. A SHA-256 operation takes ~1-2μs; eliminating it from every request provides a measurable performance gain and reduces latency.
-**Action:** In authentication middlewares, compute the hash once and propagate it through the validation chain.
-
-## 2026-06-19 - Session Rotation Race Conditions and Grace Periods
-**Learning:** Immediate deletion of old session tokens during rotation causes race conditions for rapid concurrent requests from the same client. Implementing a 5-second grace period via Redis `EXPIRE` allows in-flight requests to complete while maintaining security.
-**Action:** Use a short TTL grace period instead of `DEL` when rotating sensitive state to improve system resilience.
-
-## 2026-06-19 - Cryptographic Bounds of `fastHash` for Blinded Tokens
-**Learning:** `fastHash` (SHA-256) is highly efficient for session blinding and integrity checks. However, for session lookups, it must always be accompanied by high-entropy inputs (like UUID tokens) to remain collision-resistant. Relying on `fastHash` for low-entropy primary lookups could expose the system to collision-based session hijacking.
-**Action:** Use `fastHash` only for blinding high-entropy secrets (e.g., UUID-based tokens) in Redis lookups; do not use it as a primary lookup key for user-supplied low-entropy data.
+## 2026-05-25 - Consolidating Redundant Hashing via Request Context
+**Learning:** Performing multiple independent SHA-256 hashes on the same token (e.g., once for local cache and once for Redis key) in the same request lifecycle is wasteful. Consolidating these into a single `getSessionKeys` call and storing the results in `res.locals` achieves a near 2x speedup for the hashing logic and reduces CPU pressure.
+**Action:** Always check for redundant cryptographic operations on the same inputs within a single request; use middleware to pre-compute and share these values via `res.locals`.

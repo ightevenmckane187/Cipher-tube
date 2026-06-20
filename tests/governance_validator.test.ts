@@ -32,6 +32,10 @@ describe('AuthorityChainValidator', () => {
     expect(AuthorityChainValidator.validate(validManifest)).toBe(true);
   });
 
+  it('should throw if manifest is an array', () => {
+    expect(() => AuthorityChainValidator.validate([])).toThrow('Manifest must be an object');
+  });
+
   it('should throw if roles is not an object', () => {
     const invalid = { ...validManifest, roles: [] };
     expect(() => AuthorityChainValidator.validate(invalid)).toThrow('manifest.roles must be a non-array object');
