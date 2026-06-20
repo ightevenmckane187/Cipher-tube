@@ -7,7 +7,7 @@ import path from "path";
 import rateLimit from "express-rate-limit";
 import { LRUCache } from "lru-cache";
 import { buildCipherTube, decryptCipherTube } from "./cta";
-import { getBlindedRedisKey } from "./session_rotator";
+import { getBlindedRedisKey, blindToken, createSession, rotateSession } from "./session_rotator";
 
 dotenv.config();
 
@@ -759,7 +759,7 @@ const ensureSessionOwner = async (
 
   try {
     if (!ownerId) {
-      const sessionKey = getBlindedRedisKey(sessionId);
+      const sessionKey = getBlindedRedisKey(sessionToken);
       ownerId = (await redisClient.get(sessionKey)) as string;
       if (!ownerId) {
         // Sentinel: Implement negative caching to prevent redundant Redis lookups
@@ -782,9 +782,9 @@ const ensureSessionOwner = async (
     if (typeof redisClient.expire === "function") {
       const needsUpdate = process.env.NODE_ENV === 'test' || !sessionUpdateCache.has(blindedKey);
       if (needsUpdate) {
-        const sessionKey = getBlindedRedisKey(sessionId);
+        const sessionKey = getBlindedRedisKey(sessionToken);
         await redisClient.expire(sessionKey, SESSION_TTL);
-        sessionUpdateCache.set(sessionId, true);
+        sessionUpdateCache.set(blindedKey, true);
       }
     }
 
@@ -808,8 +808,6 @@ app.post(
   async (req: Request, res: Response) => {
     const userId = req.headers["x-user-id"] as string;
 
-    const sessionId = crypto.randomUUID();
-    const sessionKey = getBlindedRedisKey(sessionId);
     try {
       const sessionToken = await createSession(userId, redisClient, SESSION_TTL);
       // Optimization: Pre-warm the in-memory cache to skip the first Redis lookup (Bolt Optimization)

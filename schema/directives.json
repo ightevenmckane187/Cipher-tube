@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Runtime Directives",
+  "type": "object",
+  "properties": {
+    "token": {
+      "type": "string"
+    },
+    "action": {
+      "type": "string"
+    },
+    "params": {
+      "type": "object"
+    }
+  },
+  "required": ["token"]
+}

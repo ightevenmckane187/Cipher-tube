@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { app } from '../src/server';
+import { app, sessionCache } from '../src/server';
 import { getBlindedRedisKey } from '../src/session_rotator';
 
 // Mock Redis client
@@ -36,7 +36,7 @@ describe('MCP Session Management', () => {
       expect(response.status).toBe(201);
       expect(response.body.sessionToken).toBeDefined();
       expect(redisMock.set).toHaveBeenCalledWith(
-        getBlindedRedisKey(response.body.sessionId),
+        getBlindedRedisKey(response.body.sessionToken),
         'user123',
         { EX: 3600 }
       );
@@ -59,8 +59,8 @@ describe('MCP Session Management', () => {
 
   describe('GET /mcp/check', () => {
     it('should verify ownership for the correct user', async () => {
-      const sessionId = '550e8400-e29b-41d4-8716-446655440001';
-      const blindedKey = getBlindedRedisKey(sessionId);
+      const sessionToken = '550e8400-e29b-41d4-8716-446655440001';
+      const blindedKey = getBlindedRedisKey(sessionToken);
       redisMock.get.mockImplementation((key: string) => {
         if (key === blindedKey) return Promise.resolve('user123');
         return Promise.resolve(null);

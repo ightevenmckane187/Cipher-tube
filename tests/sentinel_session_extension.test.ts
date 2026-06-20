@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { app, sessionCache } from '../src/server';
 import { createClient } from 'redis';
-import { getBlindedRedisKey } from '../src/session_rotator';
+import { getBlindedRedisKey, blindToken } from '../src/session_rotator';
 
 // Mock Redis client
 jest.mock('redis', () => {
@@ -29,7 +29,7 @@ describe('Sentinel: Session Extension & Activity Refresh', () => {
   });
 
   it('POST /session/:sessionId/extend should extend session TTL', async () => {
-    const blindedKey = getBlindedRedisKey(sessionId);
+    const blindedKey = getBlindedRedisKey(sessionToken);
     redisMock.get.mockImplementation((key: string) => {
         if (key === blindedKey) return Promise.resolve(userId);
         return Promise.resolve(null);
@@ -46,7 +46,7 @@ describe('Sentinel: Session Extension & Activity Refresh', () => {
   });
 
   it('ensureSessionOwner should trigger activity refresh on lookup', async () => {
-    const blindedKey = getBlindedRedisKey(sessionId);
+    const blindedKey = getBlindedRedisKey(sessionToken);
     redisMock.get.mockImplementation((key: string) => {
         if (key === blindedKey) return Promise.resolve(userId);
         return Promise.resolve(null);
@@ -64,8 +64,9 @@ describe('Sentinel: Session Extension & Activity Refresh', () => {
 
   it('ensureSessionOwner should trigger activity refresh even on cache hit', async () => {
     // Pre-warm cache
-    sessionCache.set(sessionId, userId);
-    const blindedKey = getBlindedRedisKey(sessionId);
+    const blindedToken = blindToken(sessionToken);
+    sessionCache.set(blindedToken, userId);
+    const blindedKey = getBlindedRedisKey(sessionToken);
 
     const response = await request(app)
       .get(`/mcp/check`)
