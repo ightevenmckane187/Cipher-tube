@@ -33,6 +33,23 @@ export function blindToken(token: string): string {
 }
 
 /**
+ * Bolt Optimization: Consolidates hashing into a single pass for both local and Redis keys.
+ *
+ * @param token - The raw session token.
+ * @returns Object containing the blinded hash and the Redis-prefixed key.
+ */
+export function getSessionKeys(token: string): { blindedKey: string; redisKey: string } {
+    if (!token || typeof token !== 'string') {
+        return { blindedKey: '', redisKey: '' };
+    }
+    const hashed = fastHash('sha256', token, 'hex');
+    return {
+        blindedKey: hashed,
+        redisKey: `session:${hashed}`
+    };
+}
+
+/**
  * Securely creates a new session in Redis.
  * Uses CSPRNG for token generation and stores the blinded hash.
  *
