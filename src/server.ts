@@ -7,7 +7,7 @@ import path from "path";
 import rateLimit from "express-rate-limit";
 import { LRUCache } from "lru-cache";
 import { buildCipherTube, decryptCipherTube } from "./cta";
-import { getBlindedRedisKey } from "./session_rotator";
+import { getBlindedRedisKey, blindToken, createSession, rotateSession, getRedisKeyFromHash } from "./session_rotator";
 
 dotenv.config();
 
@@ -755,11 +755,15 @@ const ensureSessionOwner = async (
   }
 
   const blindedKey = blindToken(sessionToken);
+  if (!blindedKey) {
+    return res.status(401).json({ error: "Unauthorized: Invalid session token" });
+  }
   let ownerId = sessionCache.get(blindedKey);
 
   try {
     if (!ownerId) {
-      const sessionKey = getBlindedRedisKey(sessionId);
+      // Bolt Optimization: Reuse already computed blindedKey to build Redis key
+      const sessionKey = getRedisKeyFromHash(blindedKey);
       ownerId = (await redisClient.get(sessionKey)) as string;
       if (!ownerId) {
         // Sentinel: Implement negative caching to prevent redundant Redis lookups
@@ -780,11 +784,13 @@ const ensureSessionOwner = async (
     // Sentinel: Activity Refresh - Extend Redis TTL on every successful access
     // Bolt Optimization: Throttle Redis EXPIRE calls to once per 60 seconds to reduce write load
     if (typeof redisClient.expire === "function") {
-      const needsUpdate = process.env.NODE_ENV === 'test' || !sessionUpdateCache.has(blindedKey);
+      const isTest = process.env.NODE_ENV === 'test';
+      const needsUpdate = isTest || !sessionUpdateCache.has(blindedKey);
       if (needsUpdate) {
-        const sessionKey = getBlindedRedisKey(sessionId);
+        // Bolt Optimization: Reuse already computed blindedKey to build Redis key
+        const sessionKey = getRedisKeyFromHash(blindedKey);
         await redisClient.expire(sessionKey, SESSION_TTL);
-        sessionUpdateCache.set(sessionId, true);
+        sessionUpdateCache.set(blindedKey, true);
       }
     }
 
@@ -808,12 +814,11 @@ app.post(
   async (req: Request, res: Response) => {
     const userId = req.headers["x-user-id"] as string;
 
-    const sessionId = crypto.randomUUID();
-    const sessionKey = getBlindedRedisKey(sessionId);
     try {
       const sessionToken = await createSession(userId, redisClient, SESSION_TTL);
       // Optimization: Pre-warm the in-memory cache to skip the first Redis lookup (Bolt Optimization)
-      sessionCache.set(blindToken(sessionToken), userId);
+      const blinded = blindToken(sessionToken);
+      if (blinded) sessionCache.set(blinded, userId);
       // Return both for compatibility and new logic
       res.status(201).json({ sessionId: sessionToken, sessionToken });
     } catch (err: any) {
@@ -847,10 +852,14 @@ app.post(
 
       // Sentinel: Immediately invalidate old token in local LRU cache to prevent replay
       // window vulnerability (Code Review Feedback).
-      sessionCache.delete(blindToken(oldToken));
+      const oldBlinded = blindToken(oldToken);
+      if (oldBlinded) sessionCache.delete(oldBlinded);
 
       // Bolt Optimization: Pre-warm the cache with the new token
-      sessionCache.set(blindToken(newToken), (req.headers["x-user-id"] as string).trim());
+      const newBlinded = blindToken(newToken);
+      if (newBlinded) {
+        sessionCache.set(newBlinded, (req.headers["x-user-id"] as string).trim());
+      }
 
       res.json({ newToken });
     } catch (err: any) {

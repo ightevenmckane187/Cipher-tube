@@ -114,7 +114,7 @@ describe('Sentinel Security Fixes', () => {
     });
 
     it('should extend Redis TTL on every authorized request (Activity Refresh)', async () => {
-        const blindedKey = getBlindedRedisKey(sessionId);
+        const blindedKey = getBlindedRedisKey(sessionToken);
         redisMock.get.mockImplementation((key: string) => {
             if (key === blindedKey) return Promise.resolve(userId);
             return Promise.resolve(null);
@@ -129,7 +129,7 @@ describe('Sentinel Security Fixes', () => {
     });
 
     it('should allow explicit session extension via POST /session/:sessionId/extend', async () => {
-        const blindedKey = getBlindedRedisKey(sessionId);
+        const blindedKey = getBlindedRedisKey(sessionToken);
         redisMock.get.mockImplementation((key: string) => {
             if (key === blindedKey) return Promise.resolve(userId);
             return Promise.resolve(null);
