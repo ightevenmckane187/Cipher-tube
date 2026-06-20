@@ -128,7 +128,7 @@ describe('Sentinel Security Fixes', () => {
         expect(redisMock.expire).toHaveBeenCalledWith(blindedKey, 3600);
     });
 
-    it('should allow explicit session extension via POST /session/:sessionId/extend', async () => {
+    it('should allow explicit session extension via POST /session/extend', async () => {
         const blindedKey = getBlindedRedisKey(sessionToken);
         redisMock.get.mockImplementation((key: string) => {
             if (key === blindedKey) return Promise.resolve(userId);
