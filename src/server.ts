@@ -7,7 +7,7 @@ import path from "path";
 import rateLimit from "express-rate-limit";
 import { LRUCache } from "lru-cache";
 import { buildCipherTube, decryptCipherTube } from "./cta";
-import { getBlindedRedisKey, blindToken, createSession, rotateSession } from "./session_rotator";
+import { getBlindedRedisKey, blindToken, createSession, rotateSession, getSessionKeys } from "./session_rotator";
 
 dotenv.config();
 
@@ -754,13 +754,15 @@ const ensureSessionOwner = async (
     sessionToken = sessionToken[0];
   }
 
-  const blindedKey = blindToken(sessionToken);
+  const { blindedKey, redisKey } = getSessionKeys(sessionToken);
+  // Store keys in res.locals for downstream reuse (Bolt Optimization)
+  res.locals.sessionKeys = { blindedKey, redisKey };
+
   let ownerId = sessionCache.get(blindedKey);
 
   try {
     if (!ownerId) {
-      const sessionKey = getBlindedRedisKey(sessionToken);
-      ownerId = (await redisClient.get(sessionKey)) as string;
+      ownerId = (await redisClient.get(redisKey)) as string;
       if (!ownerId) {
         // Sentinel: Implement negative caching to prevent redundant Redis lookups
         sessionCache.set(blindedKey, SESSION_NOT_FOUND);
@@ -782,8 +784,7 @@ const ensureSessionOwner = async (
     if (typeof redisClient.expire === "function") {
       const needsUpdate = process.env.NODE_ENV === 'test' || !sessionUpdateCache.has(blindedKey);
       if (needsUpdate) {
-        const sessionKey = getBlindedRedisKey(sessionToken);
-        await redisClient.expire(sessionKey, SESSION_TTL);
+        await redisClient.expire(redisKey, SESSION_TTL);
         sessionUpdateCache.set(blindedKey, true);
       }
     }
@@ -842,13 +843,15 @@ app.post(
 
     try {
       const { newToken } = await rotateSession(oldToken, redisClient, SESSION_TTL);
+      const { blindedKey: oldBlindedKey } = getSessionKeys(oldToken);
+      const { blindedKey: newBlindedKey } = getSessionKeys(newToken);
 
       // Sentinel: Immediately invalidate old token in local LRU cache to prevent replay
       // window vulnerability (Code Review Feedback).
-      sessionCache.delete(blindToken(oldToken));
+      sessionCache.delete(oldBlindedKey);
 
       // Bolt Optimization: Pre-warm the cache with the new token
-      sessionCache.set(blindToken(newToken), (req.headers["x-user-id"] as string).trim());
+      sessionCache.set(newBlindedKey, (req.headers["x-user-id"] as string).trim());
 
       res.json({ newToken });
     } catch (err: any) {
@@ -1042,8 +1045,8 @@ app.post(
     }
 
     // Verify session routing metadata matches the session being used
-    const sessionToken = req.headers["x-session-token"] as string;
-    const blindedToken = blindToken(sessionToken);
+    // Bolt Optimization: Use pre-computed hash from res.locals.sessionKeys if available
+    const blindedToken = res.locals.sessionKeys?.blindedKey || blindToken(req.headers["x-session-token"] as string);
 
     if (packet.blinded_session_hash !== blindedToken) {
       return res.status(403).json({ error: "Session hash mismatch: Routing integrity failure" });
