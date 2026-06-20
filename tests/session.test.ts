@@ -69,6 +69,7 @@ describe('Session Ownership API', () => {
             return Promise.resolve(null);
         });
 
+        const sessionToken = sessionId;
         const checkRes = await request(app)
             .get(`/mcp/check`)
             .set('x-user-id', userId)

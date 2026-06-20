@@ -106,7 +106,7 @@ describe("Session Rotation and E2EE Data Plane", () => {
         .post("/mcp")
         .set("x-user-id", userId);
       sessionToken = res.body.sessionToken;
-      blindedHash = blindToken(sessionToken);
+      blindedHash = blindToken(sessionToken) as string;
       redisMock.get.mockResolvedValue(userId);
     });
 

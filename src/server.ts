@@ -782,7 +782,8 @@ const ensureSessionOwner = async (
     // Sentinel: Activity Refresh - Extend Redis TTL on every successful access
     // Bolt Optimization: Throttle Redis EXPIRE calls to once per 60 seconds to reduce write load
     if (typeof redisClient.expire === "function") {
-      const needsUpdate = process.env.NODE_ENV === 'test' || !sessionUpdateCache.has(blindedKey);
+      const isTest = process.env.NODE_ENV === 'test';
+      const needsUpdate = isTest || !sessionUpdateCache.has(blindedKey);
       if (needsUpdate) {
         await redisClient.expire(redisKey, SESSION_TTL);
         sessionUpdateCache.set(blindedKey, true);
@@ -812,7 +813,8 @@ app.post(
     try {
       const sessionToken = await createSession(userId, redisClient, SESSION_TTL);
       // Optimization: Pre-warm the in-memory cache to skip the first Redis lookup (Bolt Optimization)
-      sessionCache.set(blindToken(sessionToken), userId);
+      const blinded = blindToken(sessionToken);
+      if (blinded) sessionCache.set(blinded, userId);
       // Return both for compatibility and new logic
       res.status(201).json({ sessionId: sessionToken, sessionToken });
     } catch (err: any) {
