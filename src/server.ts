@@ -450,6 +450,13 @@ app.get("/", (req: Request, res: Response) => {
                     </div>
                     <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter" aria-keyshortcuts="/">
                 </div>
+                <div class="input-row">
+                    <button id="create-session-btn" aria-keyshortcuts="s">
+                        <span aria-hidden="true">🔑</span>
+                        <span class="btn-text">Create Session</span>
+                        <kbd aria-hidden="true" class="kb-shortcut">(s)</kbd>
+                    </button>
+                </div>
                 <p>To get started, create a session via the API:</p>
                 <div class="code-container">
                     <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard" aria-keyshortcuts="c">
@@ -530,12 +537,12 @@ app.get("/", (req: Request, res: Response) => {
 
                 createSessionBtn.addEventListener('click', async () => {
                     const userId = userIdInput.value.trim() || 'demo-user';
-                    const btnSpan = createSessionBtn.querySelector('span');
+                    const btnText = createSessionBtn.querySelector('.btn-text');
                     const originalHTML = createSessionBtn.innerHTML;
 
                     try {
                         createSessionBtn.disabled = true;
-                        if (btnSpan) btnSpan.textContent = 'Creating...';
+                        if (btnText) btnText.textContent = 'Creating...';
 
                         const response = await fetch('/mcp', {
                             method: 'POST',
@@ -549,13 +556,13 @@ app.get("/", (req: Request, res: Response) => {
                         if (response.ok) {
                             const data = await response.json();
                             window.currentSessionId = data.sessionId;
-                            if (btnSpan) btnSpan.textContent = 'Created! ✅';
+                            if (btnText) btnText.textContent = 'Created! ✅';
                             setTimeout(() => {
                                 createSessionBtn.innerHTML = originalHTML;
                                 createSessionBtn.disabled = false;
                             }, 2000);
                         } else {
-                            if (btnSpan) btnSpan.textContent = 'Failed ❌';
+                            if (btnText) btnText.textContent = 'Failed ❌';
                             setTimeout(() => {
                                 createSessionBtn.innerHTML = originalHTML;
                                 createSessionBtn.disabled = false;
@@ -563,7 +570,7 @@ app.get("/", (req: Request, res: Response) => {
                         }
                     } catch (err) {
                         console.error('Session creation failed:', err);
-                        if (btnSpan) btnSpan.textContent = 'Error ❌';
+                        if (btnText) btnText.textContent = 'Error ❌';
                         setTimeout(() => {
                             createSessionBtn.innerHTML = originalHTML;
                             createSessionBtn.disabled = false;
