@@ -25,3 +25,11 @@
 ## 2026-05-15 - [Real-time Input Validation and Feedback]
 **Learning:** For text inputs with a hard `maxlength` limit, users often feel frustrated when the browser simply stops accepting input without warning. Adding a live character counter provides immediate feedback and sets clear expectations, especially when paired with visual cues for "near-limit" states.
 **Action:** Implement a live character counter associated via `aria-describedby` and `aria-live="polite"` for any field with a length constraint. Use a visual warning state (e.g., a `.near-limit` class) when the user is close to the maximum character count.
+
+## 2026-05-20 - [Consolidating Interactive Controls and Robust Layouts]
+**Learning:** Adding new UI elements like navigation bars can lead to redundant controls (e.g., dual theme toggles), which confuses users. Furthermore, descriptive accessibility text (e.g., "X of Y characters used") requires more space than simple counters, necessitating robust layout strategies like `flex-shrink: 0` and `white-space: nowrap` to prevent awkward wrapping.
+**Action:** Always audit for redundant interactive elements when modifying headers or navigation. Use flexible container properties and sufficient max-widths to accommodate descriptive accessibility strings without breaking visual alignment.
+
+## 2026-06-17 - [Context-Aware Keyboard Shortcuts]
+**Learning:** Global single-key shortcuts (e.g., 's' for "Save" or "Create") can severely degrade UX by interfering with text entry in form fields. Implementing a simple check for active elements like `INPUT` or `TEXTAREA` ensures shortcuts only trigger when the user is not actively typing.
+**Action:** Always wrap global keyboard listeners in a check for `document.activeElement.tagName` to prevent shortcut collision during data entry. Pair this with visual shortcuts hints (`<kbd>`) that are preserved even during asynchronous state changes.

@@ -52,3 +52,23 @@
 **Vulnerability:** Governance manifest validation could be bypassed using built-in object properties (e.g., "toString") when using the "in" operator or direct property access.
 **Learning:** In JavaScript, the "in" operator and direct property access check the entire prototype chain. If a manifest specifies a role named "toString", and the validator checks if "toString" exists in the roles object using "roleId in manifest.roles", it will return true even if the role is not explicitly defined in the manifest.
 **Prevention:** Always use "Object.prototype.hasOwnProperty.call(obj, prop)" to verify that a property exists directly on an object, especially when dealing with user-supplied keys in security-critical validation logic.
+
+## 2026-05-31 - Template Injection in Orchestrator
+**Vulnerability:** Template injection (double expansion) and prototype pollution in Predator orchestrator parameter resolution.
+**Learning:** Iterative or recursive string replacement on user-controlled inputs can lead to nested template expansion, exposing internal state or secrets. Direct property access on objects via user-supplied keys also risks prototype chain traversal.
+**Prevention:** Use single-pass regex replacement for template interpolation to ensure each token is expanded exactly once. Explicitly block access to `__proto__`, `constructor`, and `prototype` during dynamic path resolution.
+
+## 2026-06-25 - Prototype Pollution in Object Iteration
+**Vulnerability:** Prototype pollution during recursive object resolution in orchestrator.
+**Learning:** Even if individual path resolution is protected, a recursive function that iterates over object entries and assigns them to a new object can still be vulnerable to prototype pollution if it encounters a `__proto__` key in the input object.
+**Prevention:** Always filter out sensitive keys like `__proto__`, `constructor`, and `prototype` when iterating over untrusted object entries and creating new objects based on them.
+
+## 2026-06-26 - Cache Penetration via Non-Existent Sessions
+**Vulnerability:** Denial of Service (DoS) via Cache Penetration.
+**Learning:** The application was vulnerable to resource exhaustion because it only cached successful session lookups. Attackers could flood the system with requests for non-existent session IDs, forcing a Redis lookup for every request and bypassing the in-memory cache entirely.
+**Prevention:** Implement negative caching by storing a sentinel value (e.g., "__NOT_FOUND__") in the local cache for keys that do not exist in the primary database. This ensures that repeated lookups for missing resources are handled at the cache layer, protecting the database from exhaustion.
+
+## 2026-06-27 - Prototype Pollution in Map-like Governance Objects
+**Vulnerability:** Prototype pollution and bypass via malicious keys in governance manifests.
+**Learning:** In TypeScript/JavaScript, iterating over `Object.entries()` of a user-supplied object used as a map (e.g., roles, lifecycle gates) can lead to prototype pollution if keys like `__proto__` or `constructor` are present. These can overwrite global object properties or bypass logic that uses `in` or direct property access.
+**Prevention:** Explicitly block forbidden keys (`__proto__`, `constructor`, `prototype`) when iterating over keys of map-like objects in security-critical validation logic. Use `Object.prototype.hasOwnProperty.call` for existence checks instead of the `in` operator.

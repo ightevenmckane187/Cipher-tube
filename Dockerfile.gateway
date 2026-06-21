@@ -1,0 +1,29 @@
+# --- Stage 1: Build & Dependency Isolation ---
+FROM node:20-alpine AS builder
+WORKDIR /usr/src/app
+
+COPY package*.json tsconfig.json ./
+RUN npm install
+
+COPY src/ ./src/
+RUN npx tsc
+
+# --- Stage 2: Minimalist Runtime Execution ---
+FROM node:20-alpine
+WORKDIR /usr/src/app
+
+# Enforce secure environment defaults
+ENV NODE_ENV=production
+ENV PORT=8080
+
+# Copy compiled code and production dependencies
+COPY --from=builder /usr/src/app/dist ./dist
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Drop root privileges for security hardening
+USER node
+
+EXPOSE 8080
+
+CMD ["node", "dist/gatewayServer.js"]
