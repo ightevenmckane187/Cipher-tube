@@ -20,6 +20,9 @@ describe('AuthorityChainValidator', () => {
         conditions: [],
         mandatory_signatures: ['admin'],
         mandatory_artifacts: []
+      },
+      vendor_lockin_prevention: {
+        mandatory_artifacts: []
       }
     },
     escalation_paths: {}
@@ -29,20 +32,24 @@ describe('AuthorityChainValidator', () => {
     expect(AuthorityChainValidator.validate(validManifest)).toBe(true);
   });
 
+  it('should throw if manifest is an array', () => {
+    expect(() => AuthorityChainValidator.validate([])).toThrow('Manifest must be an object');
+  });
+
   it('should throw if roles is not an object', () => {
     const invalid = { ...validManifest, roles: [] };
-    expect(() => AuthorityChainValidator.validate(invalid)).toThrow('manifest.roles must be an object');
+    expect(() => AuthorityChainValidator.validate(invalid)).toThrow('manifest.roles must be a non-array object');
   });
 
   it('should throw if lifecycle_gates is not an object', () => {
     const invalid = { ...validManifest, lifecycle_gates: 'invalid' };
-    expect(() => AuthorityChainValidator.validate(invalid)).toThrow('manifest.lifecycle_gates must be an object');
+    expect(() => AuthorityChainValidator.validate(invalid)).toThrow('manifest.lifecycle_gates must be a non-array object');
   });
 
   it('should throw if mandatory_signatures is not an array', () => {
     const invalid = JSON.parse(JSON.stringify(validManifest));
     invalid.governance_controls.high_impact_ai.mandatory_signatures = {};
-    expect(() => AuthorityChainValidator.validate(invalid)).toThrow('high_impact_ai.mandatory_signatures must be an array');
+    expect(() => AuthorityChainValidator.validate(invalid)).toThrow('governance_controls.high_impact_ai.mandatory_signatures must be an array');
   });
 
   it('should throw if a role references non-existent role in signatures', () => {

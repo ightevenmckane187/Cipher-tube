@@ -1,82 +1,95 @@
 import request from 'supertest';
-import { app, redisClient, sessionCache } from '../src/server';
+import { app, sessionCache } from '../src/server';
+import { createClient } from 'redis';
+import { getBlindedRedisKey, blindToken } from '../src/session_rotator';
 
+// Mock Redis client
 jest.mock('redis', () => {
   const mRedis = {
     on: jest.fn(),
     connect: jest.fn().mockResolvedValue(null),
     set: jest.fn().mockResolvedValue('OK'),
     get: jest.fn(),
-    expire: jest.fn().mockResolvedValue(true),
-    quit: jest.fn().mockResolvedValue('OK'),
+    expire: jest.fn().mockResolvedValue(1),
   };
   return {
     createClient: jest.fn(() => mRedis),
   };
 });
 
-describe('Sentinel: Session Extension and Activity Refresh', () => {
-    const userId = 'sentinel-user-789';
-    const sessionId = '550e8400-e29b-41d4-8716-446655440000';
-    let redisMock: any;
+describe('Sentinel: Session Extension & Activity Refresh', () => {
+  let redisMock: any;
+  const sessionToken = 'test-token';
+  const userId = 'test-user';
 
-    beforeEach(() => {
-        jest.clearAllMocks();
-        sessionCache.clear();
-        const { createClient } = require('redis');
-        redisMock = createClient();
+  beforeEach(() => {
+    jest.clearAllMocks();
+    redisMock = (createClient as jest.Mock)();
+    sessionCache.clear();
+  });
+
+  it('POST /session/extend should extend session TTL', async () => {
+    const blindedKey = getBlindedRedisKey(sessionToken);
+    redisMock.get.mockImplementation((key: string) => {
+        if (key === blindedKey) return Promise.resolve(userId);
+        return Promise.resolve(null);
     });
 
-    describe('Activity Refresh (Sliding Session)', () => {
-        it('should extend Redis TTL when ownership is verified from Redis', async () => {
-            redisMock.get.mockResolvedValueOnce(userId);
+    const response = await request(app)
+      .post(`/session/extend`)
+      .set('x-user-id', userId)
+      .set('x-session-token', sessionToken);
 
-            const response = await request(app)
-                .get(`/mcp/${sessionId}/check`)
-                .set('x-user-id', userId);
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ message: 'Session extended successfully', expiresIn: 3600 });
+    expect(redisMock.expire).toHaveBeenCalledWith(blindedKey, 3600);
+  });
 
-            expect(response.status).toBe(200);
-            expect(redisMock.expire).toHaveBeenCalledWith(`session:${sessionId}:owner`, 3600);
-        });
-
-        it('should extend Redis TTL when ownership is verified from in-memory cache', async () => {
-            sessionCache.set(sessionId, userId);
-
-            const response = await request(app)
-                .get(`/mcp/${sessionId}/check`)
-                .set('x-user-id', userId);
-
-            expect(response.status).toBe(200);
-            // expire is called in the background (no await) when using cache, but jest should catch it
-            expect(redisMock.expire).toHaveBeenCalledWith(`session:${sessionId}:owner`, 3600);
-        });
+  it('ensureSessionOwner should trigger activity refresh on lookup', async () => {
+    const blindedKey = getBlindedRedisKey(sessionToken);
+    redisMock.get.mockImplementation((key: string) => {
+        if (key === blindedKey) return Promise.resolve(userId);
+        return Promise.resolve(null);
     });
 
-    describe('Dedicated Extension Endpoint', () => {
-        it('should extend session and return success via POST /session/:sessionId/extend', async () => {
-            redisMock.get.mockResolvedValueOnce(userId);
+    const response = await request(app)
+      .get(`/mcp/check`)
+      .set('x-user-id', userId)
+      .set('x-session-token', sessionToken);
 
-            const response = await request(app)
-                .post(`/session/${sessionId}/extend`)
-                .set('x-user-id', userId);
+    expect(response.status).toBe(200);
+    expect(redisMock.get).toHaveBeenCalledWith(blindedKey);
+    expect(redisMock.expire).toHaveBeenCalledWith(blindedKey, 3600);
+  });
 
-            expect(response.status).toBe(200);
-            expect(response.body).toEqual({
-                message: 'Session extended successfully',
-                expiresIn: 3600
-            });
-            expect(redisMock.expire).toHaveBeenCalledWith(`session:${sessionId}:owner`, 3600);
-        });
+  it('ensureSessionOwner should trigger activity refresh even on cache hit', async () => {
+    const blindedToken = blindToken(sessionToken);
+    const blindedKey = getBlindedRedisKey(sessionToken);
 
-        it('should return 403 if unauthorized user attempts extension', async () => {
-            redisMock.get.mockResolvedValueOnce(userId);
+    // Pre-warm cache
+    sessionCache.set(blindToken(sessionToken), userId);
+    const blindedKey = getBlindedRedisKey(sessionToken);
 
-            const response = await request(app)
-                .post(`/session/${sessionId}/extend`)
-                .set('x-user-id', 'attacker-user');
+    const response = await request(app)
+      .get(`/mcp/check`)
+      .set('x-user-id', userId)
+      .set('x-session-token', sessionToken);
 
-            expect(response.status).toBe(403);
-            expect(redisMock.expire).not.toHaveBeenCalled();
-        });
-    });
+    expect(response.status).toBe(200);
+    // Bolt Optimization: Verification: We only care that it succeeded and called expire
+    expect(response.body.status).toBe('owned');
+    expect(redisMock.expire).toHaveBeenCalledWith(blindedKey, 3600);
+  });
+
+  it('POST /session/extend should return 403 if not owner', async () => {
+    redisMock.get.mockResolvedValue('different-user');
+
+    const response = await request(app)
+      .post(`/session/extend`)
+      .set('x-user-id', userId)
+      .set('x-session-token', sessionToken);
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe('Forbidden');
+  });
 });

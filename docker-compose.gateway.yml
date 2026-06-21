@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  # The Stateless Cipher-Tube Gateway
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    container_name: cipher_tube_gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - REDIS_HOST=cache_cluster
+      - REDIS_PORT=6379
+    depends_on:
+      cache_cluster:
+        condition: service_healthy
+    networks:
+      - ciphertube_network
+
+  # The High-Speed Memory Cache Pool
+  cache_cluster:
+    image: redis:7-alpine
+    container_name: cipher_tube_cache
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    networks:
+      - ciphertube_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+networks:
+  ciphertube_network:
+    driver: bridge

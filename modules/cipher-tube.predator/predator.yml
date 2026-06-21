@@ -1,0 +1,232 @@
+module: cipher-tube.predator
+version: 1.0.0
+
+config:
+  # Schedules
+  predator_schedule: "every10_minutes"
+  predator_large_schedule: "every5minutes"
+
+  # Sharding
+  shard_strategy: "by-account-region"
+  max_assets_per_shard: 5000
+
+  # Sampling
+  low_risk_sampling_rate: 0.2 # 20% of low-risk assets
+  max_paths_per_shard: 500
+
+  # Concurrency
+  remediation_concurrency: 50
+
+pipelines:
+  - name: "predatorcontrolgraph_engine"
+    schedule: "${config.predator_schedule}"
+
+    sources:
+      - name: "fedramp_controls"
+        use: "compliance.loadframework"
+        params:
+          framework: "FedRAMP_High"
+
+      - name: "attackgraphinputs"
+        use: "graph.collect"
+        params:
+          sources:
+            - "vulnerabilities"
+            - "misconfigurations"
+            - "identity_permissions"
+            - "network_exposure"
+            - "runtime_events"
+
+    stages:
+      - name: "buildattackgraph"
+        from: "attackgraphinputs"
+        use: "graph.build"
+        params:
+          mode: "multi-cloud"
+          includeinternet_edges: true
+        emit: "attack_graph"
+
+      - name: "validatecontrolson_hotspots"
+        from: ["fedramp_controls", "attack_graph"]
+        use: "compliance.validatecontrolset"
+        params:
+          scope: "graph_hotspots"
+        emit: "control_results"
+
+      - name: "detect_drift"
+        from: "control_results"
+        use: "compliance.findfailedcontrols"
+        emit: "drift"
+
+      - name: "identifyexploitablepaths"
+        from: ["attack_graph", "drift"]
+        use: "graph.find_paths"
+        where:
+          failedfedrampcontrol: true
+          internet_exposed: true
+          privilegeescalationchain: true
+        emit: "exploitable_paths"
+
+      - name: "rank_targets"
+        from: "exploitable_paths"
+        use: "risk.score"
+        params:
+          model: "TruRisk-equivalent"
+          boosts:
+            failedfedrampcontrol: 3.0
+            internet_exposed: 2.5
+            identity_abuse: 2.0
+        emit: "prioritized_paths"
+
+      - name: "breakandenforce"
+        parallel: true
+        branches:
+          paths:
+            use: "remediation.breakattackpath"
+            from: "prioritized_paths"
+            params:
+              methods:
+                - "patch_vulnerability"
+                - "removeexcesspermissions"
+                - "closesecuritygroup"
+                - "disableexposedservice"
+                - "enforceruntimepolicy"
+                - "reapplyfedrampbaseline"
+          drift:
+            use: "config.enforce_baseline"
+            from: "drift"
+
+      - name: "verify"
+        use: "graph.rebuildandconfirmnopaths"
+        where:
+          failedfedrampcontrol: true
+          internet_exposed: true
+          privilegeescalationchain: true
+
+    sinks:
+      - name: "audit"
+        use: "audit.record"
+        from: ["control_results", "drift", "prioritized_paths"]
+
+      - name: "telemetry"
+        use: "security.posture_update"
+        params:
+          category: "predatorcontrolgraphengine"
+
+workflows:
+  - name: "predatorcontrolgraphenginelarge"
+    schedule: "${config.predator_large_schedule}"
+
+    steps:
+      - name: "shard_assets"
+        action: "asset.shard"
+        params:
+          strategy: "${config.shard_strategy}"
+          maxassetsper_shard: "${config.max_assets_per_shard}"
+        output: "shards"
+
+      - name: "process_shards"
+        foreach: "shards"
+        action: "workflow.invoke_async"
+        params:
+          - "predatorshardworker"
+          - shard_id: "${item.id}"
+
+  - name: "predatorshardworker"
+    params: ["shard_id"]
+
+    steps:
+      - name: "load_controls"
+        action: "compliance.loadframeworkcached"
+        params:
+          framework: "FedRAMP_High"
+        output: "controls"
+
+      - name: "collectgraphinputs"
+        action: "graph.collect"
+        params:
+          shard: "${params.shard_id}"
+          sources:
+            - "vulnerabilities"
+            - "misconfigurations"
+            - "identity_permissions"
+            - "network_exposure"
+            - "runtime_events"
+        output: "graph_inputs"
+
+      - name: "buildattackgraph"
+        action: "graph.build"
+        params:
+          inputs: "${state.graph_inputs}"
+          mode: "sharded"
+          includeinternetedges: true
+        output: "attack_graph"
+
+      - name: "validatecontrolson_hotspots"
+        action: "compliance.validatecontrolset"
+        params:
+          controls: "${state.controls}"
+          scope:
+            assetsinattack_graph: true
+            internet_exposed: true
+            privilegeescalationnodes: true
+          sampling:
+            lowriskassets: "${config.low_risk_sampling_rate}"
+        output: "control_results"
+
+      - name: "detect_drift"
+        action: "compliance.findfailedcontrols"
+        params:
+          results: "${state.control_results}"
+        output: "drift"
+
+      - name: "identifyexploitablepaths"
+        action: "graph.find_paths"
+        params:
+          graph: "${state.attack_graph}"
+          criteria:
+            containsfailedcontrol: true
+            containspublicexposure: true
+            privilegeescalationchain: true
+          maxpaths: "${config.max_paths_per_shard}"
+        output: "exploitable_paths"
+
+      - name: "rankandbreak"
+        action: "risk.scoreandremediate"
+        params:
+          paths: "${state.exploitable_paths}"
+          model: "TruRisk-equivalent"
+          concurrencylimit: "${config.remediation_concurrency}"
+
+      - name: "shard_telemetry"
+        action: "security.posture_update"
+        params:
+          category: "predatorshardworker"
+          details:
+            shardid: "${params.shard_id}"
+            paths: "${state.exploitable_paths.count}"
+            drift: "${state.drift.count}"
+
+  - name: "federalpredatorautopilot"
+    schedule: "every15minutes"
+
+    steps:
+      - name: "asset_discovery"
+        action: "workflow.invoke"
+        params: ["bod23assetdiscovery"]
+
+      - name: "kev_remediation"
+        action: "workflow.invoke"
+        params: ["bod22kevremediation"]
+
+      - name: "predator_engine"
+        action: "workflow.invoke"
+        params: ["predatorcontrolgraph_engine"]
+
+      - name: "summary"
+        action: "compliance.generate_summary"
+        params:
+          modules:
+            - "bod23assetdiscovery"
+            - "bod22kevremediation"
+            - "predatorcontrolgraph_engine"
