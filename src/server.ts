@@ -457,7 +457,7 @@ app.get("/", (req: Request, res: Response) => {
                         <kbd aria-hidden="true" class="kb-shortcut">(s)</kbd>
                     </button>
                 </div>
-                <p>To get started, create a session via the API:</p>
+                <p>Alternatively, create a session via the API:</p>
                 <div class="code-container">
                     <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard" aria-keyshortcuts="c">
                         <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
