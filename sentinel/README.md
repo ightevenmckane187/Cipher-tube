@@ -14,3 +14,6 @@ Sentinel is the security orchestration layer of Cipher-tube. It consumes securit
 2. Sentinel ingests and parses these results.
 3. Sentinel updates the current security posture.
 4. Automated remediation tasks are triggered for known issues.
+
+---
+📢 **Official Release:** Read the [Launch Speech](../docs/LAUNCH_SPEECH_V1.5.md) for v1.5.0 "OmniSpiral".

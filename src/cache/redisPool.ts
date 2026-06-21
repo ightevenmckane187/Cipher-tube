@@ -62,7 +62,8 @@ export const cache = {
     expire: async (key: string, seconds: number): Promise<boolean | null> => {
         if (!client.isOpen) return null;
         try {
-            return await client.expire(key, seconds);
+            const result = await client.expire(key, seconds);
+            return !!result;
         } catch {
             return null;
         }

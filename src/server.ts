@@ -675,7 +675,7 @@ app.get("/", (req: Request, res: Response) => {
                                showStatus('Success');
                                 setTimeout(resetBtn, 2000);
                             } else {
-                                showStatus('Failed', true);
+                                showStatus('Failed. Try again', true);
                                 resetBtn();
                             }
                         } else {
