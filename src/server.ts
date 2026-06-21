@@ -11,7 +11,8 @@ import { getBlindedRedisKey, blindToken, createSession, rotateSession, getSessio
 
 dotenv.config();
 
-export const app: Application = express();
+const app: Application = express();
+export { app };
 const PORT = process.env.PORT || 3000;
 
 // In-memory cache for session ownership lookups (Bolt Optimization)
@@ -450,7 +451,14 @@ app.get("/", (req: Request, res: Response) => {
                     </div>
                     <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter" aria-keyshortcuts="/">
                 </div>
-                <p>To get started, create a session via the API:</p>
+                <div class="input-row">
+                    <button id="create-session-btn" aria-keyshortcuts="s">
+                        <span aria-hidden="true">🔑</span>
+                        <span class="btn-text">Create Session</span>
+                        <kbd aria-hidden="true" class="kb-shortcut">(s)</kbd>
+                    </button>
+                </div>
+                <p>Alternatively, create a session via the API:</p>
                 <div class="code-container">
                     <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard" aria-keyshortcuts="c">
                         <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
@@ -530,12 +538,12 @@ app.get("/", (req: Request, res: Response) => {
 
                 createSessionBtn.addEventListener('click', async () => {
                     const userId = userIdInput.value.trim() || 'demo-user';
-                    const btnSpan = createSessionBtn.querySelector('span');
+                    const btnText = createSessionBtn.querySelector('.btn-text');
                     const originalHTML = createSessionBtn.innerHTML;
 
                     try {
                         createSessionBtn.disabled = true;
-                        if (btnSpan) btnSpan.textContent = 'Creating...';
+                        if (btnText) btnText.textContent = 'Creating...';
 
                         const response = await fetch('/mcp', {
                             method: 'POST',
@@ -549,13 +557,13 @@ app.get("/", (req: Request, res: Response) => {
                         if (response.ok) {
                             const data = await response.json();
                             window.currentSessionId = data.sessionId;
-                            if (btnSpan) btnSpan.textContent = 'Created! ✅';
+                            if (btnText) btnText.textContent = 'Created! ✅';
                             setTimeout(() => {
                                 createSessionBtn.innerHTML = originalHTML;
                                 createSessionBtn.disabled = false;
                             }, 2000);
                         } else {
-                            if (btnSpan) btnSpan.textContent = 'Failed ❌';
+                            if (btnText) btnText.textContent = 'Failed ❌';
                             setTimeout(() => {
                                 createSessionBtn.innerHTML = originalHTML;
                                 createSessionBtn.disabled = false;
@@ -563,7 +571,7 @@ app.get("/", (req: Request, res: Response) => {
                         }
                     } catch (err) {
                         console.error('Session creation failed:', err);
-                        if (btnSpan) btnSpan.textContent = 'Error ❌';
+                        if (btnText) btnText.textContent = 'Error ❌';
                         setTimeout(() => {
                             createSessionBtn.innerHTML = originalHTML;
                             createSessionBtn.disabled = false;
@@ -782,7 +790,8 @@ const ensureSessionOwner = async (
     // Sentinel: Activity Refresh - Extend Redis TTL on every successful access
     // Bolt Optimization: Throttle Redis EXPIRE calls to once per 60 seconds to reduce write load
     if (typeof redisClient.expire === "function") {
-      const needsUpdate = process.env.NODE_ENV === 'test' || !sessionUpdateCache.has(blindedKey);
+      const isTest = process.env.NODE_ENV === 'test';
+      const needsUpdate = isTest || !sessionUpdateCache.has(blindedKey);
       if (needsUpdate) {
         await redisClient.expire(redisKey, SESSION_TTL);
         sessionUpdateCache.set(blindedKey, true);
@@ -812,7 +821,8 @@ app.post(
     try {
       const sessionToken = await createSession(userId, redisClient, SESSION_TTL);
       // Optimization: Pre-warm the in-memory cache to skip the first Redis lookup (Bolt Optimization)
-      sessionCache.set(blindToken(sessionToken), userId);
+      const blinded = blindToken(sessionToken);
+      if (blinded) sessionCache.set(blinded, userId);
       // Return both for compatibility and new logic
       res.status(201).json({ sessionId: sessionToken, sessionToken });
     } catch (err: any) {
@@ -1034,8 +1044,13 @@ app.post(
       }
     }
 
-    if (typeof packet.crypto_envelope !== "object" || packet.crypto_envelope === null) {
-      return res.status(400).json({ error: "Malformed packet: Invalid crypto_envelope" });
+    if (
+      typeof packet.crypto_envelope !== "object" ||
+      packet.crypto_envelope === null
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Malformed packet: Invalid crypto_envelope" });
     }
 
     for (const key of cryptoKeys) {
