@@ -13,3 +13,7 @@
 ## 2026-05-25 - Consolidating Redundant Hashing via Request Context
 **Learning:** Performing multiple independent SHA-256 hashes on the same token (e.g., once for local cache and once for Redis key) in the same request lifecycle is wasteful. Consolidating these into a single `getSessionKeys` call and storing the results in `res.locals` achieves a near 2x speedup for the hashing logic and reduces CPU pressure.
 **Action:** Always check for redundant cryptographic operations on the same inputs within a single request; use middleware to pre-compute and share these values via `res.locals`.
+
+## 2026-05-25 - Lazy Key Construction and Shared Hash Reuse
+**Learning:** In hot paths like session middleware and multi-layer decryption, deferring string operations (like `session:${hash}`) until a cache miss occurs saves cycles on every request. Similarly, when multiple cryptographic layers share the same integrity hash, decoding it to a Buffer once and reusing it avoids redundant hex-to-buffer allocations.
+**Action:** Use lazy evaluation for string construction in high-frequency middleware; identify and reuse shared cryptographic buffers across multiple processing layers.

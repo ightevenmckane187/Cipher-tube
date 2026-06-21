@@ -10,6 +10,7 @@ jest.mock('redis', () => {
     set: jest.fn().mockResolvedValue('OK'),
     get: jest.fn(),
     quit: jest.fn().mockResolvedValue('OK'),
+    expire: jest.fn().mockResolvedValue(1),
   };
   return {
     createClient: jest.fn(() => mRedis),
@@ -69,7 +70,6 @@ describe('Session Ownership API', () => {
             return Promise.resolve(null);
         });
 
-        const sessionToken = sessionId;
         const checkRes = await request(app)
             .get(`/mcp/check`)
             .set('x-user-id', userId)
