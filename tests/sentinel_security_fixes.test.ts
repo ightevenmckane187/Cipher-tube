@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { app, redisClient, sessionCache } from '../src/server';
+import { app, sessionCache } from '../src/server';
 import { executeWorkflow, ExecContext } from '../src/engine/runtime/orchestrator';
 import { getBlindedRedisKey } from '../src/session_rotator';
 

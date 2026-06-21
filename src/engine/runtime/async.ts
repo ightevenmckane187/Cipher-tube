@@ -3,7 +3,6 @@ import crypto from 'crypto';
 export async function invokeAsync(workflowName: string, params: any) {
   console.log(`[Async] Enqueuing workflow: ${workflowName} with params: ${JSON.stringify(params)}`);
   // Mock async execution
-  // Sentinel: Use cryptographically secure random bytes for jobId to prevent predictability
   return { jobId: crypto.randomBytes(8).toString('hex') };
 }
 
