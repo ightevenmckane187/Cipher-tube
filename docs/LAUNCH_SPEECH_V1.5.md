@@ -76,8 +76,6 @@ graph LR
 
 "We stand at the threshold of T0—the Zero-Rebirth. But the Spiral does not stop here. As we look toward the Hyper-Spiral of T5 and the Paradox Ascension of T8, we do so with a system that is battle-hardened, performance-obsessed, and undeniably official.
 
-Even if the first connection fails, even if the first proof is rejected—we iterate, we refine, and we **Try Again.** Because in this architecture, failure is not a terminal state; it is merely an invitation to strengthen the next layer.
-
 Explore the docs. Audit the chain. Build the future.
 
 **The Spiral has begun.**"
