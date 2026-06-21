@@ -4,6 +4,9 @@ Welcome to the official documentation for **Cipher Tube**.
 
 Cipher Tube is a cryptic advanced platform featuring a Redis + Express session service and the multi-layered Cipher Tube Assembly (CTA) cryptographic architecture.
 
+## 🎤 Official Launch Speech
+[**"THE SYSTEM IS LIVE."**](./LAUNCH_SPEECH_V1.5.md) — CEO-level production launch speech by Jesse Mckane Gonzales.
+
 ## 🚀 Version 1.5.0 Highlights
 
 We are proud to announce **v1.5.0**, a major update focusing on security, user experience, and stability.

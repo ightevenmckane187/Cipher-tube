@@ -7,12 +7,7 @@ import path from "path";
 import rateLimit from "express-rate-limit";
 import { LRUCache } from "lru-cache";
 import { buildCipherTube, decryptCipherTube } from "./cta";
-import {
-  getBlindedRedisKey,
-  blindToken,
-  createSession,
-  rotateSession,
-} from "./session_rotator";
+import { getBlindedRedisKey, blindToken, createSession, rotateSession, getSessionKeys } from "./session_rotator";
 
 dotenv.config();
 
@@ -397,6 +392,28 @@ app.get("/", (req: Request, res: Response) => {
                 #extend-session-btn:hover { opacity: 0.9; }
                 #extend-session-btn:active { transform: scale(0.98); }
                 #extension-status { margin-left: 8px; font-weight: bold; }
+                #create-session-btn {
+                    background: var(--primary);
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: 500;
+                    transition: transform 0.1s;
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                }
+                #create-session-btn:active { transform: scale(0.98); }
+                #create-session-btn:hover { opacity: 0.9; }
+                #create-session-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+                .input-row {
+                    display: flex;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                    align-items: flex-start;
+                }
             </style>
         </head>
         <body>
@@ -432,6 +449,13 @@ app.get("/", (req: Request, res: Response) => {
                         <span id="user-id-counter" aria-live="polite">0 of 128 characters used</span>
                     </div>
                     <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter" aria-keyshortcuts="/">
+                </div>
+                <div class="input-row">
+                    <button id="create-session-btn" aria-keyshortcuts="s">
+                        <span aria-hidden="true">🔑</span>
+                        <span class="btn-text">Create Session</span>
+                        <kbd aria-hidden="true" class="kb-shortcut">(s)</kbd>
+                    </button>
                 </div>
                 <p>To get started, create a session via the API:</p>
                 <div class="code-container">
@@ -492,6 +516,7 @@ app.get("/", (req: Request, res: Response) => {
                 const curlCommand = document.getElementById('curl-command');
                 const userIdInput = document.getElementById('user-id-input');
                 const userIdCounter = document.getElementById('user-id-counter');
+                const createSessionBtn = document.getElementById('create-session-btn');
 
                 function updateCurlCommand() {
                     const currentOrigin = window.location.origin;
@@ -509,6 +534,49 @@ app.get("/", (req: Request, res: Response) => {
 
                 userIdInput.addEventListener('input', updateCurlCommand);
                 updateCurlCommand();
+
+                createSessionBtn.addEventListener('click', async () => {
+                    const userId = userIdInput.value.trim() || 'demo-user';
+                    const btnText = createSessionBtn.querySelector('.btn-text');
+                    const originalHTML = createSessionBtn.innerHTML;
+
+                    try {
+                        createSessionBtn.disabled = true;
+                        if (btnText) btnText.textContent = 'Creating...';
+
+                        const response = await fetch('/mcp', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-user-id': userId
+                            },
+                            body: JSON.stringify({})
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            window.currentSessionId = data.sessionId;
+                            if (btnText) btnText.textContent = 'Created! ✅';
+                            setTimeout(() => {
+                                createSessionBtn.innerHTML = originalHTML;
+                                createSessionBtn.disabled = false;
+                            }, 2000);
+                        } else {
+                            if (btnText) btnText.textContent = 'Failed ❌';
+                            setTimeout(() => {
+                                createSessionBtn.innerHTML = originalHTML;
+                                createSessionBtn.disabled = false;
+                            }, 2000);
+                        }
+                    } catch (err) {
+                        console.error('Session creation failed:', err);
+                        if (btnText) btnText.textContent = 'Error ❌';
+                        setTimeout(() => {
+                            createSessionBtn.innerHTML = originalHTML;
+                            createSessionBtn.disabled = false;
+                        }, 2000);
+                    }
+                });
 
                 copyButton.addEventListener('click', async () => {
                     try {
@@ -534,6 +602,12 @@ app.get("/", (req: Request, res: Response) => {
                         document.getElementById('copy-curl')?.click();
                     } else if (e.key === 't') {
                         document.querySelector('.theme-toggle')?.click();
+                    } else if (e.key === '/') {
+                        e.preventDefault();
+                        userIdInput.focus();
+                        userIdInput.select();
+                    } else if (e.key === 's') {
+                        createSessionBtn.click();
                     } else if (e.key === 'e') {
                         const btn = document.getElementById('extend-session-btn');
                         if (btn && window.getComputedStyle(document.getElementById('timeout-banner')).display !== 'none') {
@@ -577,6 +651,11 @@ app.get("/", (req: Request, res: Response) => {
                         statusTimeout = setTimeout(() => status.textContent = '', 3000);
                     };
 
+                    const resetBtn = () => {
+                        btn.disabled = false;
+                        btnText.textContent = 'Extend Session';
+                    };
+
                     try {
                         btn.disabled = true;
                         btnText.textContent = 'Extending...';
@@ -592,13 +671,11 @@ app.get("/", (req: Request, res: Response) => {
                             if (response.ok) {
                                 resetTimer();
                                 btnText.textContent = 'Extended! ✅';
-                                showStatus('Success');
-                                setTimeout(() => {
-                                    btnText.textContent = 'Extend Session';
-                                }, 2000);
+                               showStatus('Success');
+                                setTimeout(resetBtn, 2000);
                             } else {
                                 showStatus('Failed', true);
-                                btnText.textContent = 'Extend Session';
+                                resetBtn();
                             }
                         } else {
                             // Simulation mode
@@ -606,16 +683,12 @@ app.get("/", (req: Request, res: Response) => {
                             resetTimer();
                             btnText.textContent = 'Reset! ✅';
                             showStatus('Reset');
-                            setTimeout(() => {
-                                btnText.textContent = 'Extend Session';
-                            }, 2000);
+                            setTimeout(resetBtn, 2000);
                         }
                     } catch (err) {
                         console.error('Extension failed:', err);
                         showStatus('Error', true);
-                    } finally {
-                        btn.disabled = false;
-                        btnText.textContent = 'Extend Session';
+                        resetBtn();
                     }
                 });
 
@@ -688,13 +761,15 @@ const ensureSessionOwner = async (
     sessionToken = sessionToken[0];
   }
 
-  const blindedKey = blindToken(sessionToken);
+  const { blindedKey, redisKey } = getSessionKeys(sessionToken);
+  // Store keys in res.locals for downstream reuse (Bolt Optimization)
+  res.locals.sessionKeys = { blindedKey, redisKey };
+
   let ownerId = sessionCache.get(blindedKey);
 
   try {
     if (!ownerId) {
-      const sessionKey = getBlindedRedisKey(sessionToken);
-      ownerId = (await redisClient.get(sessionKey)) as string;
+      ownerId = (await redisClient.get(redisKey)) as string;
       if (!ownerId) {
         // Sentinel: Implement negative caching to prevent redundant Redis lookups
         sessionCache.set(blindedKey, SESSION_NOT_FOUND);
@@ -714,11 +789,10 @@ const ensureSessionOwner = async (
     // Sentinel: Activity Refresh - Extend Redis TTL on every successful access
     // Bolt Optimization: Throttle Redis EXPIRE calls to once per 60 seconds to reduce write load
     if (typeof redisClient.expire === "function") {
-      const needsUpdate =
-        process.env.NODE_ENV === "test" || !sessionUpdateCache.has(blindedKey);
+      const isTest = process.env.NODE_ENV === 'test';
+      const needsUpdate = isTest || !sessionUpdateCache.has(blindedKey);
       if (needsUpdate) {
-        const sessionKey = getBlindedRedisKey(sessionToken);
-        await redisClient.expire(sessionKey, SESSION_TTL);
+        await redisClient.expire(redisKey, SESSION_TTL);
         sessionUpdateCache.set(blindedKey, true);
       }
     }
@@ -746,7 +820,8 @@ app.post(
     try {
       const sessionToken = await createSession(userId, redisClient, SESSION_TTL);
       // Optimization: Pre-warm the in-memory cache to skip the first Redis lookup (Bolt Optimization)
-      sessionCache.set(blindToken(sessionToken), userId);
+      const blinded = blindToken(sessionToken);
+      if (blinded) sessionCache.set(blinded, userId);
       // Return both for compatibility and new logic
       res.status(201).json({ sessionId: sessionToken, sessionToken });
     } catch (err: any) {
@@ -777,13 +852,15 @@ app.post(
 
     try {
       const { newToken } = await rotateSession(oldToken, redisClient, SESSION_TTL);
+      const { blindedKey: oldBlindedKey } = getSessionKeys(oldToken);
+      const { blindedKey: newBlindedKey } = getSessionKeys(newToken);
 
       // Sentinel: Immediately invalidate old token in local LRU cache to prevent replay
       // window vulnerability (Code Review Feedback).
-      sessionCache.delete(blindToken(oldToken));
+      sessionCache.delete(oldBlindedKey);
 
       // Bolt Optimization: Pre-warm the cache with the new token
-      sessionCache.set(blindToken(newToken), (req.headers["x-user-id"] as string).trim());
+      sessionCache.set(newBlindedKey, (req.headers["x-user-id"] as string).trim());
 
       res.json({ newToken });
     } catch (err: any) {
@@ -962,9 +1039,7 @@ app.post(
     // Ensure structural integrity
     for (const key of requiredKeys) {
       if (!Object.prototype.hasOwnProperty.call(packet, key)) {
-        return res
-          .status(400)
-          .json({ error: `Malformed packet: Missing ${key}` });
+        return res.status(400).json({ error: `Malformed packet: Missing ${key}` });
       }
     }
 
@@ -979,15 +1054,13 @@ app.post(
 
     for (const key of cryptoKeys) {
       if (!Object.prototype.hasOwnProperty.call(packet.crypto_envelope, key)) {
-        return res
-          .status(400)
-          .json({ error: `Malformed packet: Missing ${key} in crypto_envelope` });
+        return res.status(400).json({ error: `Malformed packet: Missing ${key} in crypto_envelope` });
       }
     }
 
     // Verify session routing metadata matches the session being used
-    const sessionToken = req.headers["x-session-token"] as string;
-    const blindedToken = blindToken(sessionToken);
+    // Bolt Optimization: Use pre-computed hash from res.locals.sessionKeys if available
+    const blindedToken = res.locals.sessionKeys?.blindedKey || blindToken(req.headers["x-session-token"] as string);
 
     if (packet.blinded_session_hash !== blindedToken) {
       return res.status(403).json({ error: "Session hash mismatch: Routing integrity failure" });

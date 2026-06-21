@@ -58,6 +58,7 @@ describe('Session Ownership API', () => {
     });
 
     it('should allow the owner to check their session', async () => {
+        // We use a real UUID for sessionToken to satisfy validation
         const sessionToken = '550e8400-e29b-41d4-8716-446655440000';
         const blindedKey = getBlindedRedisKey(sessionToken);
 

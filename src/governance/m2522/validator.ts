@@ -2,7 +2,7 @@ import { AuthorityChainManifest } from './types';
 
 export class AuthorityChainValidator {
   public static validate(manifest: any): manifest is AuthorityChainManifest {
-    if (!manifest || typeof manifest !== 'object') {
+    if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
       throw new Error('Manifest must be an object');
     }
 

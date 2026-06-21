@@ -10,6 +10,7 @@ import * as auditActions from '../../engine/actions/audit';
 import * as vulnerabilityActions from '../../engine/actions/vulnerability';
 import * as configActions from '../../engine/actions/config';
 import { workflow_invoke_async } from '../../engine/runtime/async';
+import { omniEngines } from '../../engine/runtime/omni_engines';
 
 const ACTION_REGISTRY: any = {
   compliance: complianceActions,
@@ -21,6 +22,7 @@ const ACTION_REGISTRY: any = {
   audit: auditActions,
   vulnerability: vulnerabilityActions,
   config: configActions,
+  ...omniEngines,
   workflow: {
     invoke_async: workflow_invoke_async
   }
