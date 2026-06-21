@@ -63,6 +63,9 @@ describe('Sentinel: Session Extension & Activity Refresh', () => {
   });
 
   it('ensureSessionOwner should trigger activity refresh even on cache hit', async () => {
+    const blindedToken = blindToken(sessionToken);
+    const blindedKey = getBlindedRedisKey(sessionToken);
+
     // Pre-warm cache
     sessionCache.set(blindToken(sessionToken), userId);
     const blindedKey = getBlindedRedisKey(sessionToken);

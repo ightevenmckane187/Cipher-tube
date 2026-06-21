@@ -1043,8 +1043,13 @@ app.post(
       }
     }
 
-    if (typeof packet.crypto_envelope !== "object" || packet.crypto_envelope === null) {
-      return res.status(400).json({ error: "Malformed packet: Invalid crypto_envelope" });
+    if (
+      typeof packet.crypto_envelope !== "object" ||
+      packet.crypto_envelope === null
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Malformed packet: Invalid crypto_envelope" });
     }
 
     for (const key of cryptoKeys) {
