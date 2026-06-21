@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { app, redisClient, sessionCache } from '../src/server';
+import { app, sessionCache } from '../src/server';
 import { executeWorkflow, ExecContext } from '../src/engine/runtime/orchestrator';
 import { getBlindedRedisKey } from '../src/session_rotator';
 
@@ -114,7 +114,7 @@ describe('Sentinel Security Fixes', () => {
     });
 
     it('should extend Redis TTL on every authorized request (Activity Refresh)', async () => {
-        const blindedKey = getBlindedRedisKey(sessionId);
+        const blindedKey = getBlindedRedisKey(sessionToken);
         redisMock.get.mockImplementation((key: string) => {
             if (key === blindedKey) return Promise.resolve(userId);
             return Promise.resolve(null);
@@ -128,8 +128,8 @@ describe('Sentinel Security Fixes', () => {
         expect(redisMock.expire).toHaveBeenCalledWith(blindedKey, 3600);
     });
 
-    it('should allow explicit session extension via POST /session/:sessionId/extend', async () => {
-        const blindedKey = getBlindedRedisKey(sessionId);
+    it('should allow explicit session extension via POST /session/extend', async () => {
+        const blindedKey = getBlindedRedisKey(sessionToken);
         redisMock.get.mockImplementation((key: string) => {
             if (key === blindedKey) return Promise.resolve(userId);
             return Promise.resolve(null);

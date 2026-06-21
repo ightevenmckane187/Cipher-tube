@@ -7,7 +7,12 @@ import path from "path";
 import rateLimit from "express-rate-limit";
 import { LRUCache } from "lru-cache";
 import { buildCipherTube, decryptCipherTube } from "./cta";
-import { getBlindedRedisKey } from "./session_rotator";
+import {
+  getBlindedRedisKey,
+  blindToken,
+  createSession,
+  rotateSession,
+} from "./session_rotator";
 
 dotenv.config();
 
@@ -688,7 +693,7 @@ const ensureSessionOwner = async (
 
   try {
     if (!ownerId) {
-      const sessionKey = getBlindedRedisKey(sessionId);
+      const sessionKey = getBlindedRedisKey(sessionToken);
       ownerId = (await redisClient.get(sessionKey)) as string;
       if (!ownerId) {
         // Sentinel: Implement negative caching to prevent redundant Redis lookups
@@ -709,11 +714,12 @@ const ensureSessionOwner = async (
     // Sentinel: Activity Refresh - Extend Redis TTL on every successful access
     // Bolt Optimization: Throttle Redis EXPIRE calls to once per 60 seconds to reduce write load
     if (typeof redisClient.expire === "function") {
-      const needsUpdate = process.env.NODE_ENV === 'test' || !sessionUpdateCache.has(blindedKey);
+      const needsUpdate =
+        process.env.NODE_ENV === "test" || !sessionUpdateCache.has(blindedKey);
       if (needsUpdate) {
-        const sessionKey = getBlindedRedisKey(sessionId);
+        const sessionKey = getBlindedRedisKey(sessionToken);
         await redisClient.expire(sessionKey, SESSION_TTL);
-        sessionUpdateCache.set(sessionId, true);
+        sessionUpdateCache.set(blindedKey, true);
       }
     }
 
@@ -737,8 +743,6 @@ app.post(
   async (req: Request, res: Response) => {
     const userId = req.headers["x-user-id"] as string;
 
-    const sessionId = crypto.randomUUID();
-    const sessionKey = getBlindedRedisKey(sessionId);
     try {
       const sessionToken = await createSession(userId, redisClient, SESSION_TTL);
       // Optimization: Pre-warm the in-memory cache to skip the first Redis lookup (Bolt Optimization)
@@ -957,18 +961,27 @@ app.post(
 
     // Ensure structural integrity
     for (const key of requiredKeys) {
-      if (!(key in packet)) {
-        return res.status(400).json({ error: `Malformed packet: Missing ${key}` });
+      if (!Object.prototype.hasOwnProperty.call(packet, key)) {
+        return res
+          .status(400)
+          .json({ error: `Malformed packet: Missing ${key}` });
       }
     }
 
-    if (typeof packet.crypto_envelope !== "object" || packet.crypto_envelope === null) {
-      return res.status(400).json({ error: "Malformed packet: Invalid crypto_envelope" });
+    if (
+      typeof packet.crypto_envelope !== "object" ||
+      packet.crypto_envelope === null
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Malformed packet: Invalid crypto_envelope" });
     }
 
     for (const key of cryptoKeys) {
-      if (!(key in packet.crypto_envelope)) {
-        return res.status(400).json({ error: `Malformed packet: Missing ${key} in crypto_envelope` });
+      if (!Object.prototype.hasOwnProperty.call(packet.crypto_envelope, key)) {
+        return res
+          .status(400)
+          .json({ error: `Malformed packet: Missing ${key} in crypto_envelope` });
       }
     }
 
