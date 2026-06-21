@@ -1,6 +1,5 @@
 import request from 'supertest';
 import { app, redisClient, sessionCache } from '../src/server';
-import crypto from 'crypto';
 import { getBlindedRedisKey } from '../src/session_rotator';
 
 jest.mock('redis', () => {
