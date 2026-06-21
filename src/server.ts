@@ -7,7 +7,7 @@ import path from "path";
 import rateLimit from "express-rate-limit";
 import { LRUCache } from "lru-cache";
 import { buildCipherTube, decryptCipherTube } from "./cta";
-import { getBlindedRedisKey, blindToken, createSession, rotateSession, getSessionKeys } from "./session_rotator";
+import { getBlindedRedisKey, blindToken, createSession, rotateSession, getSessionKeys, getRedisKeyFromHash } from "./session_rotator";
 
 dotenv.config();
 
@@ -762,14 +762,15 @@ const ensureSessionOwner = async (
     sessionToken = sessionToken[0];
   }
 
-  const { blindedKey, redisKey } = getSessionKeys(sessionToken);
-  // Store keys in res.locals for downstream reuse (Bolt Optimization)
-  res.locals.sessionKeys = { blindedKey, redisKey };
-
+  // Bolt Optimization: Delay hashing/key construction until absolutely necessary.
+  // 1. Check local cache first with just the blinded key
+  const blindedKey = blindToken(sessionToken);
   let ownerId = sessionCache.get(blindedKey);
 
   try {
     if (!ownerId) {
+      // 2. Cache miss: Construct Redis key only when needed for external lookup
+      const redisKey = getRedisKeyFromHash(blindedKey);
       ownerId = (await redisClient.get(redisKey)) as string;
       if (!ownerId) {
         // Sentinel: Implement negative caching to prevent redundant Redis lookups
@@ -787,13 +788,16 @@ const ensureSessionOwner = async (
       return res.status(403).json({ error: "Forbidden" });
     }
 
+    // Bolt Optimization: Pre-compute sessionKeys for downstream middleware if we passed owner check
+    res.locals.sessionKeys = { blindedKey, redisKey: getRedisKeyFromHash(blindedKey) };
+
     // Sentinel: Activity Refresh - Extend Redis TTL on every successful access
     // Bolt Optimization: Throttle Redis EXPIRE calls to once per 60 seconds to reduce write load
     if (typeof redisClient.expire === "function") {
       const isTest = process.env.NODE_ENV === 'test';
       const needsUpdate = isTest || !sessionUpdateCache.has(blindedKey);
       if (needsUpdate) {
-        await redisClient.expire(redisKey, SESSION_TTL);
+        await redisClient.expire(res.locals.sessionKeys.redisKey, SESSION_TTL);
         sessionUpdateCache.set(blindedKey, true);
       }
     }

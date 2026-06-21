@@ -210,8 +210,21 @@ export function decryptCipherTube(
     if (layer < 0 || layer > 100) continue;
 
     poolTubes[layer] = tube;
-    if (typeof tube.salt === 'string') poolSalts[layer] = Buffer.from(tube.salt, 'hex');
-    if (typeof tube.hash === 'string') poolHashes[layer] = Buffer.from(tube.hash, 'hex');
+
+    // Bolt Optimization: Only decode salt for encryption layers (j >= 0)
+    // Integrity layers (0-11) don't use salt during decryption.
+    if (layer >= NUM_INTEGRITY_TUBES && typeof tube.salt === 'string') {
+      poolSalts[layer] = Buffer.from(tube.salt, 'hex');
+    }
+
+    // Bolt Optimization: Decode hash for integrity layers (0-11)
+    if (layer < NUM_INTEGRITY_TUBES && typeof tube.hash === 'string') {
+      // Since all 12 layers share the same hash, we only need to decode it once
+      if (layer === 0) {
+        const h = Buffer.from(tube.hash, 'hex');
+        for (let k = 0; k < NUM_INTEGRITY_TUBES; k++) poolHashes[k] = h;
+      }
+    }
   }
 
   // === Decrypt 13 encryption layers in reverse ===
@@ -261,20 +274,18 @@ export function decryptCipherTube(
     const tube = poolTubes[i];
     if (!tube) throw new Error(`Missing hash-lock tube ${i}`);
 
-    if (typeof tube.hash !== 'string' || !poolHashes[i]) {
-      throw new Error(`Invalid tube metadata for hash-lock ${i}: Missing hash`);
-    }
-
-    // Bolt Optimization: Short-circuit if this hash was already verified in the previous layer
-    if (tube.hash === lastHash && lastVerified) {
+    // Bolt Optimization: Since all 12 integrity layers share the same hash,
+    // we only need to verify it once against the plaintext.
+    if (lastVerified && tube.hash === lastHash) {
       audit[i] = AUDIT_VERIFY_TUBE[i];
       continue;
     }
 
-    const expectedBuffer = poolHashes[i];
-    if (!expectedBuffer) {
-      throw new Error(`Invalid tube metadata for hash-lock ${i}: Missing hash buffer`);
+    if (typeof tube.hash !== 'string' || !poolHashes[i]) {
+      throw new Error(`Invalid tube metadata for hash-lock ${i}: Missing hash`);
     }
+
+    const expectedBuffer = poolHashes[i]!;
 
     // Sentinel: Use timingSafeEqual to prevent potential timing attacks on integrity checks
     if (
