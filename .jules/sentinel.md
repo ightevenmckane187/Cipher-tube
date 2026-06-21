@@ -72,3 +72,8 @@
 **Vulnerability:** Prototype pollution and bypass via malicious keys in governance manifests.
 **Learning:** In TypeScript/JavaScript, iterating over `Object.entries()` of a user-supplied object used as a map (e.g., roles, lifecycle gates) can lead to prototype pollution if keys like `__proto__` or `constructor` are present. These can overwrite global object properties or bypass logic that uses `in` or direct property access.
 **Prevention:** Explicitly block forbidden keys (`__proto__`, `constructor`, `prototype`) when iterating over keys of map-like objects in security-critical validation logic. Use `Object.prototype.hasOwnProperty.call` for existence checks instead of the `in` operator.
+
+## 2026-06-28 - Time-Window Bypass via NaN Comparison
+**Vulnerability:** Non-numeric salt values in ZK proof payloads could bypass time-window checks due to NaN comparison results.
+**Learning:** In JavaScript, `Math.abs(currentEpoch - salt) > performanceWindow` evaluates to `false` if `salt` is a non-numeric type that results in `NaN`, effectively bypassing replay protection.
+**Prevention:** Always explicitly validate the type and value (e.g., `Number.isNaN`) of numeric inputs used in security-critical comparisons, especially when they originate from untrusted JSON payloads.

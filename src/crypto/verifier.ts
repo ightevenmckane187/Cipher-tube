@@ -19,13 +19,19 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
 
         const { salt, structuralHash, challengeProof } = parsedPayload;
 
-        if (!salt || !structuralHash || !challengeProof) {
+        if (salt === undefined || salt === null || !structuralHash || !challengeProof) {
             return false;
         }
 
         // Enforce a strict time-window constraint (e.g., 5 minutes) to mitigate replay vectors
         const currentEpoch = Date.now();
         const performanceWindow = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+        // Sentinel: Ensure salt is a valid number to prevent NaN comparison bypass
+        if (typeof salt !== 'number' || Number.isNaN(salt)) {
+            return false;
+        }
+
         if (Math.abs(currentEpoch - salt) > performanceWindow) {
             return false;
         }
@@ -43,7 +49,7 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
 
     } catch (error) {
         // Suppress leakage while ensuring system logs capture failure signatures
-        console.error("Critical: Security framework evaluation failure inside verifier engine.");
+        console.error("Critical: Security framework evaluation failure inside verifier engine:", error);
         return false;
     }
 }
