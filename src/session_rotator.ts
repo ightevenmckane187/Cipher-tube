@@ -7,7 +7,7 @@ import { RedisClientType } from 'redis';
  * Bolt Optimization: Use one-shot crypto.hash via fastHash for ~2x faster hashing.
  *
  * @param token - The raw session ID or token to be blinded.
- * @returns The SHA-256 blinded hash as a hex string.
+ * @returns The SHA-256 blinded hash as a hex string, or an empty string if invalid.
  */
 export function blindToken(token: string): string {
     if (!token || typeof token !== 'string') {
@@ -76,13 +76,10 @@ export async function rotateSession(oldToken: string, redis: RedisClientType, tt
  * @returns Object containing the blinded hash and the Redis-prefixed key.
  */
 export function getSessionKeys(token: string): { blindedKey: string; redisKey: string } {
-    if (!token || typeof token !== 'string') {
-        return { blindedKey: '', redisKey: '' };
-    }
-    const hashed = fastHash('sha256', token, 'hex');
+    const hashed = blindToken(token);
     return {
         blindedKey: hashed,
-        redisKey: `session:${hashed}`
+        redisKey: hashed ? `session:${hashed}` : ''
     };
 }
 
