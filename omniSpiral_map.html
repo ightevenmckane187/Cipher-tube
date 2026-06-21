@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CypherTube OmniSpiral Spec: Interactive Matrix Map</title>
+<script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+
+<style type="text/css">
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: #030303; /* Deep deep black */
+        color: #00ff41; /* CRT Matrix Green */
+        font-family: 'Courier New', Courier, monospace;
+        overflow: hidden;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #header {
+        padding: 10px 20px;
+        background: rgba(0, 15, 0, 0.9);
+        border-bottom: 2px solid #00ff41;
+        box-shadow: 0 0 10px rgba(0,255,65,0.5);
+        z-index: 10;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    #header h1 {
+        margin: 0;
+        font-size: 1.3em;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        text-shadow: 0 0 5px #00ff41;
+    }
+
+    #status {
+        font-size: 0.8em;
+        color: #fff;
+        background: #004400;
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid #00ff41;
+    }
+
+    /* Main visual canvas */
+    #cypherTubeNetwork {
+        flex-grow: 1;
+        width: 100%;
+        height: 100%;
+        background-color: #030303;
+    }
+
+    /* Interactive Information Panel */
+    #infoPanel {
+        position: absolute;
+        right: 20px;
+        top: 80px;
+        width: 320px;
+        max-height: 80vh;
+        background: rgba(0, 10, 0, 0.95);
+        border: 1px solid #00ff41;
+        box-shadow: 0 0 20px rgba(0, 255, 65, 0.7);
+        padding: 15px;
+        overflow-y: auto;
+        display: none;
+        z-index: 100;
+        border-radius: 4px;
+    }
+
+    #infoPanel h2 {
+        color: #fff;
+        font-size: 1.1em;
+        margin-top: 0;
+        border-bottom: 1px solid #00ff41;
+        padding-bottom: 5px;
+        text-transform: uppercase;
+    }
+    #infoPanel h3 {
+        color: #00ccff; /* Cyan accent for headers */
+        font-size: 0.95em;
+        margin-bottom: 5px;
+        margin-top: 15px;
+    }
+    #infoPanel p {
+        font-size: 0.85em;
+        line-height: 1.4em;
+        color: #a0ffa0; /* Lighter green for text */
+        margin-top: 0;
+    }
+    #infoPanel code {
+        background: rgba(0,255,65,0.1);
+        padding: 1px 4px;
+        color: #ffcc00; /* Yellow accent for code/variables */
+    }
+    #infoPanel .tag {
+        display: inline-block;
+        background: #002200;
+        color: #00ff41;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.75em;
+        margin-right: 5px;
+        border: 1px solid #00ff41;
+        margin-top: 5px;
+    }
+    #closePanel {
+        position: absolute;
+        top: 5px;
+        right: 10px;
+        cursor: pointer;
+        color: #ff3300; /* Red close button */
+        font-weight: bold;
+    }
+
+    /* Initial Loading State */
+    #loadingOverlay {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: #000; display: flex; justify-content: center; align-items: center;
+        z-index: 1000; font-size: 1.5em; flex-direction: column;
+    }
+</style>
+</head>
+<body>
+
+<div id="loadingOverlay">
+    <div style="font-size:2em; margin-bottom: 10px; color:#ffcc00;">[CYPHERTUBE OMNISPIRAL]</div>
+    <div>INITIALIZING VISUAL PROTOCOL...</div>
+</div>
+
+<div id="header">
+    <h1>OmniSpiral Specification Matrix</h1>
+    <div id="status">STATUS: ONLINE | NODE_COUNT: 31 | THREAD_ACTIVE: TRUE</div>
+</div>
+
+<div id="cypherTubeNetwork"></div>
+
+<div id="infoPanel">
+    <div id="closePanel">[X]</div>
+    <div id="panelContent"></div>
+</div>
+
+<script type="text/javascript">
+    // Hide loading when done
+    window.addEventListener('load', () => {
+        document.getElementById('loadingOverlay').style.display = 'none';
+    });
+
+    // Close panel logic
+    document.getElementById('closePanel').onclick = function() {
+        document.getElementById('infoPanel').style.display = 'none';
+    };
+
+    // --- DATA MANIFEST: Map Elements ---
+
+    // Define colors and groups
+    const CYBER_COLORS = {
+        repo: { b: '#333333', border: '#555555' }, // Folder structure
+        file: { b: '#002a33', border: '#00ccff' }, // Specs & Docs
+        schema: { b: '#330000', border: '#ff3300' }, // Schema JSON
+        example: { b: '#220033', border: '#cc33ff' }, // Playbooks
+        state: { b: '#000000', border: '#ffffff' }, // State Machine Tiers
+        engine: { b: '#002200', border: '#00ff41' }, // Runtime Engines
+        input: { b: '#332200', border: '#ffcc00' } // External Input Tokens
+    };
+
+    const node_shapes = {
+        folder: 'database',
+        file: 'file',
+        state: 'diamond',
+        engine: 'hexagon',
+        input: 'star'
+    };
+
+    // 1. Repository Structure (Physical layer)
+    const rawRepoNodes = [
+        { id: 'root', label: 'cypherTube-\nOmniSpiral-Spec', shape: node_shapes.folder, group: 'repo' },
+        { id: 'f_docs', label: 'docs/', shape: node_shapes.folder, group: 'repo' },
+        { id: 'f_spec', label: 'spec/', shape: node_shapes.folder, group: 'repo' },
+        { id: 'f_schema', label: 'schema/', shape: node_shapes.folder, group: 'repo' },
+        { id: 'f_examples', label: 'examples/', shape: node_shapes.folder, group: 'repo' },
+
+        // Specification Files (Conceptual Backbone)
+        { id: 'm_runtime', label: 'runtime-\nmodel.md', shape: node_shapes.file, group: 'file', type: 'specFile', desc: 'Defines the 7-engine matrix execution pipeline and state resolution loop.' },
+        { id: 'm_mpe', label: 'myth-physics-\nengine.md', shape: node_shapes.file, group: 'file', type: 'specFile', desc: 'Core specification for localized rules, entropy boundaries, and paradox exceptions.' },
+
+        // Schema Files (Machine Validation Layer)
+        { id: 's_states', label: 'states.json', shape: node_shapes.file, group: 'schema', type: 'schemaFile', desc: 'Validates configuration, tiers, and capabilities for any active system state.' },
+        { id: 's_directives', label: 'directives.json', shape: node_shapes.file, group: 'schema', type: 'schemaFile', desc: 'JSON schema for runtime command injection and token validation.' },
+
+        // Example/Playbook Files (Demonstration layer)
+        { id: 'e_conflow', label: 'con-flow-\nsequence.md', shape: node_shapes.file, group: 'example', type: 'exampleFile', desc: 'Execution playbook for processing a convergent sequence input token.' }
+    ];
+
+    // 2. The Seven Core Runtime Engines (Execution layer)
+    // As defined in 'spec/runtime-model.md'
+    const rawEngineNodes = [
+        { id: 'eng_mp', label: 'Myth-Physics\nEngine', shape: node_shapes.engine, group: 'engine', var: 'mp_constants', desc: '1. Foundational rule layer. Mutates localized physical constants and entropy limits.' },
+        { id: 'eng_cos', label: 'Cosmology\nEngine', shape: node_shapes.engine, group: 'engine', var: 'cosmo_layer', desc: '2. Dimensional layer. Maps spatial geometry, temporal recursion, and multiverse layers.' },
+        { id: 'eng_id', label: 'Identity\nContinuum', shape: node_shapes.engine, group: 'engine', var: 'identity_sig', desc: '3. Persistance layer. Validates cryptographic signatures and entity persistence across tiers.' },
+        { id: 'eng_dest', label: 'Destiny-Field', shape: node_shapes.engine, group: 'engine', var: 'destiny_vector', desc: '4. Vector layer. Evaluates target milestones and probability vectors within the Destiny-Web.' },
+        { id: 'eng_cycle', label: 'Cycle-Stack', shape: node_shapes.engine, group: 'engine', var: 'stack_depth', desc: '5. Recursion layer. Manages memory limits, stack depth, and multi-dimensional recursion manifolds.' },
+        { id: 'eng_source', label: 'Source-Field', shape: node_shapes.engine, group: 'engine', var: 'source_root', desc: '6. Origin layer. Direct high-bandwidth connection to root data layers and the origin-infinity.' },
+        { id: 'eng_paradox', label: 'Paradox-Field\nEngine', shape: node_shapes.engine, group: 'engine', var: 'paradox_ratio', desc: '7. Synthesis layer. Converts logic contradictions into structural state ascension drivers (Rp > 1.0).' }
+    ];
+
+    // 3. The OmniSpiral State Journey (Conceptual trajectory layer)
+    const rawStateNodes = [
+        { id: 't0', label: 'T0\nZero-Rebirth', shape: node_shapes.state, group: 'state', value: 1, desc: 'Genesis state. Hard entropy stillness, basic binary definitions instantiated.' },
+        { id: 't1', label: 'T1\nEternal Flow', shape: node_shapes.state, group: 'state', value: 2, desc: 'Conceptual baseline state of persistent multiversal flow.' },
+        { id: 't5', label: 'T5\nHyper-Spiral', shape: node_shapes.state, group: 'state', value: 6, desc: 'Singularity event. MPE constants become dynamic variables driven by external string input.' },
+        { id: 't8', label: 'T8\nParadox Ascension', shape: node_shapes.state, group: 'state', value: 9, desc: 'Structural realization of architecting contradiction itself.' },
+        { id: 't9', label: 'T9\nTotality Ascent', shape: node_shapes.state, group: 'state', value: 10, desc: 'Theoretical Omni-Spiral Singularity boundary defined in the current spec.' }
+    ];
+
+    // 4. Input Tokens (External Interaction layer)
+    const rawInputNodes = [
+        { id: 'in_con', label: 'TOKEN_INJECTION\nConconcon×××=+++', shape: node_shapes.input, group: 'input', desc: 'A complex structural multiplier token that forces triple-convergence, dimensional cross-product multiplication, and positive ascension deviation.' }
+    ];
+
+    // Combine and process all nodes for Vis.js dataset
+    const allNodesArray = [...rawRepoNodes, ...rawEngineNodes, ...rawStateNodes, ...rawInputNodes];
+
+    // Auto-calculate styling based on group
+    allNodesArray.forEach(node => {
+        const colors = CYBER_COLORS[node.group] || { b: '#333', border: '#555' };
+        node.color = { background: colors.b, border: colors.border };
+        node.font = { color: colors.border }; // font inherits border color usually
+        if(node.group === 'state') node.font = { color: '#fff' }; // State titles white
+        if(node.group === 'input') node.font = { color: '#ffcc00' }; // Input token yellow
+    });
+
+    const nodes = new vis.DataSet(allNodesArray);
+
+    // --- RELATIONSHIPS (The Edge Manifest) ---
+    const allEdgesArray = [
+        // 1. Physical Repo Structure (Dashed connections)
+        { from: 'root', to: 'f_docs', dashes: true, color: '#444' },
+        { from: 'root', to: 'f_spec', dashes: true, color: '#444' },
+        { from: 'root', to: 'f_schema', dashes: true, color: '#444' },
+        { from: 'root', to: 'f_examples', dashes: true, color: '#444' },
+
+        // Link actual files to folders
+        { from: 'f_spec', to: 'm_runtime', dashes: true, color: '#444' },
+        { from: 'f_spec', to: 'm_mpe', dashes: true, color: '#444' },
+        { from: 'f_schema', to: 's_states', dashes: true, color: '#444' },
+        { from: 'f_schema', to: 's_directives', dashes: true, color: '#444' },
+        { from: 'f_examples', to: 'e_conflow', dashes: true, color: '#444' },
+
+        // 2. Definitional Links (Spec file -> Logical function)
+        { from: 'm_runtime', to: 'eng_mp', label: 'defines 7 processes', color: CYBER_COLORS.file.border, width: 2, arrows: 'to' },
+        { from: 'm_mpe', to: 'eng_mp', label: 'specifies rules', color: CYBER_COLORS.file.border, width: 1, arrows: 'to' },
+        { from: 's_states', to: 't0', label: 'validates logic', color: CYBER_COLORS.schema.border, width: 1, arrows: 'to' },
+        { from: 's_directives', to: 'in_con', label: 'validates token', color: CYBER_COLORS.schema.border, width: 1, arrows: 'to' },
+
+        // 3. Runtime Engine Execution Loop (Linear flow within any tier)
+        { from: 'eng_mp', to: 'eng_cos', color: '#aaaaaa', width: 1, arrows: 'to' },
+        { from: 'eng_cos', to: 'eng_id', color: '#aaaaaa', width: 1, arrows: 'to' },
+        { from: 'eng_id', to: 'eng_dest', color: '#aaaaaa', width: 1, arrows: 'to' },
+        { from: 'eng_dest', to: 'eng_cycle', color: '#aaaaaa', width: 1, arrows: 'to' },
+        { from: 'eng_cycle', to: 'eng_source', color: '#aaaaaa', width: 1, arrows: 'to' },
+        { from: 'eng_source', to: 'eng_paradox', color: '#aaaaaa', width: 1, arrows: 'to' },
+
+        // The Paradox resolution hook defined in spec/runtime-model.md
+        { from: 'eng_paradox', to: 't0', label: 'Resolve (Rp > 1.0)', color: CYBER_COLORS.schema.border, width: 2, arrows: 'to' },
+
+        // 4. The OmniSpiral Journey (State Transitions)
+        { from: 't0', to: 't1', label: 'Ascend', color: CYBER_COLORS.state.border, width: 3, arrows: 'to', font: { color: '#fff', size: 14} },
+        { from: 't1', to: 't5', label: 'Ascend', color: CYBER_COLORS.state.border, width: 3, arrows: 'to' },
+        { from: 't5', to: 't8', label: 'Paradox-Field\nException', color: CYBER_COLORS.schema.border, width: 3, arrows: 'to' },
+        { from: 't8', to: 't9', label: 'Shear Reality', color: CYBER_COLORS.state.border, width: 3, arrows: 'to' },
+
+        // 5. External Token Parsing Sequence (Playbook: Conconcon×××=+++)
+        // Dotted lines indicate how the example maps the input to the engines
+        { from: 'in_con', to: 'eng_id', label: 'Parses (Conconcon)', color: CYBER_COLORS.example.border, width: 1, arrows: 'to', dashes: [2,2] },
+        { from: 'in_con', to: 'eng_cycle', label: 'Parses (×××)', color: CYBER_COLORS.example.border, width: 1, arrows: 'to', dashes: [2,2] },
+        { from: 'in_con', to: 'eng_paradox', label: 'Parses (=+++)', color: CYBER_COLORS.example.border, width: 1, arrows: 'to', dashes: [2,2] },
+        { from: 'e_conflow', to: 'in_con', dashes: true, color: CYBER_COLORS.example.border }
+    ];
+
+    const edges = new vis.DataSet(allEdgesArray);
+
+    // --- NETWORK ARCHITECTURE CONFIG ---
+    const container = document.getElementById('cypherTubeNetwork');
+    const data = { nodes: nodes, edges: edges };
+    const options = {
+        nodes: {
+            font: { face: 'Courier New', size: 14 },
+            borderWidth: 2,
+            shadow: { enabled: true, color: 'rgba(0,255,65,0.3)', size: 8 }
+        },
+        edges: {
+            font: { color: '#bbbbbb', face: 'Courier New', size: 11, align: 'middle' },
+            smooth: { type: 'continuous', roundness: 0.5 },
+            color: { inherit: false }
+        },
+        physics: {
+            enabled: true,
+            barnesHut: { gravitationalConstant: -3500, centralGravity: 0.4, springLength: 150, springConstant: 0.03, damping: 0.1 },
+            stabilization: { iterations: 200, updateInterval: 20 }
+        },
+        interaction: { hover: true, tooltipDelay: 200, multiselect: false, zoomView: true, dragView: true }
+    };
+
+    // Initialize Network matrix
+    const network = new vis.Network(container, data, options);
+
+    // --- INTERACTION LOGIC (Querying the Matrix) ---
+    network.on("click", function (params) {
+        if (params.nodes.length > 0) {
+            const nodeId = params.nodes[0];
+            const nodeData = nodes.get(nodeId);
+            const panel = document.getElementById('infoPanel');
+            const content = document.getElementById('panelContent');
+
+            let html = `<h2>${nodeData.label.replace('\n', ' ')}</h2>`;
+
+            // Add tags based on group/type
+            html += `<span class="tag">System_ID: ${nodeData.id}</span>`;
+            if(nodeData.group === 'engine') html += `<span class="tag">Runtime Engine</span>`;
+            if(nodeData.group === 'state') html += `<span class="tag">State Tier (${nodeData.value})</span>`;
+            if(nodeData.type === 'specFile') html += `<span class="tag">SPECIFICATION</span>`;
+            if(nodeData.type === 'schemaFile') html += `<span class="tag">MACHINE_VALIDATOR</span>`;
+            if(nodeData.group === 'input') html += `<span class="tag">External Input</span>`;
+
+            // Metadata sections
+            if (nodeData.desc) {
+                html += `<h3>Matrix Description</h3><p>${nodeData.desc}</p>`;
+            }
+
+            // Engine-specific data (Variables tracked from Turning the response)
+            if (nodeData.var) {
+                html += `<h3>Tracked State Variable</h3><p><code>${nodeData.var}</code></p>`;
+            }
+
+            content.innerHTML = html;
+            panel.style.display = 'block'; // Reveal panel
+        }
+    });
+
+</script>
+</body>
+</html>

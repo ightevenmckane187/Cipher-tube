@@ -7,6 +7,7 @@ import path from "path";
 import rateLimit from "express-rate-limit";
 import { LRUCache } from "lru-cache";
 import { buildCipherTube, decryptCipherTube } from "./cta";
+import { getBlindedRedisKey, blindToken, createSession, rotateSession, getSessionKeys } from "./session_rotator";
 
 dotenv.config();
 
@@ -231,11 +232,14 @@ app.get("/", (req: Request, res: Response) => {
                     border-radius: 20px;
                     cursor: pointer;
                     font-size: 0.875rem;
-                    transition: all 0.2s;
+                    transition: transform 0.1s, background-color 0.2s, color 0.2s;
                     display: flex;
                     align-items: center;
                     gap: 8px;
                     float: right;
+                }
+                .theme-toggle:active {
+                    transform: scale(0.98);
                 }
                 .theme-toggle:hover {
                     background-color: var(--border-color);
@@ -317,12 +321,13 @@ app.get("/", (req: Request, res: Response) => {
                     border-radius: 4px;
                     cursor: pointer;
                     font-size: 0.75rem;
-                    transition: all 0.2s;
+                    transition: transform 0.1s, background-color 0.2s;
                     display: flex;
                     align-items: center;
                     gap: 4px;
                 }
                 .copy-button:hover { background: rgba(255, 255, 255, 0.2); }
+                .copy-button:active { transform: scale(0.95); }
                 .kb-shortcut {
                     margin-left: 4px;
                     opacity: 0.8;
@@ -356,7 +361,7 @@ app.get("/", (req: Request, res: Response) => {
                 .input-group { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
                 .input-group label { font-size: 0.875rem; font-weight: 500; }
                 .input-group input { background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 8px 12px; border-radius: 6px; font-size: 0.875rem; width: 100%; max-width: 300px; }
-                .counter-container { display: flex; justify-content: space-between; max-width: 300px; align-items: baseline; }
+                .counter-container { display: flex; justify-content: space-between; max-width: 300px; align-items: baseline; flex-wrap: wrap; gap: 8px; }
                 #user-id-counter { font-size: 0.75rem; opacity: 0.7; }
                 #user-id-counter.near-limit { color: #d63031; opacity: 1; font-weight: bold; }
                 #timeout-banner {
@@ -382,10 +387,33 @@ app.get("/", (req: Request, res: Response) => {
                     border-radius: 4px;
                     cursor: pointer;
                     font-weight: bold;
-                    transition: opacity 0.2s;
+                    transition: transform 0.1s, opacity 0.2s;
                 }
                 #extend-session-btn:hover { opacity: 0.9; }
+                #extend-session-btn:active { transform: scale(0.98); }
                 #extension-status { margin-left: 8px; font-weight: bold; }
+                #create-session-btn {
+                    background: var(--primary);
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: 500;
+                    transition: transform 0.1s;
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                }
+                #create-session-btn:active { transform: scale(0.98); }
+                #create-session-btn:hover { opacity: 0.9; }
+                #create-session-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+                .input-row {
+                    display: flex;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                    align-items: flex-start;
+                }
             </style>
         </head>
         <body>
@@ -394,7 +422,7 @@ app.get("/", (req: Request, res: Response) => {
                 <nav aria-label="Main Navigation">
                      <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: bold; color: var(--primary);">Cipher Tube</span>
-                        <button class="theme-toggle" aria-label="Switch to Dark Mode" aria-pressed="false">
+                        <button class="theme-toggle" aria-label="Switch to Dark Mode" aria-pressed="false" aria-keyshortcuts="t">
                             <span class="theme-icon" aria-hidden="true" id="theme-icon">🌙</span>
                             <span class="theme-text">Switch to Dark</span>
                             <kbd aria-hidden="true" class="kb-shortcut">(t)</kbd>
@@ -417,14 +445,17 @@ app.get("/", (req: Request, res: Response) => {
                 <h2>Quick Start</h2>
                 <div class="input-group">
                     <div class="counter-container">
-                        <label for="user-id-input">Customize your User ID:</label>
+                        <label for="user-id-input">Customize your User ID: <kbd aria-hidden="true" class="kb-shortcut">/</kbd></label>
                         <span id="user-id-counter" aria-live="polite">0 of 128 characters used</span>
                     </div>
-                    <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter">
-                    <div style="margin-top: 1rem;">
-                        <button id="create-session-btn" style="background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: transform 0.1s;" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'">Create Session</button>
-                        <span id="session-created-msg" style="margin-left: 10px; font-weight: bold; color: var(--success); display: none;" aria-live="polite">Created!</span>
-                    </div>
+                    <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter" aria-keyshortcuts="/">
+                </div>
+                <div class="input-row">
+                    <button id="create-session-btn" aria-keyshortcuts="s">
+                        <span aria-hidden="true">🔑</span>
+                        <span class="btn-text">Create Session</span>
+                        <kbd aria-hidden="true" class="kb-shortcut">(s)</kbd>
+                    </button>
                 </div>
                 <p>Alternatively, create a session via the API:</p>
                 <div class="code-container">
@@ -485,6 +516,7 @@ app.get("/", (req: Request, res: Response) => {
                 const curlCommand = document.getElementById('curl-command');
                 const userIdInput = document.getElementById('user-id-input');
                 const userIdCounter = document.getElementById('user-id-counter');
+                const createSessionBtn = document.getElementById('create-session-btn');
 
                 function updateCurlCommand() {
                     const currentOrigin = window.location.origin;
@@ -503,24 +535,47 @@ app.get("/", (req: Request, res: Response) => {
                 userIdInput.addEventListener('input', updateCurlCommand);
                 updateCurlCommand();
 
-                const createBtn = document.getElementById('create-session-btn');
-                createBtn.addEventListener('click', async () => {
+                createSessionBtn.addEventListener('click', async () => {
                     const userId = userIdInput.value.trim() || 'demo-user';
+                    const btnText = createSessionBtn.querySelector('.btn-text');
+                    const originalHTML = createSessionBtn.innerHTML;
+
                     try {
-                        createBtn.disabled = true;
+                        createSessionBtn.disabled = true;
+                        if (btnText) btnText.textContent = 'Creating...';
+
                         const response = await fetch('/mcp', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'x-user-id': userId }
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-user-id': userId
+                            },
+                            body: JSON.stringify({})
                         });
+
                         if (response.ok) {
                             const data = await response.json();
                             window.currentSessionId = data.sessionId;
-                            const msg = document.getElementById('session-created-msg');
-                            msg.style.display = 'inline';
-                            resetTimer();
-                            setTimeout(() => { msg.style.display = 'none'; createBtn.disabled = false; }, 3000);
+                            if (btnText) btnText.textContent = 'Created! ✅';
+                            setTimeout(() => {
+                                createSessionBtn.innerHTML = originalHTML;
+                                createSessionBtn.disabled = false;
+                            }, 2000);
+                        } else {
+                            if (btnText) btnText.textContent = 'Failed ❌';
+                            setTimeout(() => {
+                                createSessionBtn.innerHTML = originalHTML;
+                                createSessionBtn.disabled = false;
+                            }, 2000);
                         }
-                    } catch (err) { console.error(err); createBtn.disabled = false; }
+                    } catch (err) {
+                        console.error('Session creation failed:', err);
+                        if (btnText) btnText.textContent = 'Error ❌';
+                        setTimeout(() => {
+                            createSessionBtn.innerHTML = originalHTML;
+                            createSessionBtn.disabled = false;
+                        }, 2000);
+                    }
                 });
 
                 copyButton.addEventListener('click', async () => {
@@ -547,6 +602,12 @@ app.get("/", (req: Request, res: Response) => {
                         document.getElementById('copy-curl')?.click();
                     } else if (e.key === 't') {
                         document.querySelector('.theme-toggle')?.click();
+                    } else if (e.key === '/') {
+                        e.preventDefault();
+                        userIdInput.focus();
+                        userIdInput.select();
+                    } else if (e.key === 's') {
+                        createSessionBtn.click();
                     } else if (e.key === 'e') {
                         const btn = document.getElementById('extend-session-btn');
                         if (btn && window.getComputedStyle(document.getElementById('timeout-banner')).display !== 'none') {
@@ -554,13 +615,17 @@ app.get("/", (req: Request, res: Response) => {
                         }
                     } else if (e.key === '/') {
                         e.preventDefault();
-                        userIdInput.focus();
+                        const input = document.getElementById('user-id-input');
+                        if (input) {
+                            input.focus();
+                            input.select();
+                        }
                     }
                 });
 
                 // Session Timeout Simulation
                 let timeoutWarning;
-                window.currentSessionId = null;
+                window.currentSessionToken = null;
                 const SESSION_DURATION = 3600 * 1000;
                 const WARNING_TIME = 60 * 1000;
 
@@ -586,25 +651,31 @@ app.get("/", (req: Request, res: Response) => {
                         statusTimeout = setTimeout(() => status.textContent = '', 3000);
                     };
 
+                    const resetBtn = () => {
+                        btn.disabled = false;
+                        btnText.textContent = 'Extend Session';
+                    };
+
                     try {
                         btn.disabled = true;
                         btnText.textContent = 'Extending...';
 
-                        if (currentSessionId) {
-                            const response = await fetch('/session/' + currentSessionId + '/extend', {
+                        if (currentSessionToken) {
+                            const response = await fetch('/session/extend', {
                                 method: 'POST',
-                                headers: { 'x-user-id': userIdInput.value.trim() || 'demo-user' }
+                                headers: {
+                                    'x-user-id': userIdInput.value.trim() || 'demo-user',
+                                    'x-session-token': currentSessionToken
+                                }
                             });
                             if (response.ok) {
                                 resetTimer();
                                 btnText.textContent = 'Extended! ✅';
-                                showStatus('Success');
-                                setTimeout(() => {
-                                    btnText.textContent = 'Extend Session';
-                                }, 2000);
+                               showStatus('Success');
+                                setTimeout(resetBtn, 2000);
                             } else {
                                 showStatus('Failed', true);
-                                btnText.textContent = 'Extend Session';
+                                resetBtn();
                             }
                         } else {
                             // Simulation mode
@@ -612,26 +683,22 @@ app.get("/", (req: Request, res: Response) => {
                             resetTimer();
                             btnText.textContent = 'Reset! ✅';
                             showStatus('Reset');
-                            setTimeout(() => {
-                                btnText.textContent = 'Extend Session';
-                            }, 2000);
+                            setTimeout(resetBtn, 2000);
                         }
                     } catch (err) {
                         console.error('Extension failed:', err);
                         showStatus('Error', true);
-                    } finally {
-                        btn.disabled = false;
-                        btnText.textContent = 'Extend Session';
+                        resetBtn();
                     }
                 });
 
-                // Intercept session creation to track ID for extension
+                // Intercept session creation to track Token for extension
                 const originalFetch = window.fetch;
                 window.fetch = async (...args) => {
                     const response = await originalFetch(...args);
                     if (typeof args[0] === 'string' && args[0].includes('/mcp') && args[1]?.method === 'POST') {
                         const data = await response.clone().json();
-                        if (data.sessionId) window.currentSessionId = data.sessionId;
+                        if (data.sessionToken) window.currentSessionToken = data.sessionToken;
                     }
                     return response;
                 };
@@ -683,35 +750,32 @@ const ensureSessionOwner = async (
   res: Response,
   next: NextFunction,
 ) => {
-  let { sessionId } = req.params;
+  let sessionToken = req.headers["x-session-token"] as string;
   const userId = req.headers["x-user-id"] as string;
 
-  if (!sessionId) {
-    return res.status(400).json({ error: "Bad Request: Missing sessionId" });
+  if (!sessionToken) {
+    return res.status(401).json({ error: "Unauthorized: Missing session token" });
   }
 
-  // Handle case where sessionId might be an array (Express 5 type compatibility)
-  if (Array.isArray(sessionId)) {
-    sessionId = sessionId[0];
+  if (Array.isArray(sessionToken)) {
+    sessionToken = sessionToken[0];
   }
 
-  if (!UUID_V4_REGEX.test(sessionId)) {
-    return res
-      .status(400)
-      .json({ error: "Bad Request: Invalid sessionId format" });
-  }
+  const { blindedKey, redisKey } = getSessionKeys(sessionToken);
+  // Store keys in res.locals for downstream reuse (Bolt Optimization)
+  res.locals.sessionKeys = { blindedKey, redisKey };
 
-  let ownerId = sessionCache.get(sessionId);
+  let ownerId = sessionCache.get(blindedKey);
 
   try {
     if (!ownerId) {
-      ownerId = (await redisClient.get(`session:${sessionId}:owner`)) as string;
+      ownerId = (await redisClient.get(redisKey)) as string;
       if (!ownerId) {
         // Sentinel: Implement negative caching to prevent redundant Redis lookups
-        sessionCache.set(sessionId, SESSION_NOT_FOUND);
+        sessionCache.set(blindedKey, SESSION_NOT_FOUND);
         return res.status(404).json({ error: "Session not found" });
       }
-      sessionCache.set(sessionId, ownerId);
+      sessionCache.set(blindedKey, ownerId);
     }
 
     if (ownerId === SESSION_NOT_FOUND) {
@@ -725,10 +789,11 @@ const ensureSessionOwner = async (
     // Sentinel: Activity Refresh - Extend Redis TTL on every successful access
     // Bolt Optimization: Throttle Redis EXPIRE calls to once per 60 seconds to reduce write load
     if (typeof redisClient.expire === "function") {
-      const needsUpdate = process.env.NODE_ENV === 'test' || !sessionUpdateCache.has(sessionId);
+      const isTest = process.env.NODE_ENV === 'test';
+      const needsUpdate = isTest || !sessionUpdateCache.has(blindedKey);
       if (needsUpdate) {
-        await redisClient.expire(`session:${sessionId}:owner`, SESSION_TTL);
-        sessionUpdateCache.set(sessionId, true);
+        await redisClient.expire(redisKey, SESSION_TTL);
+        sessionUpdateCache.set(blindedKey, true);
       }
     }
 
@@ -752,15 +817,13 @@ app.post(
   async (req: Request, res: Response) => {
     const userId = req.headers["x-user-id"] as string;
 
-    const sessionId = crypto.randomUUID();
-    const sessionKey = `session:${sessionId}:owner`;
     try {
-        // Store session ownership with security-compliant TTL (3600 seconds)
-        await redisClient.set(sessionKey, userId, { EX: SESSION_TTL });
-
+      const sessionToken = await createSession(userId, redisClient, SESSION_TTL);
       // Optimization: Pre-warm the in-memory cache to skip the first Redis lookup (Bolt Optimization)
-      sessionCache.set(sessionId, userId);
-      res.status(201).json({ sessionId });
+      const blinded = blindToken(sessionToken);
+      if (blinded) sessionCache.set(blinded, userId);
+      // Return both for compatibility and new logic
+      res.status(201).json({ sessionId: sessionToken, sessionToken });
     } catch (err: any) {
       console.error(
         "Session creation failed:",
@@ -771,8 +834,44 @@ app.post(
   },
 );
 
+/**
+ * Session Rotation Endpoint
+ * Rotates the current session token to a fresh one and burns the old one.
+ */
+app.post(
+  "/mcp/rotate",
+  sessionLimiter,
+  noCache,
+  validateUserId,
+  async (req: Request, res: Response) => {
+    const oldToken = req.headers["x-session-token"] as string;
+
+    if (!oldToken) {
+      return res.status(400).json({ error: "Missing x-session-token header" });
+    }
+
+    try {
+      const { newToken } = await rotateSession(oldToken, redisClient, SESSION_TTL);
+      const { blindedKey: oldBlindedKey } = getSessionKeys(oldToken);
+      const { blindedKey: newBlindedKey } = getSessionKeys(newToken);
+
+      // Sentinel: Immediately invalidate old token in local LRU cache to prevent replay
+      // window vulnerability (Code Review Feedback).
+      sessionCache.delete(oldBlindedKey);
+
+      // Bolt Optimization: Pre-warm the cache with the new token
+      sessionCache.set(newBlindedKey, (req.headers["x-user-id"] as string).trim());
+
+      res.json({ newToken });
+    } catch (err: any) {
+      console.error("Rotation failed:", err.message);
+      res.status(401).json({ error: err.message });
+    }
+  }
+);
+
 app.get(
-  "/mcp/:sessionId/check",
+  "/mcp/check",
   sessionLimiter,
   noCache,
   validateUserId,
@@ -788,7 +887,7 @@ app.get(
  * Activity Refresh is also handled by ensureSessionOwner middleware.
  */
 app.post(
-  "/session/:sessionId/extend",
+  "/session/extend",
   sessionLimiter,
   noCache,
   validateUserId,
@@ -802,7 +901,7 @@ app.post(
  * CTA Encryption Endpoint
  */
 app.post(
-  "/mcp/:sessionId/encrypt",
+  "/mcp/encrypt",
   sessionLimiter,
   noCache,
   jsonParser,
@@ -844,7 +943,7 @@ app.post(
  * CTA Decryption Endpoint
  */
 app.post(
-  "/mcp/:sessionId/decrypt",
+  "/mcp/decrypt",
   sessionLimiter,
   noCache,
   jsonParser,
@@ -917,6 +1016,63 @@ app.post(
         res.status(500).json({ error: 'Internal server error: An unexpected error occurred during decryption.' });
     }
   },
+);
+
+/**
+ * E2EE Data Plane Packet Ingestion Endpoint
+ * Ingests and validates the structure of the zero-knowledge payload envelope.
+ * Acts as an authenticated router.
+ */
+app.post(
+  "/mcp/packet",
+  sessionLimiter,
+  noCache,
+  jsonParser,
+  validateUserId,
+  ensureSessionOwner,
+  (req: Request, res: Response) => {
+    const packet = req.body;
+
+    const requiredKeys = ["chunk_index", "blinded_session_hash", "crypto_envelope"];
+    const cryptoKeys = ["iv", "auth_tag", "ciphertext_blob"];
+
+    // Ensure structural integrity
+    for (const key of requiredKeys) {
+      if (!Object.prototype.hasOwnProperty.call(packet, key)) {
+        return res.status(400).json({ error: `Malformed packet: Missing ${key}` });
+      }
+    }
+
+    if (
+      typeof packet.crypto_envelope !== "object" ||
+      packet.crypto_envelope === null
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Malformed packet: Invalid crypto_envelope" });
+    }
+
+    for (const key of cryptoKeys) {
+      if (!Object.prototype.hasOwnProperty.call(packet.crypto_envelope, key)) {
+        return res.status(400).json({ error: `Malformed packet: Missing ${key} in crypto_envelope` });
+      }
+    }
+
+    // Verify session routing metadata matches the session being used
+    // Bolt Optimization: Use pre-computed hash from res.locals.sessionKeys if available
+    const blindedToken = res.locals.sessionKeys?.blindedKey || blindToken(req.headers["x-session-token"] as string);
+
+    if (packet.blinded_session_hash !== blindedToken) {
+      return res.status(403).json({ error: "Session hash mismatch: Routing integrity failure" });
+    }
+
+    // Route package to stream buffer (mocked for now)
+    res.json({
+      target_stream: packet.blinded_session_hash,
+      sequence: packet.chunk_index,
+      dispatch_ready: true,
+    });
+  }
 );
 
 /**

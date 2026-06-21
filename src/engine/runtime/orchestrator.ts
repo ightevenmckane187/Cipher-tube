@@ -1,4 +1,13 @@
 /**
+ * Bolt Optimization: Helper to identify plain objects to avoid expensive iteration on complex types like Buffer.
+ */
+function isPlainObject(obj: any): boolean {
+  if (typeof obj !== "object" || obj === null) return false;
+  const proto = Object.getPrototypeOf(obj);
+  return proto === Object.prototype || proto === null;
+}
+
+/**
  * Sentinel: Centralized validator to block prototype pollution keys.
  */
 export function isValidStateKey(key: any): boolean {
@@ -95,6 +104,10 @@ export async function executePipeline(def: any, ctx: ExecContext) {
   return state;
 }
 
+/**
+ * Sentinel: Executes a registered action with parameter resolution and security hardening.
+ * Prevents action injection by enforcing a strict two-segment format and validating own properties.
+ */
 async function executeAction(actionStr: string, step: any, state: Record<string, any>, ctx: ExecContext, item: any = null) {
   if (actionStr === "workflow.invoke") {
     const workflowName = step.params?.[0] || step.action?.split('(')[1]?.split(')')[0].replace(/'|"/g, '');
@@ -102,11 +115,36 @@ async function executeAction(actionStr: string, step: any, state: Record<string,
     return { invoked: workflowName };
   }
 
-  const [ns, fn] = actionStr.split('.');
-  const handler = ctx.actions[ns]?.[fn];
+  // Sentinel: Enforce strict two-segment action format (ns.fn)
+  const segments = actionStr.split('.');
+  if (segments.length !== 2) {
+    console.warn(`Invalid action format: ${actionStr}`);
+    return null;
+  }
 
-  if (!handler) {
+  const [ns, fn] = segments;
+
+  // Sentinel: Validate namespace and function keys to prevent prototype chain access
+  if (!isValidStateKey(ns) || !isValidStateKey(fn)) {
+    console.warn(`Blocked sensitive action: ${actionStr}`);
+    return null;
+  }
+
+  // Sentinel: Use hasOwnProperty to ensure we only execute explicitly registered actions
+  if (!Object.prototype.hasOwnProperty.call(ctx.actions, ns)) {
+    console.warn(`Unknown namespace: ${ns}`);
+    return null;
+  }
+
+  const nsObj = ctx.actions[ns];
+  if (!nsObj || !Object.prototype.hasOwnProperty.call(nsObj, fn)) {
     console.warn(`Unknown action: ${actionStr}`);
+    return null;
+  }
+
+  const handler = nsObj[fn];
+  if (typeof handler !== "function") {
+    console.warn(`Action handler is not a function: ${actionStr}`);
     return null;
   }
 
@@ -202,6 +240,10 @@ export function resolveParams(params: any, config: any, state: any, item: any): 
   }
 
   if (params && typeof params === 'object') {
+    // Bolt Optimization: Skip expensive property iteration on non-plain objects (Buffer, Date, etc.)
+    // Note: Arrays are handled in the previous block and will not reach here.
+    if (!isPlainObject(params)) return params;
+
     const keys = Object.keys(params);
     const len = keys.length;
     for (let i = 0; i < len; i++) {

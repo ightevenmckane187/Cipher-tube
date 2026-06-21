@@ -15,11 +15,11 @@ describe('Sentinel Security Enhancements', () => {
     });
 
     it('should include Cache-Control: no-store on sensitive endpoints', async () => {
-      const testSessionId = '00000000-0000-4000-8000-000000000000';
+
       const endpoints = [
         { path: '/mcp', method: 'post' },
-        { path: `/mcp/${testSessionId}/check`, method: 'get' },
-        { path: `/session/${testSessionId}/extend`, method: 'post' }
+        { path: `/mcp/check`, method: 'get' },
+        { path: `/session/extend`, method: 'post' }
       ];
 
       for (const { path, method } of endpoints) {

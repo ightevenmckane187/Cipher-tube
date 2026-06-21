@@ -9,6 +9,7 @@ jest.mock("redis", () => {
     connect: jest.fn().mockResolvedValue(null),
     set: jest.fn(),
     get: jest.fn(),
+    expire: jest.fn().mockResolvedValue(1),
   };
   return {
     createClient: jest.fn(() => mRedis),
@@ -18,6 +19,7 @@ jest.mock("redis", () => {
 describe("Security Validation", () => {
   let redisMock: any;
   let consoleSpy: jest.SpyInstance;
+  const sessionToken = "test-token";
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -40,12 +42,12 @@ describe("Security Validation", () => {
       expect(response.body.error).toContain("Invalid x-user-id");
     });
 
-    it("should reject x-user-id longer than 128 characters in GET /mcp/:sessionId/check", async () => {
+    it("should reject x-user-id longer than 128 characters in GET /mcp/check", async () => {
       const longUserId = "a".repeat(129);
-      const sessionId = "550e8400-e29b-41d4-8716-446655440000";
       const response = await request(app)
-        .get(`/mcp/${sessionId}/check`)
-        .set("x-user-id", longUserId);
+        .get(`/mcp/check`)
+        .set("x-user-id", longUserId)
+        .set("x-session-token", sessionToken);
 
       expect(response.status).toBe(400);
       expect(response.body.error).toContain("Invalid x-user-id");
@@ -76,11 +78,11 @@ describe("Security Validation", () => {
       (complexError as any).sensitiveInfo = "secret-password-456";
 
       redisMock.get.mockRejectedValueOnce(complexError);
-      const sessionId = "550e8400-e29b-41d4-8716-446655440000";
 
       await request(app)
-        .get(`/mcp/${sessionId}/check`)
-        .set("x-user-id", "user123");
+        .get(`/mcp/check`)
+        .set("x-user-id", "user123")
+        .set("x-session-token", sessionToken);
 
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining("Session ownership check failed:"),
@@ -91,7 +93,6 @@ describe("Security Validation", () => {
 
   describe("Decryption Fail-Secure", () => {
     const userId = "sentinel-user";
-    const sessionId = "550e8400-e29b-41d4-a716-446655440000";
     const masterSeed = "0".repeat(64);
 
     beforeEach(() => {
@@ -100,8 +101,9 @@ describe("Security Validation", () => {
 
     it("should return 400 for too short ciphertext", async () => {
       const response = await request(app)
-        .post(`/mcp/${sessionId}/decrypt`)
+        .post(`/mcp/decrypt`)
         .set("x-user-id", userId)
+        .set("x-session-token", sessionToken)
         .send({
           ciphertext: "00112233",
           masterSeed,
@@ -123,8 +125,9 @@ describe("Security Validation", () => {
 
     it("should return 400 for invalid hex in ciphertext", async () => {
       const response = await request(app)
-        .post(`/mcp/${sessionId}/decrypt`)
+        .post(`/mcp/decrypt`)
         .set("x-user-id", userId)
+        .set("x-session-token", sessionToken)
         .send({
           ciphertext: "not-hex-at-all",
           masterSeed,
@@ -146,8 +149,9 @@ describe("Security Validation", () => {
 
     it("should return 400 for missing tube fields", async () => {
       const response = await request(app)
-        .post(`/mcp/${sessionId}/decrypt`)
+        .post(`/mcp/decrypt`)
         .set("x-user-id", userId)
+        .set("x-session-token", sessionToken)
         .send({
           ciphertext: "0".repeat(800),
           masterSeed,
@@ -162,8 +166,9 @@ describe("Security Validation", () => {
 
     it('should return 400 for malformed tubes array (null element)', async () => {
         const response = await request(app)
-          .post(`/mcp/${sessionId}/decrypt`)
+          .post(`/mcp/decrypt`)
           .set('x-user-id', userId)
+          .set('x-session-token', sessionToken)
           .send({
             ciphertext: '0'.repeat(800),
             masterSeed,
@@ -176,8 +181,9 @@ describe("Security Validation", () => {
 
     it('should return 400 for missing or invalid fields in encryption tube', async () => {
         const response = await request(app)
-          .post(`/mcp/${sessionId}/decrypt`)
+          .post(`/mcp/decrypt`)
           .set('x-user-id', userId)
+          .set('x-session-token', sessionToken)
           .send({
             ciphertext: '0'.repeat(800),
             masterSeed,
@@ -192,8 +198,9 @@ describe("Security Validation", () => {
 
     it('should return 400 for invalid layer indexing', async () => {
         const response = await request(app)
-          .post(`/mcp/${sessionId}/decrypt`)
+          .post(`/mcp/decrypt`)
           .set('x-user-id', userId)
+          .set('x-session-token', sessionToken)
           .send({
             ciphertext: '0'.repeat(800),
             masterSeed,
