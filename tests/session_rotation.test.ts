@@ -1,11 +1,11 @@
 import request from "supertest";
 
 // Mock Redis client before importing app
-jest.mock('redis', () => {
+jest.mock("redis", () => {
   const mRedis = {
     on: jest.fn(),
     connect: jest.fn().mockResolvedValue(null),
-    set: jest.fn().mockResolvedValue('OK'),
+    set: jest.fn().mockResolvedValue("OK"),
     get: jest.fn(),
     del: jest.fn().mockResolvedValue(1),
     expire: jest.fn().mockResolvedValue(1),
@@ -16,8 +16,8 @@ jest.mock('redis', () => {
   };
 });
 
-import { app, redisClient, sessionCache } from "../src/server";
-import { createClient } from 'redis';
+import { app, sessionCache } from "../src/server";
+import { createClient } from "redis";
 import { blindToken } from "../src/session_rotator";
 
 describe("Session Rotation and E2EE Data Plane", () => {
@@ -33,15 +33,9 @@ describe("Session Rotation and E2EE Data Plane", () => {
     sessionCache.clear();
   });
 
-  afterAll(async () => {
-    // await redisClient.quit();
-  });
-
   describe("POST /mcp", () => {
-    it("should create a session and return a raw token", async () => {
-      const res = await request(app)
-        .post("/mcp")
-        .set("x-user-id", userId);
+    it("should create a session and return a raw sessionToken", async () => {
+      const res = await request(app).post("/mcp").set("x-user-id", userId);
 
       expect(res.status).toBe(201);
       expect(res.body).toHaveProperty("sessionToken");
@@ -50,18 +44,16 @@ describe("Session Rotation and E2EE Data Plane", () => {
   });
 
   describe("POST /mcp/rotate", () => {
-    it("should rotate the token and burn the old one", async () => {
+    it("should rotate the token and burn the old one (Replay Protection)", async () => {
       // 1. Create session
-      redisMock.set.mockResolvedValue('OK');
-      const createRes = await request(app)
-        .post("/mcp")
-        .set("x-user-id", userId);
+      redisMock.set.mockResolvedValue("OK");
+      const createRes = await request(app).post("/mcp").set("x-user-id", userId);
       const oldToken = createRes.body.sessionToken;
 
       // 2. Rotate session
       redisMock.get.mockResolvedValue(userId);
       redisMock.del.mockResolvedValue(1);
-      redisMock.set.mockResolvedValue('OK');
+      redisMock.set.mockResolvedValue("OK");
 
       const rotateRes = await request(app)
         .post("/mcp/rotate")
@@ -73,7 +65,7 @@ describe("Session Rotation and E2EE Data Plane", () => {
       const newToken = rotateRes.body.newToken;
       expect(newToken).not.toBe(oldToken);
 
-      // 3. Verify old token is burned (Replay Protection)
+      // 3. Verify old token is burned (Immediate Replay Protection)
       redisMock.get.mockResolvedValue(null); // Simulate burned/missing token
 
       const replayRes = await request(app)
@@ -101,10 +93,8 @@ describe("Session Rotation and E2EE Data Plane", () => {
     let blindedHash: string;
 
     beforeEach(async () => {
-      redisMock.set.mockResolvedValue('OK');
-      const res = await request(app)
-        .post("/mcp")
-        .set("x-user-id", userId);
+      redisMock.set.mockResolvedValue("OK");
+      const res = await request(app).post("/mcp").set("x-user-id", userId);
       sessionToken = res.body.sessionToken;
       blindedHash = blindToken(sessionToken) as string;
       redisMock.get.mockResolvedValue(userId);
@@ -117,8 +107,8 @@ describe("Session Rotation and E2EE Data Plane", () => {
         crypto_envelope: {
           iv: "iv-data",
           auth_tag: "tag-data",
-          ciphertext_blob: "blob-data"
-        }
+          ciphertext_blob: "blob-data",
+        },
       };
 
       const res = await request(app)
@@ -131,7 +121,7 @@ describe("Session Rotation and E2EE Data Plane", () => {
       expect(res.body).toEqual({
         target_stream: blindedHash,
         sequence: 0,
-        dispatch_ready: true
+        dispatch_ready: true,
       });
     });
 
@@ -142,8 +132,8 @@ describe("Session Rotation and E2EE Data Plane", () => {
         crypto_envelope: {
           iv: "iv-data",
           auth_tag: "tag-data",
-          ciphertext_blob: "blob-data"
-        }
+          ciphertext_blob: "blob-data",
+        },
       };
 
       const res = await request(app)
@@ -153,18 +143,20 @@ describe("Session Rotation and E2EE Data Plane", () => {
         .send(packet);
 
       expect(res.status).toBe(403);
-      expect(res.body.error).toBe("Session hash mismatch: Routing integrity failure");
+      expect(res.body.error).toBe(
+        "Session hash mismatch: Routing integrity failure"
+      );
     });
 
-    it("should reject malformed packets", async () => {
+    it("should reject malformed packets missing required keys", async () => {
       const packet = {
         chunk_index: 0,
         // missing blinded_session_hash
         crypto_envelope: {
           iv: "iv-data",
           auth_tag: "tag-data",
-          ciphertext_blob: "blob-data"
-        }
+          ciphertext_blob: "blob-data",
+        },
       };
 
       const res = await request(app)
@@ -175,6 +167,30 @@ describe("Session Rotation and E2EE Data Plane", () => {
 
       expect(res.status).toBe(400);
       expect(res.body.error).toContain("Missing blinded_session_hash");
+    });
+
+    it("should prevent prototype bypass in structural validation", async () => {
+      // Create an object that has 'blinded_session_hash' on its prototype but not as own property
+      const proto = { blinded_session_hash: blindedHash };
+      const packet = Object.create(proto);
+      Object.assign(packet, {
+        chunk_index: 0,
+        crypto_envelope: {
+          iv: "iv-data",
+          auth_tag: "tag-data",
+          ciphertext_blob: "blob-data",
+        },
+      });
+
+      const res = await request(app)
+        .post("/mcp/packet")
+        .set("x-user-id", userId)
+        .set("x-session-token", sessionToken)
+        .send(packet);
+
+      // Should be rejected because blinded_session_hash is not an OWN property
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe("Malformed packet: Missing blinded_session_hash");
     });
   });
 });

@@ -31,7 +31,7 @@ describe('Sentinel: Session Extension & Activity Refresh', () => {
   it('POST /session/extend should extend session TTL', async () => {
     const blindedKey = getBlindedRedisKey(sessionToken);
     redisMock.get.mockImplementation((key: string) => {
-        if (key === redisKey) return Promise.resolve(userId);
+        if (key === blindedKey) return Promise.resolve(userId);
         return Promise.resolve(null);
     });
 
@@ -42,13 +42,13 @@ describe('Sentinel: Session Extension & Activity Refresh', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ message: 'Session extended successfully', expiresIn: 3600 });
-    expect(redisMock.expire).toHaveBeenCalledWith(redisKey, 3600);
+    expect(redisMock.expire).toHaveBeenCalledWith(blindedKey, 3600);
   });
 
   it('ensureSessionOwner should trigger activity refresh on lookup', async () => {
     const blindedKey = getBlindedRedisKey(sessionToken);
     redisMock.get.mockImplementation((key: string) => {
-        if (key === redisKey) return Promise.resolve(userId);
+        if (key === blindedKey) return Promise.resolve(userId);
         return Promise.resolve(null);
     });
 
@@ -58,11 +58,14 @@ describe('Sentinel: Session Extension & Activity Refresh', () => {
       .set('x-session-token', sessionToken);
 
     expect(response.status).toBe(200);
-    expect(redisMock.get).toHaveBeenCalledWith(redisKey);
-    expect(redisMock.expire).toHaveBeenCalledWith(redisKey, 3600);
+    expect(redisMock.get).toHaveBeenCalledWith(blindedKey);
+    expect(redisMock.expire).toHaveBeenCalledWith(blindedKey, 3600);
   });
 
   it('ensureSessionOwner should trigger activity refresh even on cache hit', async () => {
+    const blindedToken = blindToken(sessionToken);
+    const blindedKey = getBlindedRedisKey(sessionToken);
+
     // Pre-warm cache
     sessionCache.set(blindToken(sessionToken), userId);
     const blindedKey = getBlindedRedisKey(sessionToken);
@@ -75,7 +78,7 @@ describe('Sentinel: Session Extension & Activity Refresh', () => {
     expect(response.status).toBe(200);
     // Bolt Optimization: Verification: We only care that it succeeded and called expire
     expect(response.body.status).toBe('owned');
-    expect(redisMock.expire).toHaveBeenCalledWith(redisKey, 3600);
+    expect(redisMock.expire).toHaveBeenCalledWith(blindedKey, 3600);
   });
 
   it('POST /session/extend should return 403 if not owner', async () => {

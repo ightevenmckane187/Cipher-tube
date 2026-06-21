@@ -37,6 +37,39 @@ export function getRedisKeyFromHash(blindedHash: string): string {
 }
 
 /**
+ * Creates a new session in Redis and returns the raw token.
+ */
+export async function createSession(userId: string, redis: RedisClientType, ttl: number): Promise<string> {
+    const token = crypto.randomUUID();
+    const key = getBlindedRedisKey(token);
+    await redis.set(key, userId, { EX: ttl });
+    return token;
+}
+
+/**
+ * Rotates an existing session token.
+ * Bolt Optimization: Implements a 5-second grace period for the old token to prevent race conditions
+ * during rapid concurrent requests.
+ */
+export async function rotateSession(oldToken: string, redis: RedisClientType, ttl: number): Promise<{ newToken: string }> {
+    const oldKey = getBlindedRedisKey(oldToken);
+    const userId = await redis.get(oldKey);
+
+    if (!userId) {
+        throw new Error("Session expired, revoked, or replayed.");
+    }
+
+    // Create new token
+    const newToken = await createSession(userId, redis, ttl);
+
+    // Burn old token with a 5-second grace period instead of immediate deletion
+    // This allows in-flight requests with the old token to succeed.
+    await redis.expire(oldKey, 5);
+
+    return { newToken };
+}
+
+/**
  * Bolt Optimization: Consolidates hashing into a single pass for both local and Redis keys.
  *
  * @param token - The raw session token.
@@ -50,46 +83,3 @@ export function getSessionKeys(token: string): { blindedKey: string; redisKey: s
     };
 }
 
-/**
- * Securely creates a new session in Redis using CSPRNG.
- *
- * @param userId - The ID of the user owning the session.
- * @param redisClient - The active Redis client.
- * @param ttl - Session time-to-live in seconds.
- * @returns The raw session token (to be sent to the client).
- */
-export async function createSession(userId: string, redisClient: RedisClientType, ttl: number): Promise<string> {
-    const sessionToken = crypto.randomUUID();
-    const sessionKey = getBlindedRedisKey(sessionToken);
-
-    await redisClient.set(sessionKey, userId, { EX: ttl });
-
-    return sessionToken;
-}
-
-/**
- * Rotates a session token to prevent long-term session hijacking.
- * Bolt Optimization: Implements a 5-second grace period for the old token to prevent race conditions.
- *
- * @param oldToken - The current session token.
- * @param redisClient - The active Redis client.
- * @param ttl - New session time-to-live in seconds.
- * @returns The fresh session token.
- */
-export async function rotateSession(oldToken: string, redisClient: RedisClientType, ttl: number): Promise<{ newToken: string }> {
-    const oldKey = getBlindedRedisKey(oldToken);
-    const userId = await redisClient.get(oldKey);
-
-    if (!userId) {
-        // Sentinel: Generic error message to prevent revealing session state
-        throw new Error("Session expired, revoked, or replayed.");
-    }
-
-    const newToken = await createSession(userId, redisClient, ttl);
-
-    // Bolt Optimization: Burn old token with a 5-second grace period instead of immediate deletion.
-    // This allows in-flight requests with the old token to succeed during rotation.
-    await redisClient.expire(oldKey, 5);
-
-    return { newToken };
-}
