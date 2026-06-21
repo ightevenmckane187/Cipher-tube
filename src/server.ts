@@ -555,7 +555,7 @@ app.get("/", (req: Request, res: Response) => {
                                 createSessionBtn.disabled = false;
                             }, 2000);
                         } else {
-                            if (btnSpan) btnSpan.textContent = 'Failed ❌';
+                            if (btnSpan) btnSpan.textContent = 'Failed. Try again ❌';
                             setTimeout(() => {
                                 createSessionBtn.innerHTML = originalHTML;
                                 createSessionBtn.disabled = false;
@@ -563,7 +563,7 @@ app.get("/", (req: Request, res: Response) => {
                         }
                     } catch (err) {
                         console.error('Session creation failed:', err);
-                        if (btnSpan) btnSpan.textContent = 'Error ❌';
+                        if (btnSpan) btnSpan.textContent = 'Error. Try again ❌';
                         setTimeout(() => {
                             createSessionBtn.innerHTML = originalHTML;
                             createSessionBtn.disabled = false;
@@ -667,7 +667,7 @@ app.get("/", (req: Request, res: Response) => {
                                showStatus('Success');
                                 setTimeout(resetBtn, 2000);
                             } else {
-                                showStatus('Failed', true);
+                                showStatus('Failed. Try again', true);
                                 resetBtn();
                             }
                         } else {

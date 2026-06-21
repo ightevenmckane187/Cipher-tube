@@ -1,8 +1,8 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, Application } from 'express';
 import { cipherTubeGateway } from './gateway/sessionMiddleware';
 import { cache } from './cache/redisPool';
 
-export const app = express();
+export const app: Application = express();
 const PORT = process.env.GATEWAY_PORT || 8080;
 
 // Standard body parsers restricted to essential sizes to prevent buffer exhaustion attacks
