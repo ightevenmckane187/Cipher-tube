@@ -844,6 +844,7 @@ app.post(
   sessionLimiter,
   noCache,
   validateUserId,
+  ensureSessionOwner,
   async (req: Request, res: Response) => {
     const oldToken = req.headers["x-session-token"] as string;
 

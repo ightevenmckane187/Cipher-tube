@@ -73,8 +73,8 @@ describe("Session Rotation and E2EE Data Plane", () => {
         .set("x-user-id", userId)
         .set("x-session-token", oldToken);
 
-      expect(replayRes.status).toBe(401);
-      expect(replayRes.body.error).toBe("Session expired, revoked, or replayed.");
+      expect(replayRes.status).toBe(404);
+      expect(replayRes.body.error).toBe("Session not found");
 
       // 4. Verify new token works
       redisMock.get.mockResolvedValue(userId);
