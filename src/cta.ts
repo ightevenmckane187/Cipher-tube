@@ -204,14 +204,20 @@ export function decryptCipherTube(
   const poolSalts: Buffer[] = new Array(101);
   const poolHashes: Buffer[] = new Array(101);
 
+  // Bolt Optimization: Conditionally decode hex strings to Buffers only for required layers.
+  // Skipping salt decoding for integrity layers (0-11) and hash decoding for encryption layers (12-24)
+  // reduces Buffer allocations and CPU cycles during metadata processing.
   for (const tube of tubes) {
     if (!tube || typeof tube !== 'object' || typeof tube.layer !== 'number') continue;
     const layer = tube.layer;
     if (layer < 0 || layer > 100) continue;
 
     poolTubes[layer] = tube;
-    if (typeof tube.salt === 'string') poolSalts[layer] = Buffer.from(tube.salt, 'hex');
-    if (typeof tube.hash === 'string') poolHashes[layer] = Buffer.from(tube.hash, 'hex');
+    if (layer >= NUM_INTEGRITY_TUBES) {
+      if (typeof tube.salt === 'string') poolSalts[layer] = Buffer.from(tube.salt, 'hex');
+    } else {
+      if (typeof tube.hash === 'string') poolHashes[layer] = Buffer.from(tube.hash, 'hex');
+    }
   }
 
   // === Decrypt 13 encryption layers in reverse ===
