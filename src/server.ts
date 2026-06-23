@@ -331,12 +331,14 @@ app.get("/", (req: Request, res: Response) => {
                 .copy-button:active { transform: scale(0.95); }
                 .kb-shortcut {
                     margin-left: 4px;
-                    opacity: 0.8;
+                    opacity: 0.9;
                     font-size: 0.7rem;
-                    background: rgba(255, 255, 255, 0.1);
+                    background: var(--bg-color);
+                    color: var(--text-color);
                     padding: 1px 4px;
                     border-radius: 3px;
-                    border: 1px solid rgba(255, 255, 255, 0.3);
+                    border: 1px solid var(--border-color);
+                    box-shadow: 0 1px 1px rgba(0,0,0,0.2);
                 }
                 .header-container {
                     display: flex;
@@ -472,15 +474,15 @@ app.get("/", (req: Request, res: Response) => {
 
             <div id="timeout-banner" role="alert">
                 <span>Session expires in 1 minute.</span>
-                <button id="extend-session-btn" aria-keyshortcuts="e"><span id="extend-btn-text">Extend Session</span> <kbd aria-hidden="true" style="font-size: 0.7em; opacity: 0.8; border: 1px solid rgba(255,255,255,0.4); padding: 1px 3px; border-radius: 3px; margin-left: 4px;">(e)</kbd></button>
+                <button id="extend-session-btn" aria-keyshortcuts="e"><span id="extend-btn-text">Extend Session</span> <kbd aria-hidden="true" class="kb-shortcut">(e)</kbd></button>
                 <span id="extension-status" aria-live="polite"></span>
             </div>
 
             <footer role="contentinfo" aria-label="Page Footer">
                 <nav aria-label="Footer navigation">
                     <a href="/health">Health Check</a> |
-                    <a href="/docs/USER_GUIDE.md">User Guide</a> |
-                    <a href="/docs/ACCESSIBILITY.md">Accessibility Statement</a>
+                    <a href="/docs/USER_GUIDE.md" target="_blank" rel="noopener noreferrer">User Guide</a> |
+                    <a href="/docs/ACCESSIBILITY.md" target="_blank" rel="noopener noreferrer">Accessibility Statement</a>
                 </nav>
                 <p>&copy; 2026 Cipher Tube Assembly</p>
             </footer>
@@ -534,6 +536,12 @@ app.get("/", (req: Request, res: Response) => {
                 }
 
                 userIdInput.addEventListener('input', updateCurlCommand);
+                userIdInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        createSessionBtn.click();
+                    }
+                });
                 updateCurlCommand();
 
                 createSessionBtn.addEventListener('click', async () => {
@@ -613,13 +621,6 @@ app.get("/", (req: Request, res: Response) => {
                         const btn = document.getElementById('extend-session-btn');
                         if (btn && window.getComputedStyle(document.getElementById('timeout-banner')).display !== 'none') {
                             btn.click();
-                        }
-                    } else if (e.key === '/') {
-                        e.preventDefault();
-                        const input = document.getElementById('user-id-input');
-                        if (input) {
-                            input.focus();
-                            input.select();
                         }
                     }
                 });
