@@ -77,3 +77,8 @@
 **Vulnerability:** Non-numeric salt values in ZK proof payloads could bypass time-window checks due to NaN comparison results.
 **Learning:** In JavaScript, `Math.abs(currentEpoch - salt) > performanceWindow` evaluates to `false` if `salt` is a non-numeric type that results in `NaN`, effectively bypassing replay protection.
 **Prevention:** Always explicitly validate the type and value (e.g., `Number.isNaN`) of numeric inputs used in security-critical comparisons, especially when they originate from untrusted JSON payloads.
+
+## 2026-06-29 - IDOR in Session Rotation Endpoint
+**Vulnerability:** Insecure Direct Object Reference (IDOR) in the `/mcp/rotate` endpoint allowed unauthorized users to rotate sessions they did not own.
+**Learning:** Even if an endpoint requires a valid session token, it must also verify that the requester is the authorized owner of that specific session before performing state-changing operations like rotation.
+**Prevention:** Always apply ownership-verification middleware (like `ensureSessionOwner`) to all endpoints that perform actions on a specific session, ensuring the `x-user-id` matches the stored session owner.
