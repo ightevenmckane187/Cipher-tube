@@ -365,8 +365,8 @@ app.get("/", (req: Request, res: Response) => {
                 .input-group label { font-size: 0.875rem; font-weight: 500; }
                 .input-group input { background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 8px 12px; border-radius: 6px; font-size: 0.875rem; width: 100%; max-width: 300px; }
                 .counter-container { display: flex; justify-content: space-between; max-width: 300px; align-items: baseline; flex-wrap: wrap; gap: 8px; }
-                #user-id-counter { font-size: 0.75rem; opacity: 0.7; }
-                #user-id-counter.near-limit { color: #d63031; opacity: 1; font-weight: bold; }
+                #user-id-counter { font-size: 0.75rem; opacity: 0.7; transition: color 0.2s ease-in-out; }
+                #user-id-counter.near-limit { color: var(--error); opacity: 1; font-weight: bold; }
                 #timeout-banner {
                     display: none;
                     position: fixed;
@@ -425,7 +425,7 @@ app.get("/", (req: Request, res: Response) => {
                 <nav aria-label="Main Navigation">
                      <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: bold; color: var(--primary);">Cipher Tube</span>
-                        <button class="theme-toggle" aria-label="Switch to Dark Mode" aria-pressed="false" aria-keyshortcuts="t">
+                        <button type="button" class="theme-toggle" aria-label="Switch to Dark Mode" aria-pressed="false" aria-keyshortcuts="t">
                             <span class="theme-icon" aria-hidden="true" id="theme-icon">🌙</span>
                             <span class="theme-text">Switch to Dark</span>
                             <kbd aria-hidden="true" class="kb-shortcut">(t)</kbd>
@@ -454,15 +454,15 @@ app.get("/", (req: Request, res: Response) => {
                     <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter" aria-keyshortcuts="/">
                 </div>
                 <div class="input-row">
-                    <button id="create-session-btn" aria-keyshortcuts="s">
+                    <button type="button" id="create-session-btn" aria-keyshortcuts="s">
                         <span aria-hidden="true">🔑</span>
                         <span class="btn-text">Create Session</span>
                         <kbd aria-hidden="true" class="kb-shortcut">(s)</kbd>
                     </button>
                 </div>
-                <p>Alternatively, create a session via the API:</p>
+                <p id="api-instruction">Alternatively, create a session via the API:</p>
                 <div class="code-container">
-                    <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard" aria-keyshortcuts="c">
+                    <button type="button" class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard" aria-keyshortcuts="c">
                         <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
                         <svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
                         <span id="copy-text" aria-live="polite">Copy</span>
@@ -474,7 +474,7 @@ app.get("/", (req: Request, res: Response) => {
 
             <div id="timeout-banner" role="alert">
                 <span>Session expires in 1 minute.</span>
-                <button id="extend-session-btn" aria-keyshortcuts="e"><span id="extend-btn-text">Extend Session</span> <kbd aria-hidden="true" class="kb-shortcut">(e)</kbd></button>
+                <button type="button" id="extend-session-btn" aria-keyshortcuts="e"><span id="extend-btn-text">Extend Session</span> <kbd aria-hidden="true" class="kb-shortcut">(e)</kbd></button>
                 <span id="extension-status" aria-live="polite"></span>
             </div>
 
@@ -524,7 +524,15 @@ app.get("/", (req: Request, res: Response) => {
                 function updateCurlCommand() {
                     const currentOrigin = window.location.origin;
                     const userId = userIdInput.value.trim() || 'demo-user';
-                    curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: \${userId}"\`;
+                    const apiInstruction = document.getElementById('api-instruction');
+
+                    if (window.currentSessionToken) {
+                        curlCommand.textContent = \`curl -X GET \${currentOrigin}/mcp/check -H "x-user-id: \${userId}" -H "x-session-token: \${window.currentSessionToken}"\`;
+                        if (apiInstruction) apiInstruction.textContent = 'Your session is active. Verify it via the API:';
+                    } else {
+                        curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: \${userId}"\`;
+                        if (apiInstruction) apiInstruction.textContent = 'Alternatively, create a session via the API:';
+                    }
 
                     const length = userIdInput.value.length;
                     userIdCounter.textContent = \`\${length} of 128 characters used\`;
@@ -535,7 +543,11 @@ app.get("/", (req: Request, res: Response) => {
                     }
                 }
 
-                userIdInput.addEventListener('input', updateCurlCommand);
+                userIdInput.addEventListener('input', () => {
+                    window.currentSessionToken = null;
+                    window.currentSessionId = null;
+                    updateCurlCommand();
+                });
                 userIdInput.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
                         e.preventDefault();
@@ -565,6 +577,8 @@ app.get("/", (req: Request, res: Response) => {
                         if (response.ok) {
                             const data = await response.json();
                             window.currentSessionId = data.sessionId;
+                            window.currentSessionToken = data.sessionToken;
+                            updateCurlCommand();
                             if (btnText) btnText.textContent = 'Created! ✅';
                             setTimeout(() => {
                                 createSessionBtn.innerHTML = originalHTML;
