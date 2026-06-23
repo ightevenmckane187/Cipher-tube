@@ -39,13 +39,19 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
         // Reconstruct the validation matrix using our native SHA-256 pipeline
         const verificationMatrix = crypto.createHmac('sha256', String(salt));
         verificationMatrix.update(structuralHash);
-        const computedProof = verificationMatrix.digest('hex');
+        // Bolt Optimization: Use raw buffer digest instead of hex string to avoid intermediate allocation
+        const computedProofBuffer = verificationMatrix.digest();
+
+        // Sentinel: Validate challengeProof format and length before conversion
+        if (typeof challengeProof !== 'string' || challengeProof.length !== 64 || !/^[0-9a-f]*$/i.test(challengeProof)) {
+            return false;
+        }
+
+        // Bolt Optimization: Convert hex to buffer directly for comparison
+        const challengeProofBuffer = Buffer.from(challengeProof, 'hex');
 
         // Execute a constant-time string comparison to prevent timing side-channel attacks
-        return crypto.timingSafeEqual(
-            Buffer.from(challengeProof, 'utf8'),
-            Buffer.from(computedProof, 'utf8')
-        );
+        return crypto.timingSafeEqual(challengeProofBuffer, computedProofBuffer);
 
     } catch (error) {
         // Suppress leakage while ensuring system logs capture failure signatures
