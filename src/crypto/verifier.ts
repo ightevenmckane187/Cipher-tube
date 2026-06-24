@@ -17,20 +17,26 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
         const bufferPayload = Buffer.from(rawProof, 'base64').toString('utf8');
         const parsedPayload = JSON.parse(bufferPayload);
 
+        // Sentinel: Ensure parsed payload is a plain object and not null or array
+        if (!parsedPayload || typeof parsedPayload !== 'object' || Array.isArray(parsedPayload)) {
+            return false;
+        }
+
         const { salt, structuralHash, challengeProof } = parsedPayload;
 
-        if (salt === undefined || salt === null || !structuralHash || !challengeProof) {
+        // Sentinel: Explicitly validate field presence and types to prevent crashes/logic bypass
+        if (
+            typeof salt !== 'number' ||
+            Number.isNaN(salt) ||
+            typeof structuralHash !== 'string' ||
+            typeof challengeProof !== 'string'
+        ) {
             return false;
         }
 
         // Enforce a strict time-window constraint (e.g., 5 minutes) to mitigate replay vectors
         const currentEpoch = Date.now();
         const performanceWindow = 5 * 60 * 1000; // 5 minutes in milliseconds
-
-        // Sentinel: Ensure salt is a valid number to prevent NaN comparison bypass
-        if (typeof salt !== 'number' || Number.isNaN(salt)) {
-            return false;
-        }
 
         if (Math.abs(currentEpoch - salt) > performanceWindow) {
             return false;
@@ -41,15 +47,23 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
         verificationMatrix.update(structuralHash);
         const computedProof = verificationMatrix.digest('hex');
 
+        const challengeBuffer = Buffer.from(challengeProof, 'utf8');
+        const computedBuffer = Buffer.from(computedProof, 'utf8');
+
+        // Sentinel: timingSafeEqual requires buffers of identical length.
+        // Length check is O(1) and does not leak content timing info.
+        if (challengeBuffer.length !== computedBuffer.length) {
+            return false;
+        }
+
         // Execute a constant-time string comparison to prevent timing side-channel attacks
-        return crypto.timingSafeEqual(
-            Buffer.from(challengeProof, 'utf8'),
-            Buffer.from(computedProof, 'utf8')
-        );
+        return crypto.timingSafeEqual(challengeBuffer, computedBuffer);
 
     } catch (error) {
-        // Suppress leakage while ensuring system logs capture failure signatures
-        console.error("Critical: Security framework evaluation failure inside verifier engine:", error);
+        // Sentinel: Log only unexpected errors to prevent log flooding from malformed client input
+        if (!(error instanceof SyntaxError)) {
+            console.error("Critical: Security framework evaluation failure inside verifier engine:", error);
+        }
         return false;
     }
 }
