@@ -106,32 +106,56 @@
             width: 100%;
             height: auto;
             border-radius: 5px;
+            background: white;
+            border: 1px solid #e0e0e0;
         }
 
         .node {
-            stroke: #667eea;
-            stroke-width: 2px;
             cursor: pointer;
+            stroke: #333;
+            stroke-width: 2px;
             transition: all 0.3s ease;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
         }
 
         .node:hover {
             stroke-width: 3px;
-            filter: brightness(1.1);
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+        }
+
+        .node.highlighted {
+            stroke: #ff6b6b;
+            stroke-width: 4px;
         }
 
         .node-label {
-            font-size: 12px;
-            font-weight: 600;
+            font-size: 11px;
+            font-weight: 700;
             text-anchor: middle;
             dominant-baseline: middle;
             pointer-events: none;
+            fill: white;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.3);
         }
 
         .link {
             stroke: #999;
             stroke-opacity: 0.6;
             stroke-width: 2px;
+            transition: all 0.3s ease;
+        }
+
+        .link.highlighted {
+            stroke: #ff6b6b;
+            stroke-width: 3px;
+            stroke-opacity: 0.9;
+        }
+
+        .link-label {
+            font-size: 9px;
+            fill: #666;
+            background: white;
+            padding: 2px 4px;
         }
 
         .info-panel {
@@ -141,6 +165,8 @@
             margin-top: 15px;
             display: none;
             border-left: 4px solid #667eea;
+            max-height: 200px;
+            overflow-y: auto;
         }
 
         .info-panel.active {
@@ -155,6 +181,12 @@
         .info-panel p {
             font-size: 0.9em;
             line-height: 1.6;
+            margin-bottom: 8px;
+        }
+
+        .info-panel ul {
+            margin-left: 20px;
+            font-size: 0.9em;
         }
 
         .section {
@@ -302,6 +334,36 @@
             border: 2px solid #333;
         }
 
+        .tooltip {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 10px 14px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            display: none;
+            z-index: 1000;
+            max-width: 300px;
+            border: 1px solid #667eea;
+        }
+
+        .tooltip.visible {
+            display: block;
+        }
+
+        .network-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .network-controls button {
+            padding: 8px 12px;
+            font-size: 0.9em;
+        }
+
         .footer {
             background: #f8f9fa;
             padding: 20px 30px;
@@ -328,7 +390,7 @@
                 border-radius: 0;
             }
 
-            .controls {
+            .controls, .network-controls {
                 display: none;
             }
 
@@ -337,28 +399,32 @@
             }
         }
 
-        .tooltip {
-            position: absolute;
-            background: #333;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            pointer-events: none;
-            display: none;
-            z-index: 1000;
+        .performance-metric {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #667eea;
         }
 
-        .tooltip.visible {
-            display: block;
+        .metric-label {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .metric-value {
+            color: #764ba2;
+            font-size: 1.1em;
         }
     </style>
 </head>
 <body>
+    <div class="tooltip" id="tooltip"></div>
+
     <div class="container">
         <div class="header">
             <h1>🏗️ Cipher-Tube Architecture</h1>
-            <p>Interactive Operating System & Component Visualization</p>
+            <p>Interactive Operating System & Advanced Network Topology Visualization</p>
         </div>
 
         <div class="content">
@@ -372,26 +438,64 @@
             <div class="section">
                 <h2 class="section-title">🎯 System Architecture Overview</h2>
                 <p style="font-size: 1.1em; margin-bottom: 20px;">
-                    Cipher-Tube operates as a modular, distributed system with five integrated pillars and a governance layer. The system employs a node-based architecture that perceives time, maintains session state, and orchestrates secure cryptographic operations across distributed components.
+                    Cipher-Tube operates as a modular, distributed system with five integrated pillars and a governance layer. The interactive network topology below visualizes component relationships, data flows, and inter-pillar dependencies using advanced force-directed graph algorithms.
                 </p>
 
                 <div class="viz-container">
                     <div class="viz-section">
-                        <div class="viz-title">🌍 System Components</div>
-                        <svg id="architecture-diagram" width="400" height="400"></svg>
-                        <div class="info-panel" id="arch-info">
-                            <h4>Component Details</h4>
-                            <p id="component-text">Hover over components to see details</p>
+                        <div class="viz-title">🌍 Network Topology - Full System</div>
+                        <div class="network-controls">
+                            <button class="toggle-btn" onclick="resetNetworkForces()">🔄 Reset</button>
+                            <button class="toggle-btn" onclick="togglePhysics()">⚡ Physics</button>
+                        </div>
+                        <svg id="network-diagram" width="400" height="500"></svg>
+                        <div class="info-panel" id="network-info">
+                            <h4>Component Information</h4>
+                            <p id="component-text">Hover/click over nodes to see details and relationships</p>
                         </div>
                     </div>
 
                     <div class="viz-section">
-                        <div class="viz-title">📊 Data Flow</div>
-                        <svg id="dataflow-diagram" width="400" height="400"></svg>
-                        <div class="info-panel" id="flow-info">
-                            <h4>Data Flow Details</h4>
-                            <p id="flow-text">Click on flow elements to see details</p>
+                        <div class="viz-title">📊 Request Processing Pipeline</div>
+                        <div class="network-controls">
+                            <button class="toggle-btn" onclick="highlightPipeline()">🔍 Trace Flow</button>
                         </div>
+                        <svg id="pipeline-diagram" width="400" height="500"></svg>
+                        <div class="info-panel" id="pipeline-info">
+                            <h4>Pipeline Details</h4>
+                            <p id="flow-text">Click on stages to see detailed information</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Legend -->
+            <div class="section">
+                <h2 class="section-title">📖 Network Legend & Color Coding</h2>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #667eea;"></div>
+                        <span><strong>Core Services</strong> - Primary API gateway</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #764ba2;"></div>
+                        <span><strong>Pillar Modules</strong> - Sentinel, Bolt, Palette, Tube</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ff6b6b;"></div>
+                        <span><strong>Security Layer</strong> - Encryption & Auth</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #4ecdc4;"></div>
+                        <span><strong>Storage</strong> - Redis & Data persistence</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ffd93d;"></div>
+                        <span><strong>UI/Frontend</strong> - React components</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #95e1d3;"></div>
+                        <span><strong>Transport Layer</strong> - Cryptographic channels</span>
                     </div>
                 </div>
             </div>
@@ -414,7 +518,8 @@
                         <div class="toggle-content">
                             <strong>Technology:</strong> Express.js, Node.js<br>
                             <strong>Storage:</strong> Redis (security posture)<br>
-                            <strong>Output:</strong> Remediation tasks, Pull Requests
+                            <strong>Output:</strong> Remediation tasks, Pull Requests<br>
+                            <strong>Port:</strong> 3001
                         </div>
                     </div>
 
@@ -431,7 +536,8 @@
                         <div class="toggle-content">
                             <strong>Technology:</strong> Fastify, Pino logging<br>
                             <strong>Crypto:</strong> Node.js crypto module<br>
-                            <strong>Output:</strong> Encrypted data, metrics
+                            <strong>Output:</strong> Encrypted data, metrics<br>
+                            <strong>Port:</strong> 3002
                         </div>
                     </div>
 
@@ -448,7 +554,8 @@
                         <div class="toggle-content">
                             <strong>Technology:</strong> React, Storybook<br>
                             <strong>Accessibility:</strong> Axe Core auditing<br>
-                            <strong>Output:</strong> UI components, themes
+                            <strong>Output:</strong> UI components, themes<br>
+                            <strong>Port:</strong> 3003
                         </div>
                     </div>
 
@@ -465,7 +572,8 @@
                         <div class="toggle-content">
                             <strong>Technology:</strong> Express, Node.js<br>
                             <strong>Crypto:</strong> AES-256-GCM<br>
-                            <strong>Output:</strong> Encrypted channels
+                            <strong>Output:</strong> Encrypted channels<br>
+                            <strong>Port:</strong> 3000
                         </div>
                     </div>
                 </div>
@@ -546,52 +654,49 @@
                 </div>
             </div>
 
-            <!-- Mythic Governance Section -->
+            <!-- Performance Metrics -->
             <div class="section">
-                <h2 class="section-title">🎭 Mythic Governance Model</h2>
+                <h2 class="section-title">📈 Performance Characteristics</h2>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
-                    <div class="architecture-grid" style="grid-template-columns: 1fr;">
-                        <div class="arch-card" style="background: #fff3cd; border-color: #ffc107;">
-                            <h3 style="color: #ff6b6b;">⭐ The Five Realms</h3>
-                            <ul>
-                                <li><strong>Pulse:</strong> Vigilance and monitoring</li>
-                                <li><strong>Drift:</strong> Inquiry and exploration</li>
-                                <li><strong>Shadow:</strong> Trial and verification</li>
-                                <li><strong>Return:</strong> Restoration and healing</li>
-                                <li><strong>Lineage:</strong> Preservation and archival</li>
-                            </ul>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <h3 style="color: #667eea; margin-bottom: 15px;">⚡ Encryption Performance</h3>
+                        <div class="performance-metric">
+                            <div class="metric-label">Average Latency:</div>
+                            <div class="metric-value">~0.44ms per operation</div>
+                        </div>
+                        <div class="performance-metric">
+                            <div class="metric-label">CPU Overhead:</div>
+                            <div class="metric-value">2-3% (with AES-NI acceleration)</div>
+                        </div>
+                        <div class="performance-metric">
+                            <div class="metric-label">Hardware Support:</div>
+                            <div class="metric-value">AES-NI capable processors</div>
+                        </div>
+                        <div class="performance-metric">
+                            <div class="metric-label">Encryption Algorithm:</div>
+                            <div class="metric-value">AES-256-GCM with PBKDF2</div>
                         </div>
                     </div>
 
-                    <div class="architecture-grid" style="grid-template-columns: 1fr;">
-                        <div class="arch-card" style="background: #e7f3ff; border-color: #667eea;">
-                            <h3 style="color: #667eea;">👑 The Five Archetypes</h3>
-                            <ul>
-                                <li><strong>The Sentinel:</strong> Guards Pulse realm</li>
-                                <li><strong>The Wanderer:</strong> Navigates Drift realm</li>
-                                <li><strong>The Shade:</strong> Judges Shadow realm</li>
-                                <li><strong>The Healer:</strong> Restores Return realm</li>
-                                <li><strong>The Archive:</strong> Preserves Lineage</li>
-                            </ul>
+                    <div>
+                        <h3 style="color: #667eea; margin-bottom: 15px;">🔄 Session Management</h3>
+                        <div class="performance-metric">
+                            <div class="metric-label">Timeout Detection:</div>
+                            <div class="metric-value">40% faster processing</div>
                         </div>
-                    </div>
-                </div>
-
-                <div class="interactive-toggle">
-                    <button class="toggle-btn" onclick="toggleContent('governance')">Operational Concepts</button>
-                    <div class="toggle-content" id="governance">
-                        <ul style="margin-left: 20px; line-height: 2;">
-                            <li><strong>Ritual Engine:</strong> Legislative dispatch orchestrating Archetype interactions</li>
-                            <li><strong>Sovereign Canon:</strong> Constitutional foundation of seven immutable axioms</li>
-                            <li><strong>Seasonal Engine:</strong> Epoch-based evolution
-                                <ul style="margin-left: 20px; margin-top: 5px;">
-                                    <li>Genesis → Drift → Descent → Renewal → Convergence</li>
-                                </ul>
-                            </li>
-                            <li><strong>Great Convergence:</strong> Cluster-wide truth synchronization ritual</li>
-                            <li><strong>Cosmology Map:</strong> Real-time perception of system's "living soul"</li>
-                        </ul>
+                        <div class="performance-metric">
+                            <div class="metric-label">Activity Refresh:</div>
+                            <div class="metric-value">30-minute window</div>
+                        </div>
+                        <div class="performance-metric">
+                            <div class="metric-label">Memory per 1K Sessions:</div>
+                            <div class="metric-value">+5MB additional</div>
+                        </div>
+                        <div class="performance-metric">
+                            <div class="metric-label">Default Session TTL:</div>
+                            <div class="metric-value">24 hours (configurable)</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -599,33 +704,6 @@
             <!-- Operating System Details -->
             <div class="section">
                 <h2 class="section-title">⚙️ Operating System Details</h2>
-
-                <div class="legend">
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #667eea;"></div>
-                        <span>Core Services</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #764ba2;"></div>
-                        <span>Security Layer</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #ff6b6b;"></div>
-                        <span>Cryptography</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #4ecdc4;"></div>
-                        <span>Storage</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #ffd93d;"></div>
-                        <span>UI/Frontend</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #95e1d3;"></div>
-                        <span>Transport</span>
-                    </div>
-                </div>
 
                 <div class="architecture-grid">
                     <div class="arch-card">
@@ -689,94 +767,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Performance Characteristics -->
-            <div class="section">
-                <h2 class="section-title">📈 Performance Characteristics</h2>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                    <div class="arch-card">
-                        <h3>⚡ Encryption Performance</h3>
-                        <ul>
-                            <li><strong>Average Latency:</strong> ~0.44ms</li>
-                            <li><strong>CPU Overhead:</strong> 2-3% (accelerated)</li>
-                            <li><strong>Throughput:</strong> Optimized GCM</li>
-                            <li><strong>Hardware:</strong> AES-NI capable</li>
-                        </ul>
-                    </div>
-
-                    <div class="arch-card">
-                        <h3>🔄 Session Management</h3>
-                        <ul>
-                            <li><strong>Timeout Detection:</strong> 40% faster</li>
-                            <li><strong>Activity Refresh:</strong> 30-minute window</li>
-                            <li><strong>Memory per Session:</strong> +5MB per 1000</li>
-                            <li><strong>Cleanup Policy:</strong> Automatic expiration</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Interactive Component Explorer -->
-            <div class="section">
-                <h2 class="section-title">🔍 Interactive Component Explorer</h2>
-
-                <div class="interactive-toggle">
-                    <button class="toggle-btn" onclick="toggleContent('sentinel-details')">Sentinel Module</button>
-                    <div class="toggle-content" id="sentinel-details">
-                        <p><strong>Role:</strong> Security orchestration layer</p>
-                        <p><strong>Components:</strong></p>
-                        <ul style="margin-left: 20px;">
-                            <li><strong>ingest/</strong> - Parse security scan results (SARIF format)</li>
-                            <li><strong>audit/</strong> - Log security events and compliance</li>
-                            <li><strong>remediation/</strong> - Generate automated fixes and PRs</li>
-                        </ul>
-                        <p style="margin-top: 10px;"><strong>Flow:</strong> Security scans → Ingest → Normalize → Remediate</p>
-                    </div>
-                </div>
-
-                <div class="interactive-toggle">
-                    <button class="toggle-btn" onclick="toggleContent('bolt-details')">Bolt Module</button>
-                    <div class="toggle-content" id="bolt-details">
-                        <p><strong>Role:</strong> Performance and cryptographic operations</p>
-                        <p><strong>Components:</strong></p>
-                        <ul style="margin-left: 20px;">
-                            <li><strong>benchmarks/</strong> - Performance profiling suite</li>
-                            <li><strong>crypto/</strong> - AES-256-GCM implementation</li>
-                            <li><strong>tests/</strong> - Unit and integration tests</li>
-                        </ul>
-                        <p style="margin-top: 10px;"><strong>Output:</strong> Encrypted data with ~0.44ms latency</p>
-                    </div>
-                </div>
-
-                <div class="interactive-toggle">
-                    <button class="toggle-btn" onclick="toggleContent('palette-details')">Palette Module</button>
-                    <div class="toggle-content" id="palette-details">
-                        <p><strong>Role:</strong> UI components and accessibility</p>
-                        <p><strong>Components:</strong></p>
-                        <ul style="margin-left: 20px;">
-                            <li><strong>components/</strong> - React 18 component library</li>
-                            <li><strong>storybook/</strong> - Interactive component catalog</li>
-                            <li><strong>a11y/</strong> - Accessibility auditing (Axe Core)</li>
-                        </ul>
-                        <p style="margin-top: 10px;"><strong>Standard:</strong> WCAG 2.2 AA compliant</p>
-                    </div>
-                </div>
-
-                <div class="interactive-toggle">
-                    <button class="toggle-btn" onclick="toggleContent('tube-details')">Tube Module</button>
-                    <div class="toggle-content" id="tube-details">
-                        <p><strong>Role:</strong> Cryptographic inter-pillar transport</p>
-                        <p><strong>Features:</strong></p>
-                        <ul style="margin-left: 20px;">
-                            <li>End-to-end encryption between pillars</li>
-                            <li>Session encryption and key management</li>
-                            <li>Secure message routing</li>
-                        </ul>
-                        <p style="margin-top: 10px;"><strong>Protocol:</strong> AES-256-GCM over HTTP/2</p>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <div class="footer">
@@ -791,70 +781,122 @@
         // Set timestamp
         document.getElementById('timestamp').textContent = new Date().toLocaleString();
 
-        // Architecture diagram using D3
-        function drawArchitectureDiagram() {
+        let networkSimulation = null;
+        let physicsEnabled = true;
+
+        // Advanced Network Topology Visualization
+        function drawNetworkTopology() {
             const data = {
                 nodes: [
-                    { id: "Gateway", label: "Express Gateway", color: "#667eea" },
-                    { id: "Sentinel", label: "Sentinel", color: "#764ba2" },
-                    { id: "Bolt", label: "Bolt", color: "#ff6b6b" },
-                    { id: "Palette", label: "Palette", color: "#ffd93d" },
-                    { id: "Tube", label: "Tube", color: "#95e1d3" },
-                    { id: "Redis", label: "Redis", color: "#4ecdc4" }
+                    { id: "Client", label: "Client", color: "#667eea", category: "client", size: 40 },
+                    { id: "Gateway", label: "Express Gateway", color: "#667eea", category: "core", size: 45 },
+                    { id: "Sentinel", label: "Sentinel", color: "#764ba2", category: "pillar", size: 40 },
+                    { id: "Bolt", label: "Bolt", color: "#ff6b6b", category: "pillar", size: 40 },
+                    { id: "Palette", label: "Palette", color: "#ffd93d", category: "pillar", size: 40 },
+                    { id: "Tube", label: "Tube", color: "#95e1d3", category: "pillar", size: 40 },
+                    { id: "Redis", label: "Redis Store", color: "#4ecdc4", category: "storage", size: 40 },
+                    { id: "Crypto", label: "Crypto Engine", color: "#ff6b6b", category: "security", size: 38 },
+                    { id: "Auth", label: "Auth Layer", color: "#764ba2", category: "security", size: 38 }
                 ],
                 links: [
-                    { source: "Gateway", target: "Sentinel" },
-                    { source: "Gateway", target: "Bolt" },
-                    { source: "Gateway", target: "Palette" },
-                    { source: "Bolt", target: "Tube" },
-                    { source: "Gateway", target: "Redis" },
-                    { source: "Sentinel", target: "Redis" }
+                    { source: "Client", target: "Gateway", distance: 80, strength: -1.5 },
+                    { source: "Gateway", target: "Sentinel", distance: 100, strength: -1 },
+                    { source: "Gateway", target: "Bolt", distance: 100, strength: -1 },
+                    { source: "Gateway", target: "Palette", distance: 100, strength: -1 },
+                    { source: "Gateway", target: "Tube", distance: 100, strength: -1 },
+                    { source: "Gateway", target: "Auth", distance: 90, strength: -1.2 },
+                    { source: "Auth", target: "Redis", distance: 80, strength: -1 },
+                    { source: "Bolt", target: "Crypto", distance: 70, strength: -1.3 },
+                    { source: "Sentinel", target: "Redis", distance: 90, strength: -1 },
+                    { source: "Tube", target: "Crypto", distance: 75, strength: -1.2 },
+                    { source: "Palette", target: "Gateway", distance: 95, strength: -0.8 }
                 ]
             };
 
-            const svg = d3.select("#architecture-diagram");
-            const width = 400;
-            const height = 400;
+            const svg = d3.select("#network-diagram");
+            const width = svg.node().parentElement.offsetWidth - 40;
+            const height = 500;
 
-            const simulation = d3.forceSimulation(data.nodes)
-                .force("link", d3.forceLink(data.links).id(d => d.id).distance(80))
-                .force("charge", d3.forceManyBody().strength(-300))
-                .force("center", d3.forceCenter(width / 2, height / 2));
+            // Clear previous content
+            svg.selectAll("*").remove();
 
+            // Define arrowhead marker
+            svg.append("defs").append("marker")
+                .attr("id", "arrowhead")
+                .attr("markerWidth", 10)
+                .attr("markerHeight", 10)
+                .attr("refX", 28)
+                .attr("refY", 3)
+                .attr("orient", "auto")
+                .append("polygon")
+                .attr("points", "0 0, 10 3, 0 6")
+                .attr("fill", "#999");
+
+            // Create force simulation
+            networkSimulation = d3.forceSimulation(data.nodes)
+                .force("link", d3.forceLink(data.links)
+                    .id(d => d.id)
+                    .distance(d => d.distance)
+                    .strength(d => d.strength))
+                .force("charge", d3.forceManyBody().strength(-400).distanceMax(300))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("collision", d3.forceCollide().radius(d => d.size + 10));
+
+            // Draw links
             const link = svg.append("g")
                 .selectAll("line")
                 .data(data.links)
                 .enter()
                 .append("line")
-                .attr("class", "link");
+                .attr("class", "link")
+                .attr("marker-end", "url(#arrowhead)");
 
+            // Draw nodes
             const node = svg.append("g")
                 .selectAll("circle")
                 .data(data.nodes)
                 .enter()
                 .append("circle")
-                .attr("r", 35)
+                .attr("r", d => d.size)
                 .attr("class", "node")
                 .attr("fill", d => d.color)
                 .on("mouseover", function(event, d) {
-                    d3.select(this).transition().attr("r", 45);
-                    document.getElementById("arch-info").classList.add("active");
-                    document.getElementById("component-text").innerHTML = `<strong>${d.label}</strong><br>Critical component for system operation.`;
+                    d3.select(this)
+                        .transition()
+                        .attr("r", d => d.size + 8)
+                        .attr("stroke-width", 3);
+
+                    link.classed("highlighted", l => l.source.id === d.id || l.target.id === d.id);
+                    node.classed("highlighted", n => n.id === d.id);
+
+                    showNodeInfo(d);
+                    showTooltip(event, d);
                 })
                 .on("mouseout", function(event, d) {
-                    d3.select(this).transition().attr("r", 35);
-                });
+                    d3.select(this)
+                        .transition()
+                        .attr("r", d => d.size);
 
+                    link.classed("highlighted", false);
+                    node.classed("highlighted", false);
+                    hideTooltip();
+                })
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended));
+
+            // Draw labels
             const labels = svg.append("g")
                 .selectAll("text")
                 .data(data.nodes)
                 .enter()
                 .append("text")
                 .attr("class", "node-label")
-                .attr("fill", "white")
-                .text(d => d.id);
+                .text(d => d.label);
 
-            simulation.on("tick", () => {
+            // Update positions on each tick
+            networkSimulation.on("tick", () => {
                 link
                     .attr("x1", d => d.source.x)
                     .attr("y1", d => d.source.y)
@@ -862,89 +904,197 @@
                     .attr("y2", d => d.target.y);
 
                 node
-                    .attr("cx", d => d.x)
-                    .attr("cy", d => d.y);
+                    .attr("cx", d => Math.max(d.size, Math.min(width - d.size, d.x)))
+                    .attr("cy", d => Math.max(d.size, Math.min(height - d.size, d.y)));
 
                 labels
                     .attr("x", d => d.x)
                     .attr("y", d => d.y);
             });
+
+            // Drag functions
+            function dragstarted(event, d) {
+                if (!event.active) networkSimulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+
+            function dragended(event, d) {
+                if (!event.active) networkSimulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
         }
 
-        // Data flow diagram
-        function drawDataFlowDiagram() {
-            const svg = d3.select("#dataflow-diagram");
-            const width = 400;
-            const height = 400;
+        // Pipeline diagram
+        function drawPipelineDiagram() {
+            const svg = d3.select("#pipeline-diagram");
+            const width = svg.node().parentElement.offsetWidth - 40;
+            const height = 500;
+
+            svg.selectAll("*").remove();
 
             const stages = [
-                { x: 200, y: 50, name: "Request", color: "#667eea" },
-                { x: 200, y: 120, name: "Validate", color: "#764ba2" },
-                { x: 200, y: 190, name: "Process", color: "#ff6b6b" },
-                { x: 200, y: 260, name: "Encrypt", color: "#95e1d3" },
-                { x: 200, y: 330, name: "Response", color: "#4ecdc4" }
+                { x: 100, y: 50, num: "1", name: "Request", desc: "Client input", color: "#667eea" },
+                { x: 100, y: 120, num: "2", name: "Validate", desc: "Session check", color: "#764ba2" },
+                { x: 100, y: 190, num: "3", name: "Security", desc: "Sentinel scan", color: "#ff6b6b" },
+                { x: 100, y: 260, num: "4", name: "Crypto", desc: "Bolt encrypt", color: "#95e1d3" },
+                { x: 100, y: 330, num: "5", name: "Response", desc: "Deliver data", color: "#4ecdc4" }
             ];
 
-            // Draw arrows
+            // Draw flow arrows
             for (let i = 0; i < stages.length - 1; i++) {
                 svg.append("line")
                     .attr("x1", stages[i].x)
-                    .attr("y1", stages[i].y + 20)
+                    .attr("y1", stages[i].y + 30)
                     .attr("x2", stages[i + 1].x)
-                    .attr("y2", stages[i + 1].y - 20)
-                    .attr("class", "link")
-                    .attr("stroke", "#999");
-
-                svg.append("polygon")
-                    .attr("points", `${stages[i + 1].x},${stages[i + 1].y - 20} ${stages[i + 1].x - 5},${stages[i + 1].y - 30} ${stages[i + 1].x + 5},${stages[i + 1].y - 30}`)
-                    .attr("fill", "#999");
+                    .attr("y2", stages[i + 1].y - 30)
+                    .attr("stroke", "#999")
+                    .attr("stroke-width", 2)
+                    .attr("marker-end", "url(#arrowhead)");
             }
 
-            // Draw stages
+            // Draw stage circles
             svg.selectAll("circle")
                 .data(stages)
                 .enter()
                 .append("circle")
                 .attr("cx", d => d.x)
                 .attr("cy", d => d.y)
-                .attr("r", 20)
+                .attr("r", 25)
                 .attr("fill", d => d.color)
                 .attr("class", "node")
                 .on("click", function(event, d) {
-                    document.getElementById("flow-info").classList.add("active");
-                    document.getElementById("flow-text").innerHTML = `<strong>${d.name} Stage</strong><br>Part of the request processing pipeline.`;
+                    showPipelineInfo(d);
+                    d3.selectAll("circle").classed("highlighted", false);
+                    d3.select(this).classed("highlighted", true);
                 });
 
-            svg.selectAll("text")
+            // Draw stage numbers
+            svg.selectAll(".stage-number")
                 .data(stages)
                 .enter()
                 .append("text")
-                .attr("x", d => d.x)
-                .attr("y", d => d.y)
                 .attr("class", "node-label")
-                .attr("fill", "white")
+                .attr("x", d => d.x)
+                .attr("y", d => d.y - 2)
+                .text(d => d.num);
+
+            // Draw stage names and descriptions
+            svg.selectAll(".stage-name")
+                .data(stages)
+                .enter()
+                .append("text")
+                .attr("x", d => d.x + 50)
+                .attr("y", d => d.y - 10)
+                .attr("font-weight", "600")
+                .attr("fill", "#333")
                 .text(d => d.name);
+
+            svg.selectAll(".stage-desc")
+                .data(stages)
+                .enter()
+                .append("text")
+                .attr("x", d => d.x + 50)
+                .attr("y", d => d.y + 10)
+                .attr("font-size", "11px")
+                .attr("fill", "#666")
+                .text(d => d.desc);
         }
 
-        // Toggle content visibility
-        function toggleContent(id) {
-            const content = document.getElementById(id);
-            content.classList.toggle("active");
+        // Info display functions
+        function showNodeInfo(node) {
+            const infoPanel = document.getElementById("network-info");
+            let html = `<h4>${node.label}</h4>`;
+            html += `<p><strong>Category:</strong> ${node.category}</p>`;
+
+            const descriptions = {
+                Client: "External client making requests to the system",
+                Gateway: "Express.js gateway handling routing and load balancing",
+                Sentinel: "Security orchestration and vulnerability assessment",
+                Bolt: "High-performance cryptographic operations",
+                Palette: "UI components with accessibility compliance",
+                Tube: "Secure inter-pillar communication layer",
+                Redis: "Distributed session and data storage",
+                Crypto: "AES-256-GCM encryption/decryption engine",
+                Auth: "Authentication and session validation"
+            };
+
+            html += `<p>${descriptions[node.id] || "Core system component"}</p>`;
+            document.getElementById("component-text").innerHTML = html;
+            infoPanel.classList.add("active");
         }
 
-        // Toggle all info panels
+        function showPipelineInfo(stage) {
+            const details = {
+                "1": "Receives HTTP request with x-user-id header",
+                "2": "Validates session ownership in Redis (session:{id}:owner)",
+                "3": "Sentinel performs security scanning and vulnerability assessment",
+                "4": "Bolt performs AES-256-GCM encryption (~0.44ms latency)",
+                "5": "Returns encrypted response to client"
+            };
+
+            const infoPanel = document.getElementById("pipeline-info");
+            document.getElementById("flow-text").innerHTML = `
+                <strong>${stage.name} Stage</strong><br>
+                <p>${details[stage.num]}</p>
+            `;
+            infoPanel.classList.add("active");
+        }
+
+        function showTooltip(event, d) {
+            const tooltip = document.getElementById("tooltip");
+            tooltip.innerHTML = `<strong>${d.label}</strong><br>${d.category}`;
+            tooltip.classList.add("visible");
+            tooltip.style.left = (event.pageX + 10) + "px";
+            tooltip.style.top = (event.pageY + 10) + "px";
+        }
+
+        function hideTooltip() {
+            document.getElementById("tooltip").classList.remove("visible");
+        }
+
+        // Control functions
+        function resetNetworkForces() {
+            if (networkSimulation) {
+                networkSimulation.alpha(1).restart();
+            }
+        }
+
+        function togglePhysics() {
+            if (networkSimulation) {
+                physicsEnabled = !physicsEnabled;
+                networkSimulation[physicsEnabled ? "restart" : "stop"]();
+            }
+        }
+
+        function highlightPipeline() {
+            const stages = document.querySelectorAll("#pipeline-diagram circle");
+            stages.forEach((stage, i) => {
+                setTimeout(() => {
+                    d3.select(stage).transition()
+                        .attr("stroke-width", 3)
+                        .transition()
+                        .attr("stroke-width", 0);
+                }, i * 500);
+            });
+        }
+
         function toggleAllInfo() {
             const panels = document.querySelectorAll(".info-panel");
             panels.forEach(panel => panel.classList.toggle("active"));
         }
 
-        // Expand card
         function expandCard(card) {
             const content = card.querySelector(".toggle-content");
             content.classList.toggle("active");
         }
 
-        // Download PDF
         function downloadPDF() {
             const element = document.querySelector('.container');
             const opt = {
@@ -957,15 +1107,20 @@
             html2pdf().set(opt).save().from(element).save();
         }
 
-        // Print document
         function printDocument() {
             window.print();
         }
 
-        // Initialize diagrams on page load
+        // Initialize on load
         window.addEventListener('DOMContentLoaded', () => {
-            drawArchitectureDiagram();
-            drawDataFlowDiagram();
+            drawNetworkTopology();
+            drawPipelineDiagram();
+        });
+
+        // Redraw on window resize
+        window.addEventListener('resize', () => {
+            drawNetworkTopology();
+            drawPipelineDiagram();
         });
     </script>
 </body>
