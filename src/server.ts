@@ -7,6 +7,7 @@ import path from "path";
 import rateLimit from "express-rate-limit";
 import { LRUCache } from "lru-cache";
 import { buildCipherTube, decryptCipherTube } from "./cta";
+import { verifyCryptographicProof } from "./crypto/verifier";
 import { getBlindedRedisKey, blindToken, createSession, rotateSession, getSessionKeys } from "./session_rotator";
 
 dotenv.config();
@@ -1064,6 +1065,14 @@ app.post(
     // Verify session routing metadata matches the session being used
     // Bolt Optimization: Use pre-computed hash from res.locals.sessionKeys if available
     const blindedToken = res.locals.sessionKeys?.blindedKey || blindToken(req.headers["x-session-token"] as string);
+
+    const proof = req.headers["x-cipher-proof"] as string;
+    if (proof) {
+      const isValid = await verifyCryptographicProof(proof);
+      if (!isValid) {
+        return res.status(403).json({ error: "Invalid cryptographic proof: Packet rejected." });
+      }
+    }
 
     if (packet.blinded_session_hash !== blindedToken) {
       return res.status(403).json({ error: "Session hash mismatch: Routing integrity failure" });
