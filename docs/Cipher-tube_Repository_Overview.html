@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cipher-Tube Repository Overview</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            page-break-inside: avoid;
+        }
+
+        .section-title {
+            font-size: 1.8em;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .subsection-title {
+            font-size: 1.3em;
+            color: #764ba2;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+
+        .stack-item {
+            display: flex;
+            gap: 15px;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f0f4ff;
+            border-radius: 5px;
+        }
+
+        .stack-label {
+            font-weight: 700;
+            color: #667eea;
+            min-width: 120px;
+        }
+
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .tree {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 5px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9em;
+            line-height: 1.8;
+            margin: 15px 0;
+            white-space: pre;
+            overflow-x: auto;
+        }
+
+        .feature-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .feature-item {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+
+        .feature-item strong {
+            color: #667eea;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: 600;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+
+        .toc h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .toc ul {
+            list-style: none;
+        }
+
+        .toc li {
+            margin: 8px 0;
+        }
+
+        .toc a {
+            color: #667eea;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .toc a:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+            border-top: 1px solid #ddd;
+        }
+
+        .key-features {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .feature-card {
+            background: white;
+            border: 2px solid #667eea;
+            padding: 20px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .feature-card h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .repo-link {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            margin: 10px 5px 10px 0;
+            transition: background 0.2s;
+        }
+
+        .repo-link:hover {
+            background: #764ba2;
+        }
+
+        .timestamp {
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .feature-list {
+                grid-template-columns: 1fr;
+            }
+
+            .key-features {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+                border-radius: 0;
+            }
+
+            .controls {
+                display: none;
+            }
+
+            .section {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Cipher-Tube</h1>
+            <p>Interactive Repository Overview & Technical Documentation</p>
+        </div>
+
+        <div class="content">
+            <div class="controls">
+                <button onclick="downloadPDF()">📥 Download as PDF</button>
+                <button onclick="printDocument()">🖨️ Print</button>
+                <button onclick="toggleDarkMode()">🌙 Toggle Dark Mode</button>
+            </div>
+
+            <div class="toc">
+                <h3>📋 Table of Contents</h3>
+                <ul>
+                    <li><a href="#overview">What This Is</a></li>
+                    <li><a href="#stack">Technology Stack</a></li>
+                    <li><a href="#architecture">How It's Organized</a></li>
+                    <li><a href="#workflow">How It Fits Together</a></li>
+                    <li><a href="#setup">How to Run It</a></li>
+                    <li><a href="#features">Key Features</a></li>
+                    <li><a href="#questions">Try Asking</a></li>
+                </ul>
+            </div>
+
+            <!-- Overview Section -->
+            <div class="section" id="overview">
+                <h2 class="section-title">🎯 What This Is</h2>
+                
+                <p style="font-size: 1.1em; line-height: 1.8; margin-bottom: 20px;">
+                    <strong>Cipher-Tube</strong> is a modular, zero-trust cryptographic platform centered on secure session management and encryption. The architecture is built on a four-pillar design (Sentinel, Bolt, Palette, Tube) that handles security orchestration, performance/benchmarking, UI/accessibility, and inter-pillar cryptographic transport respectively. It's designed as a node-based system with mythic governance concepts layered on top for operational philosophy.
+                </p>
+
+                <div class="info-box">
+                    <strong>🔑 Key Purpose:</strong> Provide military-grade cryptographic operations with a self-governing digital civilization model featuring five Realms (Pulse, Drift, Shadow, Return, Lineage) guarded by Archetypes.
+                </div>
+
+                <div class="key-features">
+                    <div class="feature-card">
+                        <h4>🛡️ Security-First</h4>
+                        <p>AES-256 encryption, session ownership, zero-trust architecture</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>⚡ High Performance</h4>
+                        <p>~0.44ms encryption/decryption, benchmarked with Bolt</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>♿ Accessible UI</h4>
+                        <p>WCAG 2.2 AA, dark mode, design tokens via Storybook</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stack Section -->
+            <div class="section" id="stack">
+                <h2 class="section-title">🛠️ Technology Stack</h2>
+
+                <div class="stack-item">
+                    <div class="stack-label">Language(s):</div>
+                    <div>TypeScript (primary), supporting Node.js 20+</div>
+                </div>
+
+                <div class="stack-item">
+                    <div class="stack-label">Framework/Runtime:</div>
+                    <div>Express 5.2 (main platform), Fastify 5.0 (Bolt pillar), React 18.3 (Palette UI)</div>
+                </div>
+
+                <div class="subsection-title">📦 Notable Libraries</div>
+                <div class="feature-list">
+                    <div class="feature-item">
+                        <strong>Redis</strong> - Session storage & distributed caching</div>
+                    <div class="feature-item">
+                        <strong>Helmet</strong> - Security headers & middleware</div>
+                    <div class="feature-item">
+                        <strong>Pino</strong> - Structured JSON logging</div>
+                    <div class="feature-item">
+                        <strong>Zod</strong> - TypeScript-first schema validation</div>
+                    <div class="feature-item">
+                        <strong>Axe Core</strong> - Accessibility auditing</div>
+                    <div class="feature-item">
+                        <strong>Storybook</strong> - Component library & UI catalog</div>
+                </div>
+
+                <div class="subsection-title">📋 Additional Dependencies</div>
+                <ul style="margin-left: 20px; line-height: 1.8;">
+                    <li><strong>Express Rate Limit</strong> - Rate limiting middleware</li>
+                    <li><strong>UUID</strong> - Unique identifier generation</li>
+                    <li><strong>JS-YAML</strong> - YAML configuration parsing</li>
+                    <li><strong>LRU Cache</strong> - In-memory caching</li>
+                    <li><strong>Dotenv</strong> - Environment variable management</li>
+                </ul>
+            </div>
+
+            <!-- Architecture Section -->
+            <div class="section" id="architecture">
+                <h2 class="section-title">🏗️ How It's Organized</h2>
+
+                <div class="tree">sentinel/             Security orchestration
+                      ├─ audit/              Event auditing & compliance
+                      ├─ ingest/             Security scan result parsers
+                      └─ remediation/        Automated fix generation
+
+bolt/                 Performance & scalability
+                      ├─ benchmarks/         Performance profiling
+                      ├─ src/                Fastify-based service
+                      └─ tests/              Benchmark tests
+
+palette/              UI & accessibility
+                      ├─ components/         React components
+                      ├─ storybook/          Component library
+                      ├─ themes/             Design tokens & theming
+                      └─ a11y/               Accessibility configs
+
+tube/                 Cryptographic transport
+                      └─ src/                Inter-pillar messaging
+
+ui/                   Frontend components
+
+wizard/               Setup & configuration
+
+docs/                 Documentation
+                      ├─ API.md              REST API reference
+                      ├─ SECURITY.md         Security guidelines
+                      ├─ LAUNCH_SPEECH_v1.5.md
+                      └─ PRODUCT_UPDATE_v1.5.0.md
+
+governance/           OPA policies
+                      └─ policies/           Rego policy files
+
+crypto/               Cryptographic utilities
+                      └─ src/                AES-256, PBKDF2 impl
+
+tests/                Integration & unit tests
+
+schema/               Data models
+
+security/             Security configs
+
+scripts/              Dev utilities</div>
+
+                <div class="info-box">
+                    <strong>📊 Repository Stats:</strong> ~2133 KB total size, MIT Licensed, 86 open issues, Last pushed: 2026-06-25
+                </div>
+            </div>
+
+            <!-- Workflow Section -->
+            <div class="section" id="workflow">
+                <h2 class="section-title">🔄 How It Fits Together</h2>
+
+                <p style="margin-bottom: 20px;">The Cipher-Tube architecture follows a layered, event-driven design:</p>
+
+                <div style="background: #f0f4ff; padding: 20px; border-radius: 5px; margin: 20px 0;">
+                    <strong style="color: #667eea;">Request Flow:</strong>
+                    <div style="margin-top: 15px; font-family: monospace;">
+                        1. Express Gateway receives request with <code>x-user-id</code> header<br>
+                        2. Session ownership middleware validates <code>session:{sessionId}:owner</code> in Redis<br>
+                        3. Sentinel orchestrates security scanning (audit, remediation)<br>
+                        4. Bolt performs cryptographic operations (AES-256-GCM, ~0.44ms)<br>
+                        5. Palette renders UI components with accessibility compliance<br>
+                        6. Tube encrypts inter-pillar communication<br>
+                        7. Response returned with encrypted session data
+                    </div>
+                </div>
+
+                <div class="subsection-title">🎭 Mythic Governance Model</div>
+                <div class="feature-list" style="grid-template-columns: 1fr 1fr;">
+                    <div class="feature-item">
+                        <strong>The Five Realms:</strong><br>
+                        • Pulse (vigilance)<br>
+                        • Drift (inquiry)<br>
+                        • Shadow (trial)<br>
+                        • Return (restoration)<br>
+                        • Lineage (preservation)
+                    </div>
+                    <div class="feature-item">
+                        <strong>The Five Archetypes:</strong><br>
+                        • The Sentinel<br>
+                        • The Wanderer<br>
+                        • The Shade<br>
+                        • The Healer<br>
+                        • The Archive
+                    </div>
+                </div>
+
+                <div class="subsection-title">🌀 Operational Concepts</div>
+                <ul style="margin-left: 20px; line-height: 1.8;">
+                    <li><strong>Ritual Engine:</strong> Legislative dispatch orchestrating Archetype interactions</li>
+                    <li><strong>Sovereign Canon:</strong> Constitutional foundation of seven immutable axioms</li>
+                    <li><strong>Seasonal Engine:</strong> Epoch-based evolution (Genesis → Drift → Descent → Renewal → Convergence)</li>
+                    <li><strong>Great Convergence:</strong> Cluster-wide truth synchronization ritual</li>
+                </ul>
+            </div>
+
+            <!-- Setup Section -->
+            <div class="section" id="setup">
+                <h2 class="section-title">🚀 How to Run It</h2>
+
+                <div class="subsection-title">⚙️ Prerequisites</div>
+                <ul style="margin-left: 20px; line-height: 1.8;">
+                    <li>Node.js 20+ (LTS)</li>
+                    <li>npm 10+</li>
+                    <li>Redis (running locally or via Docker)</li>
+                    <li>Docker & Docker Compose (for full dev environment)</li>
+                </ul>
+
+                <div class="subsection-title">📦 Installation</div>
+                <div class="code-block">
+# Install all workspace dependencies
+npm install --workspaces
+
+# or using Make
+make install</div>
+
+                <div class="subsection-title">🔧 Local Development</div>
+                <div class="code-block">
+# Start full development environment
+make dev
+
+# Services will be available at:
+#   Sentinel:  http://localhost:3001
+#   Bolt:      http://localhost:3002
+#   Palette:   http://localhost:3003
+#   Tube:      http://localhost:3000
+
+# Stop development environment
+make dev-down
+
+# View logs
+make dev-logs</div>
+
+                <div class="subsection-title">🧪 Testing</div>
+                <div class="code-block">
+# Run all tests
+make test
+
+# Unit tests only
+make test-unit
+
+# Integration tests (starts Docker services)
+make test-integration
+
+# Specific pillar (sentinel|bolt|palette|tube)
+make test-unit PILLAR=sentinel</div>
+
+                <div class="subsection-title">⚡ Performance</div>
+                <div class="code-block">
+# Run benchmarks
+make benchmark
+
+# Compare benchmark results
+make benchmark:compare</div>
+
+                <div class="subsection-title">🔒 Security & Quality</div>
+                <div class="code-block">
+# Security scanning
+make security-scan
+
+# Linting
+make lint
+
+# Auto-format code
+make fmt
+
+# Policy validation (OPA)
+make policy:test
+make policy:fmt</div>
+
+                <div class="subsection-title">🌍 Environment Configuration</div>
+                <div class="code-block">
+# Copy example config
+cp .env.example .env
+
+# Key environment variables:
+REDIS_URL=redis://localhost:6379
+BASE_URI=http://localhost:3232
+ENABLE_AES256=true              # Enable AES-256 encryption
+NODE_ENV=development</div>
+
+                <div class="info-box">
+                    <strong>💡 Pro Tip:</strong> Use <code>make help</code> to see all available commands. The Makefile supports parameterization for running tests on specific pillars.
+                </div>
+            </div>
+
+            <!-- Features Section -->
+            <div class="section" id="features">
+                <h2 class="section-title">✨ Key Features (v1.5.0)</h2>
+
+                <div class="feature-list" style="grid-template-columns: 1fr;">
+                    <div class="feature-item">
+                        <strong>🔐 AES-256 Encryption Support</strong>
+                        <p>Military-grade AES-256-GCM with PBKDF2 key derivation, hardware acceleration (AES-NI), configurable encryption modes</p>
+                    </div>
+                    <div class="feature-item">
+                        <strong>🌙 Dark Mode UI</strong>
+                        <p>System preference detection, manual override, smooth transitions, WCAG 2.2 AA compliant, battery-saving OLED optimization</p>
+                    </div>
+                    <div class="feature-item">
+                        <strong>🔧 Session Timeout Fix</strong>
+                        <p>TTL-respecting session management, activity-based refresh (30-min window), proper Redis cleanup, graceful recovery</p>
+                    </div>
+                    <div class="feature-item">
+                        <strong>🛡️ Per-User Session Ownership</strong>
+                        <p>Middleware ensures only owning user can use session, stored as <code>session:{sessionId}:owner</code> in Redis</p>
+                    </div>
+                    <div class="feature-item">
+                        <strong>📊 Performance Optimizations</strong>
+                        <p>~0.44ms avg encryption speed, ~2-3% CPU overhead (accelerated), 40% faster timeout detection</p>
+                    </div>
+                    <div class="feature-item">
+                        <strong>♿ Accessibility First</strong>
+                        <p>WCAG 2.2 AA compliance, Axe Core auditing, high contrast ratios, screen reader support</p>
+                    </div>
+                </div>
+
+                <div class="subsection-title">🔐 Encryption Specifications</div>
+                <div class="info-box">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <strong>Algorithm:</strong> AES-256-GCM<br>
+                            <strong>Key Derivation:</strong> PBKDF2 with SHA-256<br>
+                            <strong>Key Length:</strong> 256 bits (32 bytes)
+                        </div>
+                        <div>
+                            <strong>IV Length:</strong> 96 bits (12 bytes)<br>
+                            <strong>Mode:</strong> Galois/Counter Mode (GCM)<br>
+                            <strong>Hardware:</strong> AES-NI acceleration support
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Questions Section -->
+            <div class="section" id="questions">
+                <h2 class="section-title">❓ Try Asking</h2>
+
+                <p style="margin-bottom: 20px;">Explore these repository-specific questions to deepen your understanding:</p>
+
+                <div class="feature-list" style="grid-template-columns: 1fr;">
+                    <div class="feature-item">
+                        <strong>🔐 "How does the session ownership middleware work in Sentinel?"</strong>
+                        <p>Understand the per-user session validation mechanism and Redis storage pattern.</p>
+                    </div>
+                    <div class="feature-item">
+                        <strong>🔑 "What encryption algorithms are available in the crypto module and how is key derivation handled?"</strong>
+                        <p>Deep dive into AES-256-GCM implementation, PBKDF2 key derivation, and hardware acceleration.</p>
+                    </div>
+                    <div class="feature-item">
+                        <strong>♿ "What accessibility standards are enforced in Palette and how is Storybook integrated?"</strong>
+                        <p>Explore WCAG 2.2 AA compliance, Axe Core auditing, component library patterns, and design tokens.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Resources -->
+            <div class="section">
+                <h2 class="section-title">📚 Additional Resources</h2>
+
+                <div class="subsection-title">🔗 Important Links</div>
+                <div>
+                    <a class="repo-link" href="https://github.com/ightevenmckane187/Cipher-tube">GitHub Repository</a>
+                    <a class="repo-link" href="https://ightevenmckane187.github.io/Cipher-tube/">Live Documentation</a>
+                </div>
+
+                <div class="subsection-title">📖 Documentation Files</div>
+                <ul style="margin-left: 20px; line-height: 1.8;">
+                    <li><strong>docs/API.md</strong> - REST API endpoints and session management</li>
+                    <li><strong>docs/SECURITY.md</strong> - Security guidelines and best practices</li>
+                    <li><strong>docs/LAUNCH_SPEECH_V1.5.md</strong> - v1.5.0 release announcement</li>
+                    <li><strong>SECURITY_AUDIT.md</strong> - Security audit findings</li>
+                    <li><strong>CODE_OF_CONDUCT.md</strong> - Community guidelines</li>
+                </ul>
+
+                <div class="subsection-title">🚀 Next Steps</div>
+                <ol style="margin-left: 20px; line-height: 1.8;">
+                    <li>Clone the repository: <code>git clone https://github.com/ightevenmckane187/Cipher-tube.git</code></li>
+                    <li>Follow the setup instructions above using <code>make install</code></li>
+                    <li>Start the dev environment: <code>make dev</code></li>
+                    <li>Explore the API at http://localhost:3000</li>
+                    <li>Review security guidelines in SECURITY.md</li>
+                    <li>Run tests to verify installation: <code>make test</code></li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>Cipher-Tube Repository Overview</strong></p>
+            <p>Secure. Reliable. Elegant.</p>
+            <p>© 2026 Sovereign Cipher-Tube by ightevenmckane187</p>
+            <p class="timestamp">Generated on: <span id="timestamp"></span></p>
+        </div>
+    </div>
+
+    <script>
+        // Set timestamp
+        document.getElementById('timestamp').textContent = new Date().toLocaleString();
+
+        // Download PDF
+        function downloadPDF() {
+            const element = document.querySelector('.container');
+            const opt = {
+                margin: 10,
+                filename: 'Cipher-tube_Repository_Overview.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).save().from(element).save();
+        }
+
+        // Print document
+        function printDocument() {
+            window.print();
+        }
+
+        // Toggle dark mode
+        function toggleDarkMode() {
+            const body = document.body;
+            const container = document.querySelector('.container');
+            
+            if (body.style.background === 'rgb(51, 51, 51)') {
+                // Light mode
+                body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                body.style.color = '#333';
+                document.querySelectorAll('.content, .info-box, .code-block, .tree, .feature-list, .stack-item').forEach(el => {
+                    el.style.background = el.classList.contains('code-block') || el.classList.contains('tree') ? '#2d2d2d' : '#f8f9fa';
+                    el.style.color = el.classList.contains('code-block') || el.classList.contains('tree') ? '#f8f8f2' : '#333';
+                });
+            } else {
+                // Dark mode
+                body.style.background = '#333';
+                body.style.color = '#f0f0f0';
+                document.querySelectorAll('.content, .info-box').forEach(el => {
+                    el.style.background = '#444';
+                    el.style.color = '#f0f0f0';
+                });
+            }
+        }
+
+        // Add smooth scrolling for TOC links
+        document.querySelectorAll('.toc a').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const target = document.querySelector(link.getAttribute('href'));
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+    </script>
+</body>
+</html>
