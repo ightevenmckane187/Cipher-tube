@@ -82,3 +82,8 @@
 **Vulnerability:** Insecure Direct Object Reference (IDOR) in the `/mcp/rotate` endpoint allowed unauthorized users to rotate sessions they did not own.
 **Learning:** Even if an endpoint requires a valid session token, it must also verify that the requester is the authorized owner of that specific session before performing state-changing operations like rotation.
 **Prevention:** Always apply ownership-verification middleware (like `ensureSessionOwner`) to all endpoints that perform actions on a specific session, ensuring the `x-user-id` matches the stored session owner.
+
+## 2026-06-30 - DoS via timingSafeEqual Length Mismatch
+**Vulnerability:** Denial of Service (DoS) in cryptographic verification due to unhandled exceptions in `timingSafeEqual`.
+**Learning:** Node.js `crypto.timingSafeEqual` throws a `RangeError` if the input buffers have different lengths. If this isn't caught, a malformed proof with a short or long challenge can crash the entire worker process.
+**Prevention:** Always perform a strict length check or format validation (e.g., regex check for hex length) before calling `timingSafeEqual`. Ensure that both inputs are compared as same-length buffers to prevent runtime crashes.
