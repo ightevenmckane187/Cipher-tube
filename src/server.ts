@@ -444,7 +444,7 @@ app.get("/", (req: Request, res: Response) => {
                     <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter" aria-keyshortcuts="/">
                 </div>
                 <div class="input-row">
-                    <button id="create-session-btn" aria-keyshortcuts="s">
+                    <button id="create-session-btn" aria-keyshortcuts="s" aria-busy="false">
                         <span aria-hidden="true">🔑</span>
                         <span class="btn-text">Create Session</span>
                         <kbd aria-hidden="true" class="kb-shortcut">(s)</kbd>
@@ -464,7 +464,11 @@ app.get("/", (req: Request, res: Response) => {
 
             <div id="timeout-banner" role="alert">
                 <span>Session expires in 1 minute.</span>
-                <button id="extend-session-btn" aria-keyshortcuts="e"><span class="btn-text">Extend Session</span> <kbd aria-hidden="true" class="kb-shortcut">(e)</kbd></button>
+                <button id="extend-session-btn" aria-keyshortcuts="e" aria-busy="false">
+                    <span aria-hidden="true">⏳</span>
+                    <span class="btn-text">Extend Session</span>
+                    <kbd aria-hidden="true" class="kb-shortcut">(e)</kbd>
+                </button>
                 <span id="extension-status" aria-live="polite"></span>
             </div>
 
@@ -565,14 +569,14 @@ app.get("/", (req: Request, res: Response) => {
                             setTimeout(() => {
                                 createSessionBtn.innerHTML = originalHTML;
                                 createSessionBtn.disabled = false;
-                                createSessionBtn.removeAttribute('aria-busy');
+                                createSessionBtn.setAttribute('aria-busy', 'false');
                             }, 2000);
                         } else {
-                            if (btnText) btnText.textContent = 'Failed ❌';
+                            if (btnText) btnText.textContent = 'Failed. Try again ❌';
                             setTimeout(() => {
                                 createSessionBtn.innerHTML = originalHTML;
                                 createSessionBtn.disabled = false;
-                                createSessionBtn.removeAttribute('aria-busy');
+                                createSessionBtn.setAttribute('aria-busy', 'false');
                             }, 2000);
                         }
                     } catch (err) {
@@ -581,7 +585,7 @@ app.get("/", (req: Request, res: Response) => {
                         setTimeout(() => {
                             createSessionBtn.innerHTML = originalHTML;
                             createSessionBtn.disabled = false;
-                            createSessionBtn.removeAttribute('aria-busy');
+                            createSessionBtn.setAttribute('aria-busy', 'false');
                         }, 2000);
                     }
                 });
@@ -644,6 +648,7 @@ app.get("/", (req: Request, res: Response) => {
                     const btn = e.currentTarget;
                     const btnText = btn.querySelector('.btn-text');
                     const status = document.getElementById('extension-status');
+                    const originalHTML = btn.innerHTML;
 
                     const showStatus = (msg, isError = false) => {
                         if (statusTimeout) clearTimeout(statusTimeout);
@@ -654,8 +659,8 @@ app.get("/", (req: Request, res: Response) => {
 
                     const resetBtn = () => {
                         btn.disabled = false;
-                        btn.removeAttribute('aria-busy');
-                        if (btnText) btnText.textContent = 'Extend Session';
+                        btn.setAttribute('aria-busy', 'false');
+                        btn.innerHTML = originalHTML;
                     };
 
                     try {
@@ -673,25 +678,27 @@ app.get("/", (req: Request, res: Response) => {
                             });
                             if (response.ok) {
                                 resetTimer();
-                                btnText.textContent = 'Extended! ✅';
-                               showStatus('Success');
+                                if (btnText) btnText.textContent = 'Extended! ✅';
+                                showStatus('Success');
                                 setTimeout(resetBtn, 2000);
                             } else {
-                                showStatus('Failed. Try again', true);
-                                resetBtn();
+                                if (btnText) btnText.textContent = 'Failed. Try again ❌';
+                                showStatus('Failed', true);
+                                setTimeout(resetBtn, 2000);
                             }
                         } else {
                             // Simulation mode
                             await new Promise(resolve => setTimeout(resolve, 500));
                             resetTimer();
-                            btnText.textContent = 'Reset! ✅';
+                            if (btnText) btnText.textContent = 'Reset! ✅';
                             showStatus('Reset');
                             setTimeout(resetBtn, 2000);
                         }
                     } catch (err) {
                         console.error('Extension failed:', err);
+                        if (btnText) btnText.textContent = 'Error ❌';
                         showStatus('Error', true);
-                        resetBtn();
+                        setTimeout(resetBtn, 2000);
                     }
                 });
 
