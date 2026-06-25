@@ -1,5 +1,5 @@
 module: cipher-tube.predator
-version: 1.0.0
+version: 2.0.0
 
 config:
   # Schedules
@@ -16,6 +16,9 @@ config:
 
   # Concurrency
   remediation_concurrency: 50
+
+  # Resilience
+  resilience_interval: "every5minutes"
 
 pipelines:
   - name: "predatorcontrolgraph_engine"
@@ -112,6 +115,15 @@ pipelines:
         use: "security.posture_update"
         params:
           category: "predatorcontrolgraphengine"
+
+      - name: "consensus_checkpoint"
+        use: "governance.verify_ledger"
+        params:
+          transition: { id: "pipeline-stable-root" }
+          signatures:
+            - { nodeId: "node1", signature: "0xabc123" }
+            - { nodeId: "node2", signature: "0xdef456" }
+            - { nodeId: "node3", signature: "0x789ghi" }
 
 workflows:
   - name: "predatorcontrolgraphenginelarge"
@@ -230,3 +242,31 @@ workflows:
             - "bod23assetdiscovery"
             - "bod22kevremediation"
             - "predatorcontrolgraph_engine"
+
+  - name: "AutonomousResilienceDaemon"
+    schedule: "${config.resilience_interval}"
+    steps:
+      - name: "verify_state"
+        action: "resilience.verify_state"
+        output: "verification_results"
+
+      - name: "attain_consensus"
+        action: "governance.verify_ledger"
+        params:
+          transition: { id: "resilience-self-correction-intent" }
+          signatures:
+            - { nodeId: "node1", signature: "0xres123" }
+            - { nodeId: "node2", signature: "0xres456" }
+            - { nodeId: "node3", signature: "0xres789" }
+        output: "consensus_root"
+
+      - name: "enforce_consensus"
+        action: "governance.enforce"
+        params:
+          id: "${state.verification_results.proposalId}"
+
+      - name: "self_correct_if_drifted"
+        action: "resilience.self_correct"
+        params:
+          drift: "${state.verification_results.driftDetected}"
+          consensus_proof: "${state.consensus_root.rootHash}"
