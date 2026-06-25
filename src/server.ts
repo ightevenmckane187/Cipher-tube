@@ -255,14 +255,6 @@ app.get("/", (req: Request, res: Response) => {
                 .theme-toggle:hover {
                     background-color: var(--border-color);
                 }
-                .header-container {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-                .status-text {
-                    color: var(--success);
-                }
                 .input-group {
                     margin-bottom: 1.5rem;
                 }
@@ -358,10 +350,9 @@ app.get("/", (req: Request, res: Response) => {
                     height: 14px;
                     fill: currentColor;
                 }
-                .check-icon { display: none; color: #2ecc71; }
+                .check-icon { display: none; color: var(--success); }
                 .copy-button.copied .copy-icon { display: none; }
                 .copy-button.copied .check-icon { display: block; }
-                .status-text { color: var(--success); font-weight: bold; }
                 .input-group { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
                 .input-group label { font-size: 0.875rem; font-weight: 500; }
                 .input-group input { background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 8px 12px; border-radius: 6px; font-size: 0.875rem; width: 100%; max-width: 300px; }
@@ -481,7 +472,7 @@ app.get("/", (req: Request, res: Response) => {
                     <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter" aria-keyshortcuts="/">
                 </div>
                 <div class="input-row">
-                    <button id="create-session-btn" aria-keyshortcuts="s">
+                    <button id="create-session-btn" aria-keyshortcuts="s" aria-busy="false">
                         <span aria-hidden="true">🔑</span>
                         <span class="btn-text">Create Session</span>
                         <kbd aria-hidden="true" class="kb-shortcut">(s)</kbd>
@@ -501,7 +492,11 @@ app.get("/", (req: Request, res: Response) => {
 
             <div id="timeout-banner" role="alert">
                 <span>Session expires in 1 minute.</span>
-                <button id="extend-session-btn" aria-keyshortcuts="e"><span id="extend-btn-text">Extend Session</span> <kbd aria-hidden="true" class="kb-shortcut">(e)</kbd></button>
+                <button id="extend-session-btn" aria-keyshortcuts="e" aria-busy="false">
+                    <span aria-hidden="true">⏳</span>
+                    <span class="btn-text">Extend Session</span>
+                    <kbd aria-hidden="true" class="kb-shortcut">(e)</kbd>
+                </button>
                 <span id="extension-status" aria-live="polite"></span>
             </div>
 
@@ -551,7 +546,12 @@ app.get("/", (req: Request, res: Response) => {
                 function updateCurlCommand() {
                     const currentOrigin = window.location.origin;
                     const userId = userIdInput.value.trim() || 'demo-user';
-                    curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: \${userId}"\`;
+
+                    if (window.currentSessionToken) {
+                        curlCommand.textContent = \`curl \${currentOrigin}/mcp/check -H "x-user-id: \${userId}" -H "x-session-token: \${window.currentSessionToken}"\`;
+                    } else {
+                        curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: \${userId}"\`;
+                    }
 
                     const length = userIdInput.value.length;
                     userIdCounter.textContent = \`\${length} of 128 characters used\`;
@@ -578,6 +578,7 @@ app.get("/", (req: Request, res: Response) => {
 
                     try {
                         createSessionBtn.disabled = true;
+                        createSessionBtn.setAttribute('aria-busy', 'true');
                         if (btnText) btnText.textContent = 'Creating...';
 
                         const response = await fetch('/mcp', {
@@ -596,12 +597,14 @@ app.get("/", (req: Request, res: Response) => {
                             setTimeout(() => {
                                 createSessionBtn.innerHTML = originalHTML;
                                 createSessionBtn.disabled = false;
+                                createSessionBtn.setAttribute('aria-busy', 'false');
                             }, 2000);
                         } else {
-                            if (btnText) btnText.textContent = 'Failed ❌';
+                            if (btnText) btnText.textContent = 'Failed. Try again ❌';
                             setTimeout(() => {
                                 createSessionBtn.innerHTML = originalHTML;
                                 createSessionBtn.disabled = false;
+                                createSessionBtn.setAttribute('aria-busy', 'false');
                             }, 2000);
                         }
                     } catch (err) {
@@ -610,6 +613,7 @@ app.get("/", (req: Request, res: Response) => {
                         setTimeout(() => {
                             createSessionBtn.innerHTML = originalHTML;
                             createSessionBtn.disabled = false;
+                            createSessionBtn.setAttribute('aria-busy', 'false');
                         }, 2000);
                     }
                 });
@@ -670,24 +674,27 @@ app.get("/", (req: Request, res: Response) => {
                 let statusTimeout;
                 document.getElementById('extend-session-btn').addEventListener('click', async (e) => {
                     const btn = e.currentTarget;
-                    const btnText = document.getElementById('extend-btn-text');
+                    const btnText = btn.querySelector('.btn-text');
                     const status = document.getElementById('extension-status');
+                    const originalHTML = btn.innerHTML;
 
                     const showStatus = (msg, isError = false) => {
                         if (statusTimeout) clearTimeout(statusTimeout);
                         status.textContent = msg;
-                        status.style.color = isError ? '#f28b82' : '#2ecc71';
+                        status.style.color = isError ? 'var(--error)' : 'var(--success)';
                         statusTimeout = setTimeout(() => status.textContent = '', 3000);
                     };
 
                     const resetBtn = () => {
                         btn.disabled = false;
-                        btnText.textContent = 'Extend Session';
+                        btn.setAttribute('aria-busy', 'false');
+                        btn.innerHTML = originalHTML;
                     };
 
                     try {
                         btn.disabled = true;
-                        btnText.textContent = 'Extending...';
+                        btn.setAttribute('aria-busy', 'true');
+                        if (btnText) btnText.textContent = 'Extending...';
 
                         if (currentSessionToken) {
                             const response = await fetch('/session/extend', {
@@ -699,25 +706,27 @@ app.get("/", (req: Request, res: Response) => {
                             });
                             if (response.ok) {
                                 resetTimer();
-                                btnText.textContent = 'Extended! ✅';
-                               showStatus('Success');
+                                if (btnText) btnText.textContent = 'Extended! ✅';
+                                showStatus('Success');
                                 setTimeout(resetBtn, 2000);
                             } else {
-                                showStatus('Failed. Try again', true);
-                                resetBtn();
+                                if (btnText) btnText.textContent = 'Failed. Try again ❌';
+                                showStatus('Failed', true);
+                                setTimeout(resetBtn, 2000);
                             }
                         } else {
                             // Simulation mode
                             await new Promise(resolve => setTimeout(resolve, 500));
                             resetTimer();
-                            btnText.textContent = 'Reset! ✅';
+                            if (btnText) btnText.textContent = 'Reset! ✅';
                             showStatus('Reset');
                             setTimeout(resetBtn, 2000);
                         }
                     } catch (err) {
                         console.error('Extension failed:', err);
+                        if (btnText) btnText.textContent = 'Error ❌';
                         showStatus('Error', true);
-                        resetBtn();
+                        setTimeout(resetBtn, 2000);
                     }
                 });
 
@@ -727,7 +736,10 @@ app.get("/", (req: Request, res: Response) => {
                     const response = await originalFetch(...args);
                     if (typeof args[0] === 'string' && args[0].includes('/mcp') && args[1]?.method === 'POST') {
                         const data = await response.clone().json();
-                        if (data.sessionToken) window.currentSessionToken = data.sessionToken;
+                        if (data.sessionToken) {
+                            window.currentSessionToken = data.sessionToken;
+                            updateCurlCommand();
+                        }
                     }
                     return response;
                 };

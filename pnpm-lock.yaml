@@ -6799,7 +6799,8 @@ snapshots:
 
   '@typescript-eslint/tsconfig-utils@8.62.0(typescript@5.9.3)':
     dependencies:
-      typescript: 5.9.3
+      '@typescript-eslint/types': 8.62.0
+      '@typescript-eslint/visitor-keys': 8.62.0
 
   '@typescript-eslint/type-utils@8.62.0(eslint@9.39.4)(typescript@5.9.3)':
     dependencies:

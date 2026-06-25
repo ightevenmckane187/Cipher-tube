@@ -8,29 +8,44 @@ import crypto from 'crypto';
  * @returns Promise<boolean> - True if the proof matches system integrity parameters
  */
 export async function verifyCryptographicProof(rawProof: string): Promise<boolean> {
-    if (!rawProof || typeof rawProof !== 'string') {
+    // Sentinel: Enforce a reasonable length limit on the proof string to prevent DoS.
+    // Base64 encoded JSON for this structure is typically ~250-300 characters.
+    if (!rawProof || typeof rawProof !== 'string' || rawProof.length > 4096) {
         return false;
     }
 
     try {
         // Decode the structural payload
         const bufferPayload = Buffer.from(rawProof, 'base64').toString('utf8');
-        const parsedPayload = JSON.parse(bufferPayload);
+        let parsedPayload: any;
+
+        try {
+            parsedPayload = JSON.parse(bufferPayload);
+        } catch {
+            // Sentinel: Gracefully handle parsing failures without critical logging
+            return false;
+        }
+
+        // Sentinel: Validate that the payload is a non-null plain object (not an array or primitive)
+        if (!parsedPayload || typeof parsedPayload !== 'object' || Array.isArray(parsedPayload)) {
+            return false;
+        }
 
         const { salt, structuralHash, challengeProof } = parsedPayload;
 
-        if (salt === undefined || salt === null || !structuralHash || !challengeProof) {
+        // Sentinel: Explicitly check types of all required fields
+        if (typeof salt !== 'number' || typeof structuralHash !== 'string' || typeof challengeProof !== 'string') {
+            return false;
+        }
+
+        // Sentinel: Ensure salt is a safe integer (representing milliseconds epoch)
+        if (!Number.isSafeInteger(salt)) {
             return false;
         }
 
         // Enforce a strict time-window constraint (e.g., 5 minutes) to mitigate replay vectors
         const currentEpoch = Date.now();
         const performanceWindow = 5 * 60 * 1000; // 5 minutes in milliseconds
-
-        // Sentinel: Ensure salt is a valid number to prevent NaN comparison bypass
-        if (typeof salt !== 'number' || Number.isNaN(salt)) {
-            return false;
-        }
 
         if (Math.abs(currentEpoch - salt) > performanceWindow) {
             return false;
@@ -41,11 +56,17 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
         verificationMatrix.update(structuralHash);
         const computedProof = verificationMatrix.digest('hex');
 
+        // Sentinel: Ensure buffer lengths match before calling timingSafeEqual to avoid internal
+        // exceptions and prevent timing oracles in Node.js versions that throw on length mismatch.
+        const challengeBuffer = Buffer.from(challengeProof, 'utf8');
+        const computedBuffer = Buffer.from(computedProof, 'utf8');
+
+        if (challengeBuffer.length !== computedBuffer.length) {
+            return false;
+        }
+
         // Execute a constant-time string comparison to prevent timing side-channel attacks
-        return crypto.timingSafeEqual(
-            Buffer.from(challengeProof, 'utf8'),
-            Buffer.from(computedProof, 'utf8')
-        );
+        return crypto.timingSafeEqual(challengeBuffer, computedBuffer);
 
     } catch (error) {
         // Suppress leakage while ensuring system logs capture failure signatures
