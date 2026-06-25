@@ -8,6 +8,9 @@ import rateLimit from "express-rate-limit";
 import { LRUCache } from "lru-cache";
 import { buildCipherTube, decryptCipherTube } from "./cta";
 import { getBlindedRedisKey, blindToken, createSession, rotateSession, getSessionKeys } from "./session_rotator";
+import { ritualEngine, Archetypes } from "./myth/ritual-engine";
+import { seasonalEngine } from "./myth/seasonal-engine";
+import { CosmologyMap } from "./ui/cosmology-map";
 
 dotenv.config();
 
@@ -39,9 +42,16 @@ const UUID_V4_REGEX =
 const SESSION_TTL = 3600; // 1 hour in seconds
 
 // Rate limiter for general API operations
+// Entropy Anchor: Strictness affects the rate limit.
+const getDynamicLimit = (base: number) => {
+    const strictness = seasonalEngine.getStrictness();
+    // As strictness approaches 1.0, limit decreases (stricter)
+    return Math.floor(base * (1.1 - strictness));
+};
+
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 1000, // Higher limit for general API
+  max: () => getDynamicLimit(1000), // Higher limit for general API
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req: Request, res: Response) => {
@@ -53,7 +63,7 @@ const apiLimiter = rateLimit({
 
 const sessionLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: () => getDynamicLimit(100),
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req: Request, res: Response) => {
@@ -153,7 +163,7 @@ app.get("/", (req: Request, res: Response) => {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Cipher Tube Assembly</title>
+            <title>Sovereign Cypher-Tube</title>
             <script nonce="${res.locals.nonce}">
                 (function() {
                     const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
@@ -332,14 +342,6 @@ app.get("/", (req: Request, res: Response) => {
                     border: 1px solid var(--border-color);
                     box-shadow: 0 1px 1px rgba(0,0,0,0.2);
                 }
-                .header-container {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-                .status-text {
-                    color: var(--success);
-                }
                 @media (max-width: 480px) {
                     .kb-shortcut { display: none; }
                 }
@@ -407,6 +409,16 @@ app.get("/", (req: Request, res: Response) => {
                     flex-wrap: wrap;
                     align-items: flex-start;
                 }
+                /* Mythic Mirror Styles */
+                .archetype-node {
+                  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                }
+                .archetype-node:hover {
+                  transform: scale(1.1);
+                  z-index: 10;
+                  box-shadow: 0 0 15px white;
+                }
+                ${CosmologyMap.getAuraStyles()}
             </style>
         </head>
         <body>
@@ -414,7 +426,7 @@ app.get("/", (req: Request, res: Response) => {
             <header role="banner">
                 <nav aria-label="Main Navigation">
                      <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight: bold; color: var(--primary);">Cipher Tube</span>
+                        <span style="font-weight: bold; color: var(--primary);">Sovereign Cypher-Tube</span>
                         <button class="theme-toggle" aria-label="Switch to Dark Mode" aria-pressed="false" aria-keyshortcuts="t">
                             <span class="theme-icon" aria-hidden="true" id="theme-icon">🌙</span>
                             <span class="theme-text">Switch to Dark</span>
@@ -426,15 +438,31 @@ app.get("/", (req: Request, res: Response) => {
 
             <main id="main-content">
                 <div class="header-container">
-                    <h1>Cipher Tube Assembly</h1>
+                    <h1>Sovereign Cypher-Tube</h1>
                 </div>
-                <p>Welcome to the performance-optimized session management service.</p>
+                <p>Welcome to the self-governing mythic digital civilization.</p>
                 <div role="status" aria-live="polite">
                     <p>
                         <span class="status-dot" aria-hidden="true"></span>
-                        <strong>Status:</strong> <span class="status-text">Online</span>
+                        <strong>Status:</strong> <span class="status-text">Online</span> |
+                        <strong>Epoch:</strong> <span id="epoch-display" style="font-weight: bold; text-transform: uppercase;">${seasonalEngine.getCurrentEpoch()}</span> |
+                        <strong>Strictness:</strong> <span id="strictness-display">${seasonalEngine.getStrictness().toFixed(1)}</span>
                     </p>
                 </div>
+
+                <section id="mythic-mirror" style="margin-top: 2rem; border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; background: rgba(0,0,0,0.02);">
+                    <h3 style="margin-top: 0;">Mythic Mirror: Cosmology Map</h3>
+                    <p style="font-size: 0.8rem; opacity: 0.8;">Visualize the "living soul" of the civilization in real-time.</p>
+                    <div id="cosmology-container" style="height: 200px; background: #050505; position: relative; overflow: hidden; display: flex; justify-content: space-around; align-items: center; border-radius: 4px;">
+                        ${Object.values(Archetypes).map(a => `
+                            <div class="archetype-node aura-${a.aura.split('/')[0].toLowerCase()}" title="${a.name}: ${a.mandate}" style="width: 70px; height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-size: 0.6rem; text-align: center; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 4px; cursor: help; background: rgba(20,20,20,0.8);">
+                                <div style="font-weight: bold; margin-bottom: 2px;">${a.name.split(' ')[1]}</div>
+                                <div style="font-size: 0.5rem; opacity: 0.7;">${a.realm}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </section>
+
                 <h2>Quick Start</h2>
                 <div class="input-group">
                     <div class="counter-container">
@@ -478,7 +506,7 @@ app.get("/", (req: Request, res: Response) => {
                     <a href="/docs/USER_GUIDE.md" target="_blank" rel="noopener noreferrer">User Guide</a> |
                     <a href="/docs/ACCESSIBILITY.md" target="_blank" rel="noopener noreferrer">Accessibility Statement</a>
                 </nav>
-                <p>&copy; 2026 Cipher Tube Assembly</p>
+                <p>&copy; 2026 Sovereign Cypher-Tube</p>
             </footer>
 
             <script nonce="${res.locals.nonce}">
