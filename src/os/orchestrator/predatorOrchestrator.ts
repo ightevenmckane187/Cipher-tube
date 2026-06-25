@@ -9,6 +9,8 @@ import * as securityActions from '../../engine/actions/security';
 import * as auditActions from '../../engine/actions/audit';
 import * as vulnerabilityActions from '../../engine/actions/vulnerability';
 import * as configActions from '../../engine/actions/config';
+import * as resilienceActions from '../../engine/actions/resilience';
+import { governance as governanceActions } from '../../governance/governor';
 import { workflow_invoke_async } from '../../engine/runtime/async';
 import { omniEngines } from '../../engine/runtime/omni_engines';
 
@@ -22,6 +24,8 @@ const ACTION_REGISTRY: any = {
   audit: auditActions,
   vulnerability: vulnerabilityActions,
   config: configActions,
+  resilience: resilienceActions,
+  governance: governanceActions,
   ...omniEngines,
   workflow: {
     invoke_async: workflow_invoke_async
