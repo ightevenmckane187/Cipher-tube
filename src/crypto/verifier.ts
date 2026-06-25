@@ -31,6 +31,11 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
             return false;
         }
 
+        // Sentinel: Ensure parsed payload is a plain object and not null or array
+        if (!parsedPayload || typeof parsedPayload !== 'object' || Array.isArray(parsedPayload)) {
+            return false;
+        }
+
         const { salt, structuralHash, challengeProof } = parsedPayload;
 
         // Sentinel: Explicitly check types of all required fields
@@ -64,12 +69,23 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
             return false;
         }
 
+        const challengeBuffer = Buffer.from(challengeProof, 'utf8');
+        const computedBuffer = Buffer.from(computedProof, 'utf8');
+
+        // Sentinel: timingSafeEqual requires buffers of identical length.
+        // Length check is O(1) and does not leak content timing info.
+        if (challengeBuffer.length !== computedBuffer.length) {
+            return false;
+        }
+
         // Execute a constant-time string comparison to prevent timing side-channel attacks
         return crypto.timingSafeEqual(challengeBuffer, computedBuffer);
 
     } catch (error) {
-        // Suppress leakage while ensuring system logs capture failure signatures
-        console.error("Critical: Security framework evaluation failure inside verifier engine:", error);
+        // Sentinel: Log only unexpected errors to prevent log flooding from malformed client input
+        if (!(error instanceof SyntaxError)) {
+            console.error("Critical: Security framework evaluation failure inside verifier engine:", error);
+        }
         return false;
     }
 }
