@@ -448,7 +448,13 @@ app.get("/", (req: Request, res: Response) => {
                         <label for="user-id-input">Customize your User ID: <kbd aria-hidden="true" class="kb-shortcut">/</kbd></label>
                         <span id="user-id-counter" aria-live="polite">0 of 128 characters used</span>
                     </div>
-                    <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter" aria-keyshortcuts="/">
+                    <div class="input-row" aria-live="polite">
+                        <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter" aria-keyshortcuts="/">
+                        <button id="create-session-btn" aria-keyshortcuts="s">
+                            <span>Create Session</span>
+                            <kbd aria-hidden="true" class="kb-shortcut">(s)</kbd>
+                        </button>
+                    </div>
                 </div>
                 <p>To get started, create a session via the API:</p>
                 <div class="code-container">
@@ -535,6 +541,7 @@ app.get("/", (req: Request, res: Response) => {
 
                     try {
                         createSessionBtn.disabled = true;
+                        createSessionBtn.setAttribute('aria-busy', 'true');
                         if (btnSpan) btnSpan.textContent = 'Creating...';
 
                         const response = await fetch('/mcp', {
@@ -553,12 +560,14 @@ app.get("/", (req: Request, res: Response) => {
                             setTimeout(() => {
                                 createSessionBtn.innerHTML = originalHTML;
                                 createSessionBtn.disabled = false;
+                                createSessionBtn.removeAttribute('aria-busy');
                             }, 2000);
                         } else {
                             if (btnSpan) btnSpan.textContent = 'Failed ❌';
                             setTimeout(() => {
                                 createSessionBtn.innerHTML = originalHTML;
                                 createSessionBtn.disabled = false;
+                                createSessionBtn.removeAttribute('aria-busy');
                             }, 2000);
                         }
                     } catch (err) {
@@ -567,6 +576,7 @@ app.get("/", (req: Request, res: Response) => {
                         setTimeout(() => {
                             createSessionBtn.innerHTML = originalHTML;
                             createSessionBtn.disabled = false;
+                            createSessionBtn.removeAttribute('aria-busy');
                         }, 2000);
                     }
                 });
@@ -651,6 +661,7 @@ app.get("/", (req: Request, res: Response) => {
 
                     try {
                         btn.disabled = true;
+                        btn.setAttribute('aria-busy', 'true');
                         btnText.textContent = 'Extending...';
 
                         if (currentSessionToken) {
@@ -664,9 +675,11 @@ app.get("/", (req: Request, res: Response) => {
                             if (response.ok) {
                                 resetTimer();
                                 btnText.textContent = 'Extended! ✅';
+                                btn.removeAttribute('aria-busy');
                                showStatus('Success');
                                 setTimeout(resetBtn, 2000);
                             } else {
+                                btn.removeAttribute('aria-busy');
                                 showStatus('Failed', true);
                                 resetBtn();
                             }
@@ -675,11 +688,13 @@ app.get("/", (req: Request, res: Response) => {
                             await new Promise(resolve => setTimeout(resolve, 500));
                             resetTimer();
                             btnText.textContent = 'Reset! ✅';
+                            btn.removeAttribute('aria-busy');
                             showStatus('Reset');
                             setTimeout(resetBtn, 2000);
                         }
                     } catch (err) {
                         console.error('Extension failed:', err);
+                        btn.removeAttribute('aria-busy');
                         showStatus('Error', true);
                         resetBtn();
                     }

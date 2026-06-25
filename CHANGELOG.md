@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- "Create Session" button to the dashboard for improved accessibility and UX.
+- Keyboard shortcut `(s)` for rapid session creation.
 - Multi-agent governance framework with trust tiers T0–T4 and separation-of-duties enforcement
 - Safer-Tube 24-item security checklist embedded in PR workflow
 - OPA Rego policies: crosspillarreview, trust_tier, agent_boundary, safertubechecklist
