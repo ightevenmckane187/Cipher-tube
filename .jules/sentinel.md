@@ -87,3 +87,8 @@
 **Vulnerability:** Denial of Service (DoS) in cryptographic verification due to unhandled exceptions in `timingSafeEqual`.
 **Learning:** Node.js `crypto.timingSafeEqual` throws a `RangeError` if the input buffers have different lengths. If this isn't caught, a malformed proof with a short or long challenge can crash the entire worker process.
 **Prevention:** Always perform a strict length check or format validation (e.g., regex check for hex length) before calling `timingSafeEqual`. Ensure that both inputs are compared as same-length buffers to prevent runtime crashes.
+
+## 2026-07-01 - Compilation Failure as Security Bypass
+**Vulnerability:** Broken cryptographic verifier due to SyntaxError and ReferenceError.
+**Learning:** A critical security component (src/crypto/verifier.ts) was functionally broken due to duplicate variable declarations and missing definitions. In a production environment with lazy-loading or partial builds, this could lead to the security middleware failing and potentially being bypassed if not handled by a strict fail-closed orchestration layer.
+**Prevention:** Always verify security-critical components with focused unit tests that run in the exact runtime environment. Ensure that cryptographic proofs use consistent encoding ('hex' vs 'utf8') across generator and verifier to prevent logic-based bypasses.

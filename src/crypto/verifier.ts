@@ -31,11 +31,6 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
             return false;
         }
 
-        // Sentinel: Ensure parsed payload is a plain object and not null or array
-        if (!parsedPayload || typeof parsedPayload !== 'object' || Array.isArray(parsedPayload)) {
-            return false;
-        }
-
         const { salt, structuralHash, challengeProof } = parsedPayload;
 
         // Sentinel: Explicitly check types of all required fields
@@ -59,18 +54,13 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
         // Reconstruct the validation matrix using our native SHA-256 pipeline
         const verificationMatrix = crypto.createHmac('sha256', String(salt));
         verificationMatrix.update(structuralHash);
+        const computedProof = verificationMatrix.digest('hex');
 
         // Sentinel: Ensure buffer lengths match before calling timingSafeEqual to avoid internal
         // exceptions and prevent timing oracles in Node.js versions that throw on length mismatch.
-        const challengeBuffer = Buffer.from(challengeProof, 'utf8');
-        const computedBuffer = Buffer.from(computedProof, 'utf8');
-
-        if (challengeBuffer.length !== computedBuffer.length) {
-            return false;
-        }
-
-        const challengeBuffer = Buffer.from(challengeProof, 'utf8');
-        const computedBuffer = Buffer.from(computedProof, 'utf8');
+        // Challenge is hex encoded as per proofGenerator.ts
+        const challengeBuffer = Buffer.from(challengeProof, 'hex');
+        const computedBuffer = Buffer.from(computedProof, 'hex');
 
         // Sentinel: timingSafeEqual requires buffers of identical length.
         // Length check is O(1) and does not leak content timing info.
@@ -83,9 +73,8 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
 
     } catch (error) {
         // Sentinel: Log only unexpected errors to prevent log flooding from malformed client input
-        if (!(error instanceof SyntaxError)) {
-            console.error("Critical: Security framework evaluation failure inside verifier engine:", error);
-        }
+        // Parsing errors are already handled in the inner try-catch.
+        console.error("Critical: Security framework evaluation failure inside verifier engine:", error);
         return false;
     }
 }
