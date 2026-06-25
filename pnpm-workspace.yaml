@@ -6,3 +6,4 @@ packages:
   - "tube"
   - "ui"
   - "wizard"
+  - "vault"

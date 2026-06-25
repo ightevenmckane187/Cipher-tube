@@ -8,14 +8,28 @@ import crypto from 'crypto';
  * @returns Promise<boolean> - True if the proof matches system integrity parameters
  */
 export async function verifyCryptographicProof(rawProof: string): Promise<boolean> {
-    if (!rawProof || typeof rawProof !== 'string') {
+    // Sentinel: Enforce a reasonable length limit on the proof string to prevent DoS.
+    // Base64 encoded JSON for this structure is typically ~250-300 characters.
+    if (!rawProof || typeof rawProof !== 'string' || rawProof.length > 4096) {
         return false;
     }
 
     try {
         // Decode the structural payload
         const bufferPayload = Buffer.from(rawProof, 'base64').toString('utf8');
-        const parsedPayload = JSON.parse(bufferPayload);
+        let parsedPayload: any;
+
+        try {
+            parsedPayload = JSON.parse(bufferPayload);
+        } catch {
+            // Sentinel: Gracefully handle parsing failures without critical logging
+            return false;
+        }
+
+        // Sentinel: Validate that the payload is a non-null plain object (not an array or primitive)
+        if (!parsedPayload || typeof parsedPayload !== 'object' || Array.isArray(parsedPayload)) {
+            return false;
+        }
 
         // Sentinel: Ensure parsed payload is a plain object and not null or array
         if (!parsedPayload || typeof parsedPayload !== 'object' || Array.isArray(parsedPayload)) {
@@ -24,13 +38,13 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
 
         const { salt, structuralHash, challengeProof } = parsedPayload;
 
-        // Sentinel: Explicitly validate field presence and types to prevent crashes/logic bypass
-        if (
-            typeof salt !== 'number' ||
-            Number.isNaN(salt) ||
-            typeof structuralHash !== 'string' ||
-            typeof challengeProof !== 'string'
-        ) {
+        // Sentinel: Explicitly check types of all required fields
+        if (typeof salt !== 'number' || typeof structuralHash !== 'string' || typeof challengeProof !== 'string') {
+            return false;
+        }
+
+        // Sentinel: Ensure salt is a safe integer (representing milliseconds epoch)
+        if (!Number.isSafeInteger(salt)) {
             return false;
         }
 
@@ -45,7 +59,15 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
         // Reconstruct the validation matrix using our native SHA-256 pipeline
         const verificationMatrix = crypto.createHmac('sha256', String(salt));
         verificationMatrix.update(structuralHash);
-        const computedProof = verificationMatrix.digest('hex');
+
+        // Sentinel: Ensure buffer lengths match before calling timingSafeEqual to avoid internal
+        // exceptions and prevent timing oracles in Node.js versions that throw on length mismatch.
+        const challengeBuffer = Buffer.from(challengeProof, 'utf8');
+        const computedBuffer = Buffer.from(computedProof, 'utf8');
+
+        if (challengeBuffer.length !== computedBuffer.length) {
+            return false;
+        }
 
         const challengeBuffer = Buffer.from(challengeProof, 'utf8');
         const computedBuffer = Buffer.from(computedProof, 'utf8');

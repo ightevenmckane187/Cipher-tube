@@ -6,19 +6,19 @@ describe('AuthorityChainValidator Enhancement', () => {
     framework: 'M-25-22',
     owner: 'test',
     roles: {
-      admin: { name: 'Admin', permissions: ['all'] }
+      saop: { name: 'SAOP', permissions: ['approve_privacy_review'] }
     },
     lifecycle_gates: {
       gate1: {
         sentinel_bindings: ['b1'],
-        required_signatures: ['admin'],
+        required_signatures: ['saop'],
         required_artifacts: ['a1']
       }
     },
     governance_controls: {
       high_impact_ai: {
         conditions: [],
-        mandatory_signatures: ['admin'],
+        mandatory_signatures: ['saop'],
         mandatory_artifacts: []
       },
       vendor_lockin_prevention: {
@@ -28,7 +28,7 @@ describe('AuthorityChainValidator Enhancement', () => {
     escalation_paths: {
       path1: {
         trigger: 't1',
-        notify: ['admin']
+        notify: ['saop']
       }
     }
   };
@@ -76,7 +76,7 @@ describe('AuthorityChainValidator Enhancement', () => {
     const manifest = JSON.parse(JSON.stringify(validManifestBase));
     manifest.lifecycle_gates['constructor'] = {
         sentinel_bindings: [],
-        required_signatures: ['admin'],
+        required_signatures: ['saop'],
         required_artifacts: []
     };
     expect(() => AuthorityChainValidator.validate(manifest)).toThrow('Invalid key in lifecycle_gates: constructor');

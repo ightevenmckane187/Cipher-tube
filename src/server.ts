@@ -7,7 +7,11 @@ import path from "path";
 import rateLimit from "express-rate-limit";
 import { LRUCache } from "lru-cache";
 import { buildCipherTube, decryptCipherTube } from "./cta";
+import { verifyCryptographicProof } from "./crypto/verifier";
 import { getBlindedRedisKey, blindToken, createSession, rotateSession, getSessionKeys } from "./session_rotator";
+import { ritualEngine, Archetypes } from "./myth/ritual-engine";
+import { seasonalEngine } from "./myth/seasonal-engine";
+import { CosmologyMap } from "./ui/cosmology-map";
 
 dotenv.config();
 
@@ -39,9 +43,16 @@ const UUID_V4_REGEX =
 const SESSION_TTL = 3600; // 1 hour in seconds
 
 // Rate limiter for general API operations
+// Entropy Anchor: Strictness affects the rate limit.
+const getDynamicLimit = (base: number) => {
+    const strictness = seasonalEngine.getStrictness();
+    // As strictness approaches 1.0, limit decreases (stricter)
+    return Math.floor(base * (1.1 - strictness));
+};
+
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 1000, // Higher limit for general API
+  max: () => getDynamicLimit(1000), // Higher limit for general API
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req: Request, res: Response) => {
@@ -53,7 +64,7 @@ const apiLimiter = rateLimit({
 
 const sessionLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: () => getDynamicLimit(100),
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req: Request, res: Response) => {
@@ -153,7 +164,7 @@ app.get("/", (req: Request, res: Response) => {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Cipher Tube Assembly</title>
+            <title>Sovereign Cypher-Tube</title>
             <script nonce="${res.locals.nonce}">
                 (function() {
                     const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
@@ -245,14 +256,6 @@ app.get("/", (req: Request, res: Response) => {
                 .theme-toggle:hover {
                     background-color: var(--border-color);
                 }
-                .header-container {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-                .status-text {
-                    color: var(--success);
-                }
                 .input-group {
                     margin-bottom: 1.5rem;
                 }
@@ -340,14 +343,6 @@ app.get("/", (req: Request, res: Response) => {
                     border: 1px solid var(--border-color);
                     box-shadow: 0 1px 1px rgba(0,0,0,0.2);
                 }
-                .header-container {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-                .status-text {
-                    color: var(--success);
-                }
                 @media (max-width: 480px) {
                     .kb-shortcut { display: none; }
                 }
@@ -356,11 +351,9 @@ app.get("/", (req: Request, res: Response) => {
                     height: 14px;
                     fill: currentColor;
                 }
-                .check-icon { display: none; color: #2ecc71; }
+                .check-icon { display: none; color: var(--success); }
                 .copy-button.copied .copy-icon { display: none; }
                 .copy-button.copied .check-icon { display: block; }
-                .header-container { display: flex; justify-content: space-between; align-items: center; }
-                .status-text { color: var(--success); font-weight: bold; }
                 .input-group { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
                 .input-group label { font-size: 0.875rem; font-weight: 500; }
                 .input-group input { background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 8px 12px; border-radius: 6px; font-size: 0.875rem; width: 100%; max-width: 300px; }
@@ -417,6 +410,16 @@ app.get("/", (req: Request, res: Response) => {
                     flex-wrap: wrap;
                     align-items: flex-start;
                 }
+                /* Mythic Mirror Styles */
+                .archetype-node {
+                  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                }
+                .archetype-node:hover {
+                  transform: scale(1.1);
+                  z-index: 10;
+                  box-shadow: 0 0 15px white;
+                }
+                ${CosmologyMap.getAuraStyles()}
             </style>
         </head>
         <body>
@@ -424,7 +427,7 @@ app.get("/", (req: Request, res: Response) => {
             <header role="banner">
                 <nav aria-label="Main Navigation">
                      <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight: bold; color: var(--primary);">Cipher Tube</span>
+                        <span style="font-weight: bold; color: var(--primary);">Sovereign Cypher-Tube</span>
                         <button class="theme-toggle" aria-label="Switch to Dark Mode" aria-pressed="false" aria-keyshortcuts="t">
                             <span class="theme-icon" aria-hidden="true" id="theme-icon">🌙</span>
                             <span class="theme-text">Switch to Dark</span>
@@ -436,15 +439,31 @@ app.get("/", (req: Request, res: Response) => {
 
             <main id="main-content">
                 <div class="header-container">
-                    <h1>Cipher Tube Assembly</h1>
+                    <h1>Sovereign Cypher-Tube</h1>
                 </div>
-                <p>Welcome to the performance-optimized session management service.</p>
+                <p>Welcome to the self-governing mythic digital civilization.</p>
                 <div role="status" aria-live="polite">
                     <p>
                         <span class="status-dot" aria-hidden="true"></span>
-                        <strong>Status:</strong> <span class="status-text">Online</span>
+                        <strong>Status:</strong> <span class="status-text">Online</span> |
+                        <strong>Epoch:</strong> <span id="epoch-display" style="font-weight: bold; text-transform: uppercase;">${seasonalEngine.getCurrentEpoch()}</span> |
+                        <strong>Strictness:</strong> <span id="strictness-display">${seasonalEngine.getStrictness().toFixed(1)}</span>
                     </p>
                 </div>
+
+                <section id="mythic-mirror" style="margin-top: 2rem; border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; background: rgba(0,0,0,0.02);">
+                    <h3 style="margin-top: 0;">Mythic Mirror: Cosmology Map</h3>
+                    <p style="font-size: 0.8rem; opacity: 0.8;">Visualize the "living soul" of the civilization in real-time.</p>
+                    <div id="cosmology-container" style="height: 200px; background: #050505; position: relative; overflow: hidden; display: flex; justify-content: space-around; align-items: center; border-radius: 4px;">
+                        ${Object.values(Archetypes).map(a => `
+                            <div class="archetype-node aura-${a.aura.split('/')[0].toLowerCase()}" title="${a.name}: ${a.mandate}" style="width: 70px; height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-size: 0.6rem; text-align: center; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 4px; cursor: help; background: rgba(20,20,20,0.8);">
+                                <div style="font-weight: bold; margin-bottom: 2px;">${a.name.split(' ')[1]}</div>
+                                <div style="font-size: 0.5rem; opacity: 0.7;">${a.realm}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </section>
+
                 <h2>Quick Start</h2>
                 <div class="input-group">
                     <div class="counter-container">
@@ -454,7 +473,7 @@ app.get("/", (req: Request, res: Response) => {
                     <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter" aria-keyshortcuts="/">
                 </div>
                 <div class="input-row">
-                    <button id="create-session-btn" aria-keyshortcuts="s">
+                    <button id="create-session-btn" aria-keyshortcuts="s" aria-busy="false">
                         <span aria-hidden="true">🔑</span>
                         <span class="btn-text">Create Session</span>
                         <kbd aria-hidden="true" class="kb-shortcut">(s)</kbd>
@@ -474,7 +493,11 @@ app.get("/", (req: Request, res: Response) => {
 
             <div id="timeout-banner" role="alert">
                 <span>Session expires in 1 minute.</span>
-                <button id="extend-session-btn" aria-keyshortcuts="e"><span id="extend-btn-text">Extend Session</span> <kbd aria-hidden="true" class="kb-shortcut">(e)</kbd></button>
+                <button id="extend-session-btn" aria-keyshortcuts="e" aria-busy="false">
+                    <span aria-hidden="true">⏳</span>
+                    <span class="btn-text">Extend Session</span>
+                    <kbd aria-hidden="true" class="kb-shortcut">(e)</kbd>
+                </button>
                 <span id="extension-status" aria-live="polite"></span>
             </div>
 
@@ -484,7 +507,7 @@ app.get("/", (req: Request, res: Response) => {
                     <a href="/docs/USER_GUIDE.md" target="_blank" rel="noopener noreferrer">User Guide</a> |
                     <a href="/docs/ACCESSIBILITY.md" target="_blank" rel="noopener noreferrer">Accessibility Statement</a>
                 </nav>
-                <p>&copy; 2026 Cipher Tube Assembly</p>
+                <p>&copy; 2026 Sovereign Cypher-Tube</p>
             </footer>
 
             <script nonce="${res.locals.nonce}">
@@ -524,7 +547,12 @@ app.get("/", (req: Request, res: Response) => {
                 function updateCurlCommand() {
                     const currentOrigin = window.location.origin;
                     const userId = userIdInput.value.trim() || 'demo-user';
-                    curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: \${userId}"\`;
+
+                    if (window.currentSessionToken) {
+                        curlCommand.textContent = \`curl \${currentOrigin}/mcp/check -H "x-user-id: \${userId}" -H "x-session-token: \${window.currentSessionToken}"\`;
+                    } else {
+                        curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: \${userId}"\`;
+                    }
 
                     const length = userIdInput.value.length;
                     userIdCounter.textContent = \`\${length} of 128 characters used\`;
@@ -551,6 +579,7 @@ app.get("/", (req: Request, res: Response) => {
 
                     try {
                         createSessionBtn.disabled = true;
+                        createSessionBtn.setAttribute('aria-busy', 'true');
                         if (btnText) btnText.textContent = 'Creating...';
 
                         const response = await fetch('/mcp', {
@@ -569,12 +598,14 @@ app.get("/", (req: Request, res: Response) => {
                             setTimeout(() => {
                                 createSessionBtn.innerHTML = originalHTML;
                                 createSessionBtn.disabled = false;
+                                createSessionBtn.setAttribute('aria-busy', 'false');
                             }, 2000);
                         } else {
-                            if (btnText) btnText.textContent = 'Failed ❌';
+                            if (btnText) btnText.textContent = 'Failed. Try again ❌';
                             setTimeout(() => {
                                 createSessionBtn.innerHTML = originalHTML;
                                 createSessionBtn.disabled = false;
+                                createSessionBtn.setAttribute('aria-busy', 'false');
                             }, 2000);
                         }
                     } catch (err) {
@@ -583,6 +614,7 @@ app.get("/", (req: Request, res: Response) => {
                         setTimeout(() => {
                             createSessionBtn.innerHTML = originalHTML;
                             createSessionBtn.disabled = false;
+                            createSessionBtn.setAttribute('aria-busy', 'false');
                         }, 2000);
                     }
                 });
@@ -643,24 +675,27 @@ app.get("/", (req: Request, res: Response) => {
                 let statusTimeout;
                 document.getElementById('extend-session-btn').addEventListener('click', async (e) => {
                     const btn = e.currentTarget;
-                    const btnText = document.getElementById('extend-btn-text');
+                    const btnText = btn.querySelector('.btn-text');
                     const status = document.getElementById('extension-status');
+                    const originalHTML = btn.innerHTML;
 
                     const showStatus = (msg, isError = false) => {
                         if (statusTimeout) clearTimeout(statusTimeout);
                         status.textContent = msg;
-                        status.style.color = isError ? '#f28b82' : '#2ecc71';
+                        status.style.color = isError ? 'var(--error)' : 'var(--success)';
                         statusTimeout = setTimeout(() => status.textContent = '', 3000);
                     };
 
                     const resetBtn = () => {
                         btn.disabled = false;
-                        btnText.textContent = 'Extend Session';
+                        btn.setAttribute('aria-busy', 'false');
+                        btn.innerHTML = originalHTML;
                     };
 
                     try {
                         btn.disabled = true;
-                        btnText.textContent = 'Extending...';
+                        btn.setAttribute('aria-busy', 'true');
+                        if (btnText) btnText.textContent = 'Extending...';
 
                         if (currentSessionToken) {
                             const response = await fetch('/session/extend', {
@@ -672,25 +707,27 @@ app.get("/", (req: Request, res: Response) => {
                             });
                             if (response.ok) {
                                 resetTimer();
-                                btnText.textContent = 'Extended! ✅';
-                               showStatus('Success');
+                                if (btnText) btnText.textContent = 'Extended! ✅';
+                                showStatus('Success');
                                 setTimeout(resetBtn, 2000);
                             } else {
-                                showStatus('Failed. Try again', true);
-                                resetBtn();
+                                if (btnText) btnText.textContent = 'Failed. Try again ❌';
+                                showStatus('Failed', true);
+                                setTimeout(resetBtn, 2000);
                             }
                         } else {
                             // Simulation mode
                             await new Promise(resolve => setTimeout(resolve, 500));
                             resetTimer();
-                            btnText.textContent = 'Reset! ✅';
+                            if (btnText) btnText.textContent = 'Reset! ✅';
                             showStatus('Reset');
                             setTimeout(resetBtn, 2000);
                         }
                     } catch (err) {
                         console.error('Extension failed:', err);
+                        if (btnText) btnText.textContent = 'Error ❌';
                         showStatus('Error', true);
-                        resetBtn();
+                        setTimeout(resetBtn, 2000);
                     }
                 });
 
@@ -700,7 +737,10 @@ app.get("/", (req: Request, res: Response) => {
                     const response = await originalFetch(...args);
                     if (typeof args[0] === 'string' && args[0].includes('/mcp') && args[1]?.method === 'POST') {
                         const data = await response.clone().json();
-                        if (data.sessionToken) window.currentSessionToken = data.sessionToken;
+                        if (data.sessionToken) {
+                            window.currentSessionToken = data.sessionToken;
+                            updateCurlCommand();
+                        }
                     }
                     return response;
                 };
@@ -1064,6 +1104,14 @@ app.post(
     // Verify session routing metadata matches the session being used
     // Bolt Optimization: Use pre-computed hash from res.locals.sessionKeys if available
     const blindedToken = res.locals.sessionKeys?.blindedKey || blindToken(req.headers["x-session-token"] as string);
+
+    const proof = req.headers["x-cipher-proof"] as string;
+    if (proof) {
+      const isValid = await verifyCryptographicProof(proof);
+      if (!isValid) {
+        return res.status(403).json({ error: "Invalid cryptographic proof: Packet rejected." });
+      }
+    }
 
     if (packet.blinded_session_hash !== blindedToken) {
       return res.status(403).json({ error: "Session hash mismatch: Routing integrity failure" });

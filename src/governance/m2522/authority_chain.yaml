@@ -36,6 +36,16 @@ roles:
       - define_requirements
       - lifecycle_oversight
       - drift_reporting
+  creator:
+    name: System Creator
+    permissions:
+      - initial_baseline_definition
+      - master_key_custody
+  movement_lead:
+    name: Movement Lead
+    permissions:
+      - rally_broadcast
+      - integrity_attestation
 
 lifecycle_gates:
   requirements_identification:
@@ -122,3 +132,8 @@ escalation_paths:
     notify:
       - civil_rights_officer
       - saop
+  movement_disruption:
+    trigger: integrity_compromise
+    notify:
+      - movement_lead
+      - ciso

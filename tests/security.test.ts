@@ -1,6 +1,8 @@
 import request from "supertest";
 import { app } from "../src/server";
 import { createClient } from "redis";
+import { verifyCryptographicProof } from "../src/crypto/verifier";
+import crypto from "crypto";
 
 // Mock Redis client
 jest.mock("redis", () => {
@@ -211,6 +213,61 @@ describe("Security Validation", () => {
 
         expect(response.status).toBe(400);
         expect(response.body.error).toBe('Decryption failed');
+    });
+  });
+
+  describe("Cryptographic Verifier (src/crypto/verifier.ts)", () => {
+    it("should reject invalid JSON proof", async () => {
+      const invalidJson = Buffer.from("not-json").toString("base64");
+      const result = await verifyCryptographicProof(invalidJson);
+      expect(result).toBe(false);
+    });
+
+    it("should reject proof with timingSafeEqual length mismatch", async () => {
+      const salt = Date.now();
+      const payload = JSON.stringify({
+        salt,
+        structuralHash: "test",
+        challengeProof: "abc", // Too short
+      });
+      const proof = Buffer.from(payload).toString("base64");
+      const result = await verifyCryptographicProof(proof);
+      expect(result).toBe(false);
+    });
+
+    it("should reject proof with non-string structuralHash", async () => {
+      const salt = Date.now();
+      const payload = JSON.stringify({
+        salt,
+        structuralHash: 123,
+        challengeProof: "a".repeat(64),
+      });
+      const proof = Buffer.from(payload).toString("base64");
+      const result = await verifyCryptographicProof(proof);
+      expect(result).toBe(false);
+    });
+
+    it("should reject null payload", async () => {
+      const proof = Buffer.from("null").toString("base64");
+      const result = await verifyCryptographicProof(proof);
+      expect(result).toBe(false);
+    });
+
+    it("should verify a valid proof", async () => {
+      const salt = Date.now();
+      const structuralHash = "valid-hash";
+      const hmac = crypto.createHmac("sha256", String(salt));
+      hmac.update(structuralHash);
+      const challengeProof = hmac.digest("hex");
+
+      const payload = JSON.stringify({
+        salt,
+        structuralHash,
+        challengeProof,
+      });
+      const proof = Buffer.from(payload).toString("base64");
+      const result = await verifyCryptographicProof(proof);
+      expect(result).toBe(true);
     });
   });
 });
