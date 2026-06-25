@@ -1,0 +1,58 @@
+type Query {
+  state(tier: Tier!): State
+  directive(id: ID!): Directive
+  transitions(from: String!): [Transition]
+  analytics: AnalyticsSnapshot
+}
+
+type Mutation {
+  triggerTransition(id: ID!, token: String!): TransitionResult
+}
+
+enum Tier { T0 T1 T5 T8 T9 }
+
+type State {
+  tier: Tier!
+  capabilities: [String]
+  config: JSON
+}
+
+type Directive {
+  id: ID!
+  syntax_pattern: String!
+  target_engines: [Engine]
+  execution_priority: Int
+  allow_state_mutation: Boolean
+}
+
+enum Engine {
+  MYTH_PHYSICS COSMOLOGY IDENTITY_CONTINUUM DESTINY_FIELD CYCLE_STACK SOURCE_FIELD PARADOX_FIELD
+}
+
+type Transition {
+  id: ID!
+  trigger_token: String!
+  source_state: String!
+  target_state: String!
+  requirements: TransitionRequirements
+}
+
+type TransitionRequirements {
+  min_paradox_ratio: Float
+  required_stack_depth: Int
+  identity_verification: Boolean
+}
+
+type TransitionResult {
+  success: Boolean!
+  newState: String
+  hooksExecuted: [String]
+}
+
+type AnalyticsSnapshot {
+  activeNodes: Int
+  movementVectors: [String]
+  timestamp: String
+}
+
+scalar JSON
