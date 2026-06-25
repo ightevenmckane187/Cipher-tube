@@ -245,14 +245,6 @@ app.get("/", (req: Request, res: Response) => {
                 .theme-toggle:hover {
                     background-color: var(--border-color);
                 }
-                .header-container {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-                .status-text {
-                    color: var(--success);
-                }
                 .input-group {
                     margin-bottom: 1.5rem;
                 }
@@ -356,11 +348,9 @@ app.get("/", (req: Request, res: Response) => {
                     height: 14px;
                     fill: currentColor;
                 }
-                .check-icon { display: none; color: #2ecc71; }
+                .check-icon { display: none; color: var(--success); }
                 .copy-button.copied .copy-icon { display: none; }
                 .copy-button.copied .check-icon { display: block; }
-                .header-container { display: flex; justify-content: space-between; align-items: center; }
-                .status-text { color: var(--success); font-weight: bold; }
                 .input-group { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
                 .input-group label { font-size: 0.875rem; font-weight: 500; }
                 .input-group input { background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 8px 12px; border-radius: 6px; font-size: 0.875rem; width: 100%; max-width: 300px; }
@@ -528,7 +518,12 @@ app.get("/", (req: Request, res: Response) => {
                 function updateCurlCommand() {
                     const currentOrigin = window.location.origin;
                     const userId = userIdInput.value.trim() || 'demo-user';
-                    curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: \${userId}"\`;
+
+                    if (window.currentSessionToken) {
+                        curlCommand.textContent = \`curl \${currentOrigin}/mcp/check -H "x-user-id: \${userId}" -H "x-session-token: \${window.currentSessionToken}"\`;
+                    } else {
+                        curlCommand.textContent = \`curl -X POST \${currentOrigin}/mcp -H "x-user-id: \${userId}"\`;
+                    }
 
                     const length = userIdInput.value.length;
                     userIdCounter.textContent = \`\${length} of 128 characters used\`;
@@ -658,7 +653,7 @@ app.get("/", (req: Request, res: Response) => {
                     const showStatus = (msg, isError = false) => {
                         if (statusTimeout) clearTimeout(statusTimeout);
                         status.textContent = msg;
-                        status.style.color = isError ? '#f28b82' : '#2ecc71';
+                        status.style.color = isError ? 'var(--error)' : 'var(--success)';
                         statusTimeout = setTimeout(() => status.textContent = '', 3000);
                     };
 
@@ -713,7 +708,10 @@ app.get("/", (req: Request, res: Response) => {
                     const response = await originalFetch(...args);
                     if (typeof args[0] === 'string' && args[0].includes('/mcp') && args[1]?.method === 'POST') {
                         const data = await response.clone().json();
-                        if (data.sessionToken) window.currentSessionToken = data.sessionToken;
+                        if (data.sessionToken) {
+                            window.currentSessionToken = data.sessionToken;
+                            updateCurlCommand();
+                        }
                     }
                     return response;
                 };
