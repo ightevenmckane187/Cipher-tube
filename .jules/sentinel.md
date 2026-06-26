@@ -87,3 +87,8 @@
 **Vulnerability:** Denial of Service (DoS) in cryptographic verification due to unhandled exceptions in `timingSafeEqual`.
 **Learning:** Node.js `crypto.timingSafeEqual` throws a `RangeError` if the input buffers have different lengths. If this isn't caught, a malformed proof with a short or long challenge can crash the entire worker process.
 **Prevention:** Always perform a strict length check or format validation (e.g., regex check for hex length) before calling `timingSafeEqual`. Ensure that both inputs are compared as same-length buffers to prevent runtime crashes.
+
+## 2026-06-26 - Reference and Logic Errors in Cryptographic Verifier
+**Vulnerability:** Service-wide failure of cryptographic proof verification due to ReferenceError and incorrect HMAC handling.
+**Learning:** Cryptographic verification logic is extremely sensitive to implementation details. Using undefined variables (`computedProof` vs `computedBuffer`) and failing to call `.digest()` on an HMAC object will cause silent or loud failures that bypass or break security gates. Additionally, incorrect encoding (UTF-8 vs Hex) for hash strings leads to comparison failures.
+**Prevention:** Always verify cryptographic implementations with dedicated unit tests that cover both success and failure cases. Ensure that all variables are properly defined and that hash/HMAC objects are correctly finalized with the expected encoding before comparison. Use `timingSafeEqual` only after strict length validation.
