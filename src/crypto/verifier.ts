@@ -1,4 +1,14 @@
 import crypto from 'crypto';
+import { LRUCache } from 'lru-cache';
+
+/**
+ * Bolt Optimization: In-memory cache for cryptographic proof verification results.
+ * Reduces CPU load by skipping expensive HMAC and JSON parsing for repeated packets.
+ */
+const proofCache = new LRUCache<string, boolean>({
+    max: 5000,
+    ttl: 5 * 60 * 1000, // Default 5 minutes
+});
 
 /**
  * Validates incoming structural proofs using zero-knowledge verification principles.
@@ -9,9 +19,14 @@ import crypto from 'crypto';
  */
 export async function verifyCryptographicProof(rawProof: string): Promise<boolean> {
     // Sentinel: Enforce a reasonable length limit on the proof string to prevent DoS.
-    // Base64 encoded JSON for this structure is typically ~250-300 characters.
     if (!rawProof || typeof rawProof !== 'string' || rawProof.length > 4096) {
         return false;
+    }
+
+    // Bolt Optimization: Quick cache lookup for identical proof tokens
+    const cachedResult = proofCache.get(rawProof);
+    if (cachedResult !== undefined) {
+        return cachedResult;
     }
 
     try {
@@ -22,16 +37,10 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
         try {
             parsedPayload = JSON.parse(bufferPayload);
         } catch {
-            // Sentinel: Gracefully handle parsing failures without critical logging
             return false;
         }
 
-        // Sentinel: Validate that the payload is a non-null plain object (not an array or primitive)
-        if (!parsedPayload || typeof parsedPayload !== 'object' || Array.isArray(parsedPayload)) {
-            return false;
-        }
-
-        // Sentinel: Ensure parsed payload is a plain object and not null or array
+        // Sentinel: Validate that the payload is a non-null plain object
         if (!parsedPayload || typeof parsedPayload !== 'object' || Array.isArray(parsedPayload)) {
             return false;
         }
@@ -48,41 +57,45 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
             return false;
         }
 
-        // Enforce a strict time-window constraint (e.g., 5 minutes) to mitigate replay vectors
+        // Enforce a strict time-window constraint (e.g., 5 minutes)
         const currentEpoch = Date.now();
-        const performanceWindow = 5 * 60 * 1000; // 5 minutes in milliseconds
+        const performanceWindow = 5 * 60 * 1000;
+        const drift = Math.abs(currentEpoch - salt);
 
-        if (Math.abs(currentEpoch - salt) > performanceWindow) {
+        if (drift > performanceWindow) {
             return false;
         }
 
-        // Reconstruct the validation matrix using our native SHA-256 pipeline
+        // Bolt Optimization: Use binary comparison for HMAC results.
+        // Comparing 32-byte Buffers is faster than comparing 64-character hex strings
+        // and avoids intermediate string allocations.
         const verificationMatrix = crypto.createHmac('sha256', String(salt));
         verificationMatrix.update(structuralHash);
-
-        // Sentinel: Ensure buffer lengths match before calling timingSafeEqual to avoid internal
-        // exceptions and prevent timing oracles in Node.js versions that throw on length mismatch.
-        const challengeBuffer = Buffer.from(challengeProof, 'utf8');
-        const computedBuffer = Buffer.from(computedProof, 'utf8');
-
-        if (challengeBuffer.length !== computedBuffer.length) {
-            return false;
-        }
-
-        const challengeBuffer = Buffer.from(challengeProof, 'utf8');
-        const computedBuffer = Buffer.from(computedProof, 'utf8');
+        const computedBuffer = verificationMatrix.digest();
 
         // Sentinel: timingSafeEqual requires buffers of identical length.
-        // Length check is O(1) and does not leak content timing info.
-        if (challengeBuffer.length !== computedBuffer.length) {
+        // challengeProof is expected to be a 64-char hex string (32 bytes)
+        if (challengeProof.length !== 64) {
+            proofCache.set(rawProof, false, { ttl: 60000 });
             return false;
         }
 
-        // Execute a constant-time string comparison to prevent timing side-channel attacks
-        return crypto.timingSafeEqual(challengeBuffer, computedBuffer);
+        const challengeBuffer = Buffer.from(challengeProof, 'hex');
+
+        if (challengeBuffer.length !== computedBuffer.length) {
+            proofCache.set(rawProof, false, { ttl: 60000 });
+            return false;
+        }
+
+        const isValid = crypto.timingSafeEqual(challengeBuffer, computedBuffer);
+
+        // Bolt Optimization: Cache the result with a TTL matching the remaining validity window
+        const remainingTTL = Math.max(0, performanceWindow - drift);
+        proofCache.set(rawProof, isValid, { ttl: isValid ? remainingTTL : 60000 });
+
+        return isValid;
 
     } catch (error) {
-        // Sentinel: Log only unexpected errors to prevent log flooding from malformed client input
         if (!(error instanceof SyntaxError)) {
             console.error("Critical: Security framework evaluation failure inside verifier engine:", error);
         }
