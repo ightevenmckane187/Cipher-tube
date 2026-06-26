@@ -33,3 +33,7 @@
 ## 2026-06-17 - [Context-Aware Keyboard Shortcuts]
 **Learning:** Global single-key shortcuts (e.g., 's' for "Save" or "Create") can severely degrade UX by interfering with text entry in form fields. Implementing a simple check for active elements like `INPUT` or `TEXTAREA` ensures shortcuts only trigger when the user is not actively typing.
 **Action:** Always wrap global keyboard listeners in a check for `document.activeElement.tagName` to prevent shortcut collision during data entry. Pair this with visual shortcuts hints (`<kbd>`) that are preserved even during asynchronous state changes.
+
+## 2026-06-26 - [Interactive Lore Visualizations and Accessible States]
+**Learning:** Static visualizations that use title attributes for info are inaccessible to keyboard users and screen readers. Converting these nodes to interactive elements (`role="button"`, `tabindex="0"`) and pairing them with an `aria-live="polite"` region provides a rich, accessible way to explore complex lore without overwhelming the user.
+**Action:** For visual maps or diagrams, ensure each node is focusable and use a dedicated live region to display contextual information. Store metadata in `data-*` attributes to keep the DOM clean while enabling dynamic JavaScript-driven updates.
