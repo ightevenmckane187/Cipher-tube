@@ -31,11 +31,6 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
             return false;
         }
 
-        // Sentinel: Ensure parsed payload is a plain object and not null or array
-        if (!parsedPayload || typeof parsedPayload !== 'object' || Array.isArray(parsedPayload)) {
-            return false;
-        }
-
         const { salt, structuralHash, challengeProof } = parsedPayload;
 
         // Sentinel: Explicitly check types of all required fields
@@ -59,26 +54,20 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
         // Reconstruct the validation matrix using our native SHA-256 pipeline
         const verificationMatrix = crypto.createHmac('sha256', String(salt));
         verificationMatrix.update(structuralHash);
+        const computedBuffer = verificationMatrix.digest();
 
-        // Sentinel: Ensure buffer lengths match before calling timingSafeEqual to avoid internal
-        // exceptions and prevent timing oracles in Node.js versions that throw on length mismatch.
-        const challengeBuffer = Buffer.from(challengeProof, 'utf8');
-        const computedBuffer = Buffer.from(computedProof, 'utf8');
-
-        if (challengeBuffer.length !== computedBuffer.length) {
-            return false;
-        }
-
-        const challengeBuffer = Buffer.from(challengeProof, 'utf8');
-        const computedBuffer = Buffer.from(computedProof, 'utf8');
+        // Sentinel: Challenge proof is hex-encoded in the generator.
+        // We must decode it with 'hex' to get the original buffer for timing-safe comparison.
+        const challengeBuffer = Buffer.from(challengeProof, 'hex');
 
         // Sentinel: timingSafeEqual requires buffers of identical length.
         // Length check is O(1) and does not leak content timing info.
+        // It also prevents RangeError in older Node.js versions.
         if (challengeBuffer.length !== computedBuffer.length) {
             return false;
         }
 
-        // Execute a constant-time string comparison to prevent timing side-channel attacks
+        // Execute a constant-time comparison to prevent timing side-channel attacks
         return crypto.timingSafeEqual(challengeBuffer, computedBuffer);
 
     } catch (error) {
