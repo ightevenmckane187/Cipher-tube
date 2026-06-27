@@ -87,3 +87,8 @@
 **Vulnerability:** Denial of Service (DoS) in cryptographic verification due to unhandled exceptions in `timingSafeEqual`.
 **Learning:** Node.js `crypto.timingSafeEqual` throws a `RangeError` if the input buffers have different lengths. If this isn't caught, a malformed proof with a short or long challenge can crash the entire worker process.
 **Prevention:** Always perform a strict length check or format validation (e.g., regex check for hex length) before calling `timingSafeEqual`. Ensure that both inputs are compared as same-length buffers to prevent runtime crashes.
+
+## 2026-06-27 - Critical Logic Failure in Cryptographic Verifier
+**Vulnerability:** ReferenceError and Incorrect Buffer Encoding in `verifyCryptographicProof` led to complete validation bypass and DoS risk.
+**Learning:** Even well-intentioned security logic (like `timingSafeEqual`) can fail catastrophically if basic functional errors (missing variables, duplicate declarations) or type mismatches (incorrect buffer encoding) exist. 'utf8' encoding for hex digests causes character mismatches that break security.
+**Prevention:** Use 'hex' encoding when converting hex-encoded cryptographic digests to Buffers. Ensure strict length checks before `timingSafeEqual` to prevent internal exceptions. Always verify the functional path of security-critical components with valid tokens.
