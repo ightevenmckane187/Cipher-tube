@@ -87,3 +87,8 @@
 **Vulnerability:** Denial of Service (DoS) in cryptographic verification due to unhandled exceptions in `timingSafeEqual`.
 **Learning:** Node.js `crypto.timingSafeEqual` throws a `RangeError` if the input buffers have different lengths. If this isn't caught, a malformed proof with a short or long challenge can crash the entire worker process.
 **Prevention:** Always perform a strict length check or format validation (e.g., regex check for hex length) before calling `timingSafeEqual`. Ensure that both inputs are compared as same-length buffers to prevent runtime crashes.
+
+## 2026-07-01 - Block-Scoped Variable Redeclaration in Crypto Path
+**Vulnerability:** Service-wide Denial of Service (DoS) due to `SyntaxError` in cryptographic verification.
+**Learning:** Redeclaring block-scoped variables (`const`) within the same scope in a core security function (like `verifyCryptographicProof`) causes an immediate runtime crash. If the surrounding catch block logs this as a "Critical" error without sanitization, it can lead to log flooding and masking of actual attacks.
+**Prevention:** Maintain strict separation of concerns and use linters to catch redeclared variables. Ensure unit tests cover the entire execution path of cryptographic functions to detect runtime errors before deployment.
