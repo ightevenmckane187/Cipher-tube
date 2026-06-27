@@ -1073,7 +1073,7 @@ app.post(
   jsonParser,
   validateUserId,
   ensureSessionOwner,
-  (req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     const packet = req.body;
 
     const requiredKeys = ["chunk_index", "blinded_session_hash", "crypto_envelope"];
