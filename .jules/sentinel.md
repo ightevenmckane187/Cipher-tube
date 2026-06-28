@@ -87,3 +87,8 @@
 **Vulnerability:** Denial of Service (DoS) in cryptographic verification due to unhandled exceptions in `timingSafeEqual`.
 **Learning:** Node.js `crypto.timingSafeEqual` throws a `RangeError` if the input buffers have different lengths. If this isn't caught, a malformed proof with a short or long challenge can crash the entire worker process.
 **Prevention:** Always perform a strict length check or format validation (e.g., regex check for hex length) before calling `timingSafeEqual`. Ensure that both inputs are compared as same-length buffers to prevent runtime crashes.
+
+## 2026-06-28 - Secure Signature Generation in Ritual Engine
+**Vulnerability:** Weak entropy in LineageLedger signatures using Math.random().
+**Learning:** Standard PRNGs like Math.random() are predictable and unsuitable for security-sensitive identifiers or signatures in distributed systems.
+**Prevention:** Always use Node.js `crypto.randomBytes()` or `crypto.randomUUID()` for generating signatures, salts, or any value requiring cryptographic uniqueness and unpredictability.
