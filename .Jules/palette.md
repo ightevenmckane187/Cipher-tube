@@ -13,3 +13,7 @@
 ## 2026-08-12 - [Accessible Async Feedback with aria-busy]
 **Learning:** Visual-only loading states (like changing button text) are insufficient for screen reader users to understand that an asynchronous operation is in progress. Using `aria-busy` alongside `disabled` provides a semantic signal to assistive technologies about the element's changing state.
 **Action:** Always pair visual loading indicators with `aria-busy="true"` on the initiating interactive element, and ensure it resets to `false` upon completion or failure.
+
+## 2026-06-28 - [Interactive Visualizations & Focus-Hover Parity]
+**Learning:** Decorative or data-rich visualizations (like the Cosmology Map) are often inaccessible to keyboard and screen reader users if they rely solely on mouse-driven tooltips. Synchronizing `:hover` transforms with `:focus-visible` ensures that keyboard users receive the same high-quality interactive feedback as mouse users.
+**Action:** Always add `tabindex="0"`, appropriate ARIA roles (e.g., `role="img"`), and descriptive `aria-label` attributes to custom UI nodes, and mirror all hover styles with `:focus-visible`.
