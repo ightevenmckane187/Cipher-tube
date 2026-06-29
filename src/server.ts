@@ -413,11 +413,29 @@ app.get("/", (req: Request, res: Response) => {
                 /* Mythic Mirror Styles */
                 .archetype-node {
                   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                  width: 70px;
+                  height: 70px;
+                  flex: 0 0 70px;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  justify-content: center;
+                  border: 1px solid rgba(255,255,255,0.2);
+                  border-radius: 8px;
+                  padding: 4px;
+                  cursor: help;
+                  background: rgba(20,20,20,0.8);
+                  color: white;
+                  font-size: 0.6rem;
+                  text-align: center;
+                  box-sizing: border-box;
                 }
-                .archetype-node:hover {
+                .archetype-node:hover, .archetype-node:focus-visible {
                   transform: scale(1.1);
                   z-index: 10;
                   box-shadow: 0 0 15px white;
+                  outline: 2px solid var(--primary);
+                  outline-offset: 4px;
                 }
                 ${CosmologyMap.getAuraStyles()}
             </style>
@@ -454,9 +472,13 @@ app.get("/", (req: Request, res: Response) => {
                 <section id="mythic-mirror" style="margin-top: 2rem; border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; background: rgba(0,0,0,0.02);">
                     <h3 style="margin-top: 0;">Mythic Mirror: Cosmology Map</h3>
                     <p style="font-size: 0.8rem; opacity: 0.8;">Visualize the "living soul" of the civilization in real-time.</p>
-                    <div id="cosmology-container" style="height: 200px; background: #050505; position: relative; overflow: hidden; display: flex; justify-content: space-around; align-items: center; border-radius: 4px;">
+                    <div id="cosmology-container" style="height: 220px; background: #050505; position: relative; overflow: hidden; display: flex; justify-content: space-around; align-items: center; border-radius: 4px; flex-direction: row; padding: 0 1rem;">
                         ${Object.values(Archetypes).map(a => `
-                            <div class="archetype-node aura-${a.aura.split('/')[0].toLowerCase()}" title="${a.name}: ${a.mandate}" style="width: 70px; height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-size: 0.6rem; text-align: center; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 4px; cursor: help; background: rgba(20,20,20,0.8);">
+                            <div class="archetype-node aura-${a.aura.split('/')[0].split('-')[0].toLowerCase()}"
+                                 tabindex="0"
+                                 role="img"
+                                 aria-label="${a.name}: ${a.mandate}"
+                                 title="${a.name}: ${a.mandate}">
                                 <div style="font-weight: bold; margin-bottom: 2px;">${a.name.split(' ')[1]}</div>
                                 <div style="font-size: 0.5rem; opacity: 0.7;">${a.realm}</div>
                             </div>
@@ -1073,7 +1095,7 @@ app.post(
   jsonParser,
   validateUserId,
   ensureSessionOwner,
-  (req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     const packet = req.body;
 
     const requiredKeys = ["chunk_index", "blinded_session_hash", "crypto_envelope"];
