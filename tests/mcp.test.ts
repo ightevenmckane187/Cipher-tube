@@ -158,7 +158,7 @@ describe('MCP Session Management', () => {
     it('should return the landing page with semantic structure', async () => {
       const response = await request(app).get('/');
       expect(response.status).toBe(200);
-      expect(response.text).toContain('Cipher Tube Assembly');
+      expect(response.text).toContain('Sovereign Cypher-Tube');
       expect(response.text).toContain('<main id="main-content">');
       expect(response.text).toContain('<button class="theme-toggle"');
       expect(response.text).toContain('<footer');
