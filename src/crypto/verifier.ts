@@ -31,11 +31,6 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
             return false;
         }
 
-        // Sentinel: Ensure parsed payload is a plain object and not null or array
-        if (!parsedPayload || typeof parsedPayload !== 'object' || Array.isArray(parsedPayload)) {
-            return false;
-        }
-
         const { salt, structuralHash, challengeProof } = parsedPayload;
 
         // Sentinel: Explicitly check types of all required fields
@@ -60,17 +55,14 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
         const verificationMatrix = crypto.createHmac('sha256', String(salt));
         verificationMatrix.update(structuralHash);
 
-        // Sentinel: Ensure buffer lengths match before calling timingSafeEqual to avoid internal
-        // exceptions and prevent timing oracles in Node.js versions that throw on length mismatch.
-        const challengeBuffer = Buffer.from(challengeProof, 'utf8');
-        const computedBuffer = Buffer.from(computedProof, 'utf8');
+        // Sentinel: Generate the local HMAC digest as a Buffer for comparison.
+        const computedBuffer = verificationMatrix.digest();
 
-        if (challengeBuffer.length !== computedBuffer.length) {
+        // Sentinel: Ensure challengeProof is a valid hex string of expected length before Buffer conversion.
+        if (!/^[0-9a-f]{64}$/i.test(challengeProof)) {
             return false;
         }
-
-        const challengeBuffer = Buffer.from(challengeProof, 'utf8');
-        const computedBuffer = Buffer.from(computedProof, 'utf8');
+        const challengeBuffer = Buffer.from(challengeProof, 'hex');
 
         // Sentinel: timingSafeEqual requires buffers of identical length.
         // Length check is O(1) and does not leak content timing info.
