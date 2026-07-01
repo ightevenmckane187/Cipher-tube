@@ -15,13 +15,13 @@ Sovereign Cypher-Tube is a node-based system that combines a runtime backend wit
 These instructions get a developer environment running locally.
 
 Prerequisites
-- Node.js (>=20.0.0)
-- Redis running locally or reachable via `REDIS_URL`
-- `pnpm` (>=10.0.0)
+- Node.js (LTS, e.g. 18+)
+- Redis running locally or reachable via REDIS_URL
 
-Create a local `.env` (refer to `.env.example` for all available options):
+Create a local .env (example):
 
 ```bash
+# .env.example
 REDIS_URL=redis://localhost:6379
 PORT=3000
 NODE_ENV=development
@@ -30,36 +30,32 @@ NODE_ENV=development
 Install and run
 
 ```bash
-pnpm install
-# Start the server for development
-npx tsx src/server.ts
+npm install
+# Start (project provides npm start)
+npm start
 ```
+
+If the project defines a development script (e.g. `npm run dev`) you can use that for live reload during development.
 
 ---
 
 ## API quick reference (short)
 This is a short, high-level reference. See docs/API.md for full endpoint, payload, and cryptography details.
 
-- Headers
-  - `x-user-id`: The unique identifier for the user (required for session creation and ownership verification).
-  - `x-session-token`: The session token returned upon session creation (required for authenticated endpoints).
-
 - Redis keys
-  - `session:{sessionId}:owner` — the owning user id for a session (critical for middleware ownership checks).
+  - session:{sessionId}:owner — the owning user id for a session (critical for middleware ownership checks)
 
 - Security & middleware
-  - The project enforces per-session ownership. Requests acting on a session must provide the correct `x-user-id` and `x-session-token`.
+  - The project enforces per-session ownership (requests acting on a session must be from the owning user). See the server middleware code for the exact header or token name used for user identification.
+
+- Cryptography
+  - The cryptographic layer and message formats are documented in docs/API.md (Cipher Tube Assembly).
 
 ---
 
 ## Testing
-Run tests using the project's test runner:
-
-```bash
-pnpm test
-```
-
-Recommended developer guidance:
+Add or run tests with the project's test runner. Recommended developer guidance:
+- Use `npm test` if available.
 - Mock Redis in unit tests (or run a disposable Redis instance) to avoid flakiness.
 - Keep cryptographic benchmarks isolated from unit tests (use a dedicated benchmark script).
 
