@@ -14,6 +14,6 @@
 **Learning:** Visual-only loading states (like changing button text) are insufficient for screen reader users to understand that an asynchronous operation is in progress. Using `aria-busy` alongside `disabled` provides a semantic signal to assistive technologies about the element's changing state.
 **Action:** Always pair visual loading indicators with `aria-busy="true"` on the initiating interactive element, and ensure it resets to `false` upon completion or failure.
 
-## 2026-06-28 - [Interactive Visualizations & Focus-Hover Parity]
-**Learning:** Decorative or data-rich visualizations (like the Cosmology Map) are often inaccessible to keyboard and screen reader users if they rely solely on mouse-driven tooltips. Synchronizing `:hover` transforms with `:focus-visible` ensures that keyboard users receive the same high-quality interactive feedback as mouse users.
-**Action:** Always add `tabindex="0"`, appropriate ARIA roles (e.g., `role="img"`), and descriptive `aria-label` attributes to custom UI nodes, and mirror all hover styles with `:focus-visible`.
+## 2026-09-05 - [Accessible Mythic Visualizations]
+**Learning:** Complex visual elements like the "Cosmology Map" nodes are often invisible to screen readers and inaccessible via keyboard. Providing `tabindex="0"`, `role="img"`, and a descriptive `aria-label` that combines the name and mandate ensures these "mythic" elements are perceivable and navigable for all users.
+**Action:** For all non-textual interactive or informative visual nodes, explicitly define ARIA roles and labels, and mirror `:hover` interactions with `:focus-visible` styles.
