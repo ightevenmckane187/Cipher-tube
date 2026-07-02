@@ -12,6 +12,7 @@ import { getBlindedRedisKey, blindToken, createSession, rotateSession, getSessio
 import { ritualEngine, Archetypes } from "./myth/ritual-engine";
 import { seasonalEngine } from "./myth/seasonal-engine";
 import { CosmologyMap } from "./ui/cosmology-map";
+import { TriShiftInterpretations, UnifiedMantra } from "./myth/tri-shift";
 
 dotenv.config();
 
@@ -511,6 +512,19 @@ app.get("/", (req: Request, res: Response) => {
                             </div>
                         `).join('')}
                     </div>
+
+                    <div id="tri-shift-equation" style="background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 4px; border-left: 4px solid var(--primary);">
+                        <h4 style="margin-top: 0; color: var(--primary);">Conconcom ××× = +++</h4>
+                        <p style="font-style: italic; margin-bottom: 0.5rem;">"${UnifiedMantra}"</p>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; font-size: 0.8rem;">
+                            ${Object.values(TriShiftInterpretations).map(interp => `
+                                <div>
+                                    <strong style="display: block;">${interp.name}</strong>
+                                    <span style="opacity: 0.8;">${interp.description}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
                 </section>
 
                 <h2>Quick Start</h2>
@@ -999,7 +1013,7 @@ app.post(
   jsonParser,
   validateUserId,
   ensureSessionOwner,
-  (req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     const { message, masterSeed } = req.body;
 
     if (!message || typeof message !== "string") {
@@ -1041,7 +1055,7 @@ app.post(
   jsonParser,
   validateUserId,
   ensureSessionOwner,
-  (req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     const { ciphertext, masterSeed, tubes } = req.body;
 
     if (!ciphertext || typeof ciphertext !== "string") {

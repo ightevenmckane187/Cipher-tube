@@ -65,7 +65,7 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
             return false;
         }
 
-        // Execute a constant-time string comparison to prevent timing side-channel attacks
+        // Execute a constant-time comparison to prevent timing side-channel attacks
         return crypto.timingSafeEqual(challengeBuffer, computedBuffer);
 
     } catch (error) {
