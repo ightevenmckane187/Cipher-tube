@@ -14,6 +14,6 @@
 **Learning:** Visual-only loading states (like changing button text) are insufficient for screen reader users to understand that an asynchronous operation is in progress. Using `aria-busy` alongside `disabled` provides a semantic signal to assistive technologies about the element's changing state.
 **Action:** Always pair visual loading indicators with `aria-busy="true"` on the initiating interactive element, and ensure it resets to `false` upon completion or failure.
 
-## 2026-09-15 - [Mythic Mirror Spatial Layout & Interactive Consistency]
-**Learning:** Dense horizontal layouts for archetype nodes (e.g., the Cosmology Map) require specific container height (220px) and 'flex-direction: row' to prevent overlapping and ensure visual clarity during hover/focus scaling. Mirroring :hover states with :focus-visible using a consistent outline-offset (4px) ensures that keyboard users receive the same high-quality feedback as mouse users without visual jitter.
-**Action:** Always use container-constrained flex layouts for the Mythic Mirror and pair scaling transforms with offset outlines for inclusive interactive feedback.
+## 2026-09-05 - [Accessible Mythic Visualizations]
+**Learning:** Complex visual elements like the "Cosmology Map" nodes are often invisible to screen readers and inaccessible via keyboard. Providing `tabindex="0"`, `role="img"`, and a descriptive `aria-label` that combines the name and mandate ensures these "mythic" elements are perceivable and navigable for all users.
+**Action:** For all non-textual interactive or informative visual nodes, explicitly define ARIA roles and labels, and mirror `:hover` interactions with `:focus-visible` styles.

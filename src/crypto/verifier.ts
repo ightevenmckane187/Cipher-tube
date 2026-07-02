@@ -4,7 +4,7 @@ import crypto from 'crypto';
  * Validates incoming structural proofs using zero-knowledge verification principles.
  * Verifies that the state token matches structural parameters without revealing origins.
  *
- * @param rawProof - The base64 or hex encoded proof string from headers
+ * @param rawProof - The base64 encoded proof string from headers
  * @returns Promise<boolean> - True if the proof matches system integrity parameters
  */
 export async function verifyCryptographicProof(rawProof: string): Promise<boolean> {
@@ -16,11 +16,11 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
 
     try {
         // Decode the structural payload
-        const bufferPayload = Buffer.from(rawProof, 'base64').toString('utf8');
+        const bufferPayload = Buffer.from(rawProof, 'base64');
         let parsedPayload: any;
 
         try {
-            parsedPayload = JSON.parse(bufferPayload);
+            parsedPayload = JSON.parse(bufferPayload.toString('utf8'));
         } catch {
             // Sentinel: Gracefully handle parsing failures without critical logging
             return false;
@@ -54,20 +54,18 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
         // Reconstruct the validation matrix using our native SHA-256 pipeline
         const verificationMatrix = crypto.createHmac('sha256', String(salt));
         verificationMatrix.update(structuralHash);
-        const computedProof = verificationMatrix.digest('hex');
+        const computedProof = verificationMatrix.digest();
 
         // Sentinel: Ensure buffer lengths match before calling timingSafeEqual to avoid internal
         // exceptions and prevent timing oracles in Node.js versions that throw on length mismatch.
-        const challengeBuffer = Buffer.from(challengeProof, 'utf8');
-        const computedBuffer = Buffer.from(computedProof, 'utf8');
+        const challengeBuffer = Buffer.from(challengeProof, 'hex');
+        const computedBuffer = computedProof;
 
-        // Sentinel: timingSafeEqual requires buffers of identical length.
-        // Length check is O(1) and does not leak content timing info.
         if (challengeBuffer.length !== computedBuffer.length) {
             return false;
         }
 
-        // Execute a constant-time string comparison to prevent timing side-channel attacks
+        // Execute a constant-time comparison to prevent timing side-channel attacks
         return crypto.timingSafeEqual(challengeBuffer, computedBuffer);
 
     } catch (error) {
