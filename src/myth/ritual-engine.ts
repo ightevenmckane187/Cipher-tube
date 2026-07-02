@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { SovereignCanon } from './canon/sovereign-canon';
 
 /**
@@ -69,7 +70,7 @@ export class LineageLedger {
       event,
       archetypeId,
       metadata,
-      signature: `sig-${Math.random().toString(36).substring(7)}`
+      signature: `sig-${crypto.randomBytes(8).toString('hex')}`
     };
     this.entries.push(entry);
     console.log(`[LineageLedger] Recorded: ${event} by ${archetypeId}`);
@@ -105,6 +106,16 @@ export class RitualEngine {
 
     // Record in Lineage
     globalLedger.record(action, archetypeId, payload);
+
+    if (action === 'TRI_SHIFT_UPLIFT') {
+      return {
+        status: 'authorized',
+        archetype: archetype.name,
+        realm: archetype.realm,
+        auditId: audit.auditId,
+        output: '+++'
+      };
+    }
 
     return {
       status: 'authorized',

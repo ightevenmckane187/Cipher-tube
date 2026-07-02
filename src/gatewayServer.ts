@@ -11,8 +11,9 @@ app.use(express.json({ limit: '10kb' }));
 /**
  * 📊 Live Gateway Telemetry Endpoint
  * Exposes core state diagnostics and cache performance metrics safely.
+ * Sentinel: Guarded by cipherTubeGateway middleware to prevent unauthorized metrics exposure.
  */
-app.get('/system/analytics', async (req: Request, res: Response) => {
+app.get('/system/analytics', cipherTubeGateway, async (req: Request, res: Response) => {
     try {
         const cacheOpen = cache.rawClient.isOpen;
         // In a live environment, these are aggregated from internal memory markers
