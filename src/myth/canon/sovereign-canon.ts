@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+
 /**
  * Sovereign Canon: The constitutional foundation for all node activity.
  * Ratified to ensure the Tube perceives time, maintains order, and evolves.
@@ -51,7 +53,7 @@ export const SovereignCanon = {
     return {
       compliant: true,
       timestamp: Date.now(),
-      auditId: `audit-${Math.random().toString(36).substring(7)}`
+      auditId: `audit-${crypto.randomBytes(8).toString('hex')}`
     };
   },
 
