@@ -244,6 +244,25 @@ app.get("/", (req: Request, res: Response) => {
                     70% { box-shadow: 0 0 0 10px transparent; }
                     100% { box-shadow: 0 0 0 0 transparent; }
                 }
+                .pr-pulse {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    background: rgba(212, 175, 55, 0.1);
+                    color: #d4af37;
+                    padding: 4px 12px;
+                    border-radius: 4px;
+                    font-size: 0.75rem;
+                    font-weight: bold;
+                    border: 1px solid rgba(212, 175, 55, 0.3);
+                    margin-bottom: 1rem;
+                    animation: pulse-gold 2s infinite;
+                }
+                @keyframes pulse-gold {
+                    0% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); }
+                    70% { box-shadow: 0 0 0 6px transparent; }
+                    100% { box-shadow: 0 0 0 0 transparent; }
+                }
                 .theme-toggle {
                     background: none;
                     border: 1px solid var(--border-color);
@@ -499,6 +518,9 @@ app.get("/", (req: Request, res: Response) => {
                 </div>
 
                 <section id="mythic-mirror">
+                    <div class="pr-pulse" role="status" aria-label="PR Gates status: operational">
+                        <span aria-hidden="true">🛡️</span> PR GATES: OPERATIONAL
+                    </div>
                     <h3 style="margin-top: 0;">Mythic Mirror: Cosmology Map</h3>
                     <p style="font-size: 0.8rem; opacity: 0.8;">Visualize the "living soul" of the civilization in real-time.</p>
                     <div id="cosmology-container">
