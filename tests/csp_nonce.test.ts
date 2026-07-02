@@ -9,7 +9,8 @@ describe('CSP Nonce Verification', () => {
     expect(csp).toBeDefined();
 
     // Find nonce in script-src or style-src
-    const match = csp.match(/'nonce-([A-Za-z0-9+/=]+)'/);
+    // UUID format contains hyphens, whereas Base64 (previous) did not.
+    const match = csp.match(/'nonce-([A-Za-z0-9+/=-]+)'/);
     expect(match).not.toBeNull();
     const nonce = match![1];
     expect(nonce).not.toBe('undefined');

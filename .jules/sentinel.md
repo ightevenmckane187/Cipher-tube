@@ -88,7 +88,7 @@
 **Learning:** Node.js `crypto.timingSafeEqual` throws a `RangeError` if the input buffers have different lengths. If this isn't caught, a malformed proof with a short or long challenge can crash the entire worker process.
 **Prevention:** Always perform a strict length check or format validation (e.g., regex check for hex length) before calling `timingSafeEqual`. Ensure that both inputs are compared as same-length buffers to prevent runtime crashes.
 
-## 2026-07-01 - Logic Failure in Cryptographic Verifier
-**Vulnerability:** Broken cryptographic verification logic leading to runtime crashes and potential bypasses.
-**Learning:** The verifier was using a variable (`computedProof`) before it was defined and contained multiple block-scoped redeclarations, causing compilation and runtime failures in a critical security path. Additionally, using incorrect encoding ('utf8' vs 'hex') for cryptographic buffers can lead to comparison failures even with valid proofs.
-**Prevention:** Always use automated unit tests that cover both success and failure modes for cryptographic components. Ensure that cryptographic buffers are created with the correct encoding (e.g., 'hex' for digests) to maintain comparison integrity.
+## 2026-07-01 - Broken Cryptographic Proof Pipeline
+**Vulnerability:** Service-wide failure of cryptographic proof verification due to implementation errors (ReferenceError and Duplicate Declarations).
+**Learning:** A critical variable (`computedProof`) was missing from the `verifyCryptographicProof` function, while others (`challengeBuffer`, `computedBuffer`) were declared multiple times, causing runtime crashes that could be exploited for Denial of Service or to bypass security checks if errors were not handled securely.
+**Prevention:** Always implement comprehensive unit tests for cryptographic pipelines, including failure cases and "golden path" verification. Use static analysis tools to catch duplicate declarations and reference errors before deployment.
