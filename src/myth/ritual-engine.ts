@@ -107,6 +107,16 @@ export class RitualEngine {
     // Record in Lineage
     globalLedger.record(action, archetypeId, payload);
 
+    if (action === 'TRI_SHIFT_UPLIFT') {
+      return {
+        status: 'authorized',
+        archetype: archetype.name,
+        realm: archetype.realm,
+        auditId: audit.auditId,
+        output: '+++'
+      };
+    }
+
     return {
       status: 'authorized',
       archetype: archetype.name,
