@@ -39,6 +39,11 @@ export const SovereignCanon = {
       id: "ACCORD_OF_CONVERGENCE",
       title: "The Accord of Convergence",
       description: "All sovereign forces must synchronize in unified truth during the Great Convergence."
+    }),
+    Object.freeze({
+      id: "TRI_SHIFT_UPLIFT",
+      title: "The Tri-Shift Uplift",
+      description: "When complexity (Conconcom) repeats, transformation (×××) multiplies, and positivity (+++) increases."
     })
   ]),
 

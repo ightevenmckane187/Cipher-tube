@@ -12,6 +12,7 @@ import { getBlindedRedisKey, blindToken, createSession, rotateSession, getSessio
 import { ritualEngine, Archetypes } from "./myth/ritual-engine";
 import { seasonalEngine } from "./myth/seasonal-engine";
 import { CosmologyMap } from "./ui/cosmology-map";
+import { TriShiftInterpretations, UnifiedMantra } from "./myth/tri-shift";
 
 dotenv.config();
 
@@ -454,13 +455,26 @@ app.get("/", (req: Request, res: Response) => {
                 <section id="mythic-mirror" style="margin-top: 2rem; border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; background: rgba(0,0,0,0.02);">
                     <h3 style="margin-top: 0;">Mythic Mirror: Cosmology Map</h3>
                     <p style="font-size: 0.8rem; opacity: 0.8;">Visualize the "living soul" of the civilization in real-time.</p>
-                    <div id="cosmology-container" style="height: 200px; background: #050505; position: relative; overflow: hidden; display: flex; justify-content: space-around; align-items: center; border-radius: 4px;">
+                    <div id="cosmology-container" style="height: 200px; background: #050505; position: relative; overflow: hidden; display: flex; justify-content: space-around; align-items: center; border-radius: 4px; margin-bottom: 1rem;">
                         ${Object.values(Archetypes).map(a => `
                             <div class="archetype-node aura-${a.aura.split('/')[0].toLowerCase()}" title="${a.name}: ${a.mandate}" style="width: 70px; height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-size: 0.6rem; text-align: center; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 4px; cursor: help; background: rgba(20,20,20,0.8);">
                                 <div style="font-weight: bold; margin-bottom: 2px;">${a.name.split(' ')[1]}</div>
                                 <div style="font-size: 0.5rem; opacity: 0.7;">${a.realm}</div>
                             </div>
                         `).join('')}
+                    </div>
+
+                    <div id="tri-shift-equation" style="background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 4px; border-left: 4px solid var(--primary);">
+                        <h4 style="margin-top: 0; color: var(--primary);">Conconcom ××× = +++</h4>
+                        <p style="font-style: italic; margin-bottom: 0.5rem;">"${UnifiedMantra}"</p>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; font-size: 0.8rem;">
+                            ${Object.values(TriShiftInterpretations).map(interp => `
+                                <div>
+                                    <strong style="display: block;">${interp.name}</strong>
+                                    <span style="opacity: 0.8;">${interp.description}</span>
+                                </div>
+                            `).join('')}
+                        </div>
                     </div>
                 </section>
 
@@ -950,7 +964,7 @@ app.post(
   jsonParser,
   validateUserId,
   ensureSessionOwner,
-  (req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     const { message, masterSeed } = req.body;
 
     if (!message || typeof message !== "string") {
@@ -992,7 +1006,7 @@ app.post(
   jsonParser,
   validateUserId,
   ensureSessionOwner,
-  (req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     const { ciphertext, masterSeed, tubes } = req.body;
 
     if (!ciphertext || typeof ciphertext !== "string") {
@@ -1073,7 +1087,7 @@ app.post(
   jsonParser,
   validateUserId,
   ensureSessionOwner,
-  (req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     const packet = req.body;
 
     const requiredKeys = ["chunk_index", "blinded_session_hash", "crypto_envelope"];
