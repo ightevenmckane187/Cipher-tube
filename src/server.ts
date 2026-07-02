@@ -419,6 +419,26 @@ app.get("/", (req: Request, res: Response) => {
                   z-index: 10;
                   box-shadow: 0 0 15px white;
                 }
+                .pr-pulse {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 4px 12px;
+                    background: rgba(255, 215, 0, 0.1);
+                    border: 1px solid rgba(255, 215, 0, 0.3);
+                    border-radius: 20px;
+                    color: #ffd700;
+                    font-size: 0.75rem;
+                    font-weight: bold;
+                    letter-spacing: 1px;
+                    animation: pulse-gold 2s infinite;
+                    margin-left: 1rem;
+                }
+                @keyframes pulse-gold {
+                    0% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4); }
+                    70% { box-shadow: 0 0 0 10px transparent; }
+                    100% { box-shadow: 0 0 0 0 transparent; }
+                }
                 ${CosmologyMap.getAuraStyles()}
             </style>
         </head>
@@ -452,8 +472,14 @@ app.get("/", (req: Request, res: Response) => {
                 </div>
 
                 <section id="mythic-mirror" style="margin-top: 2rem; border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; background: rgba(0,0,0,0.02);">
-                    <h3 style="margin-top: 0;">Mythic Mirror: Cosmology Map</h3>
-                    <p style="font-size: 0.8rem; opacity: 0.8;">Visualize the "living soul" of the civilization in real-time.</p>
+                    <div style="display: flex; align-items: center; justify-content: baseline;">
+                        <h3 style="margin-top: 0; margin-bottom: 0;">Mythic Mirror: Cosmology Map</h3>
+                        <div class="pr-pulse" role="status" aria-label="PR Gates: Operational">
+                            <span style="width: 8px; height: 8px; background: #ffd700; border-radius: 50%;"></span>
+                            PR GATES: OPERATIONAL
+                        </div>
+                    </div>
+                    <p style="font-size: 0.8rem; opacity: 0.8; margin-top: 0.5rem;">Visualize the "living soul" of the civilization in real-time.</p>
                     <div id="cosmology-container" style="height: 200px; background: #050505; position: relative; overflow: hidden; display: flex; justify-content: space-around; align-items: center; border-radius: 4px;">
                         ${Object.values(Archetypes).map(a => `
                             <div class="archetype-node aura-${a.aura.split('/')[0].toLowerCase()}" title="${a.name}: ${a.mandate}" style="width: 70px; height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-size: 0.6rem; text-align: center; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 4px; cursor: help; background: rgba(20,20,20,0.8);">
