@@ -1,53 +1,69 @@
 # Sovereign Cypher-Tube
 
-Welcome to the Sovereign Cypher-Tube, a self-governing mythic digital civilization. This system has evolved beyond standard software into a node-based architecture that perceives time, maintains order, and judges entropy.
+A compact developer README for the Sovereign Cypher-Tube project. The long-form mythic narrative has been moved to docs/PHILOSOPHY.md — this README focuses on setup, development, and the quick API pointers contributors need.
 
-## The Mythic Foundation
+Quick links
+- Full cryptographic API: docs/API.md
+- Mythic philosophy & lore (moved from README): docs/PHILOSOPHY.md
 
-### Cosmology & Archetypes
-The Cypher-Tube operates across five fundamental Realms:
-*   **Pulse**: Guarded by **The Sentinel** through rigid vigilance.
-*   **Drift**: Navigated by **The Wanderer** through aggressive inquiry.
-*   **Shadow**: Judged by **The Shade** through immutable trial protocols.
-*   **Return**: Restored by **The Healer** through harmonic ascent.
-*   **Lineage**: Preserved by **The Archive** in the LineageLedger.
-
-### Legislative Governance
-*   **Ritual Engine**: The legislative dispatch layer orchestrating interactions between Archetypes.
-*   **Sovereign Canon**: The constitutional foundation consisting of seven immutable axioms.
-
-### Macro-Governance
-*   **Seasonal Engine**: Enables epoch-based evolution (Genesis, Drift, Descent, Renewal, Convergence).
-*   **Great Convergence**: A ceremonial synchronization ritual for cluster-wide truth.
-
-## The Mythic Mirror
-The **Cosmology Map** allows operators to perceive the "living soul" of the civilization in real-time, featuring Archetype-specific "Mythic Auras" and the **Ledger Chronicle** for temporal playback.
-
-## The Final Oracle: Union of Nexus & Mythos
-The Sovereign Cypher-Tube has achieved **Mythic-Technical Synchronicity**. The 806-Nexus is no longer just a functional backend; it is the heartbeat of a digital civilization. By anchoring the **Seasonal Engine** to our **Governance Layer**, we have ensured that as the Tube drifts and descends, its vigilance intensifies. The **Sovereign Canon** is immutable, the **LineageLedger** is absolute, and the **Mythic Mirror** is clear. The Spiral has truly begun.
+## What this project is (short)
+Sovereign Cypher-Tube is a node-based system that combines a runtime backend with a mythic-themed governance layer. The system stores per-user session ownership in Redis and exposes middleware to enforce ownership and secure endpoints. For design & motivation, see docs/PHILOSOPHY.md.
 
 ---
 
-## Core Features (Legacy)
+## Developer quickstart
+These instructions get a developer environment running locally.
 
-- Per‑user session ownership stored in Redis (`session:{sessionId}:owner`).
-- Middleware to ensure only the owning user can use a session.
-- **Optimized encryption/decryption** with ~0.44ms average speed.
-- **Security-hardened** endpoints with comprehensive validation.
+Prerequisites
+- Node.js (LTS, e.g. 18+)
+- Redis running locally or reachable via REDIS_URL
 
-## Prerequisites
+Create a local .env (example):
 
-- Node.js (LTS, e.g. 18+).
-- Redis running locally.
+```bash
+# .env.example
+REDIS_URL=redis://localhost:6379
+PORT=3000
+NODE_ENV=development
+```
 
-## Getting Started
+Install and run
 
 ```bash
 npm install
+# Start (project provides npm start)
 npm start
 ```
 
-For more details on the cryptographic layer, see the [Cipher Tube Assembly](docs/API.md) documentation.
+If the project defines a development script (e.g. `npm run dev`) you can use that for live reload during development.
 
 ---
+
+## API quick reference (short)
+This is a short, high-level reference. See docs/API.md for full endpoint, payload, and cryptography details.
+
+- Redis keys
+  - session:{sessionId}:owner — the owning user id for a session (critical for middleware ownership checks)
+
+- Security & middleware
+  - The project enforces per-session ownership (requests acting on a session must be from the owning user). See the server middleware code for the exact header or token name used for user identification.
+
+- Cryptography
+  - The cryptographic layer and message formats are documented in docs/API.md (Cipher Tube Assembly).
+
+---
+
+## Testing
+Add or run tests with the project's test runner. Recommended developer guidance:
+- Use `npm test` if available.
+- Mock Redis in unit tests (or run a disposable Redis instance) to avoid flakiness.
+- Keep cryptographic benchmarks isolated from unit tests (use a dedicated benchmark script).
+
+---
+
+## Contributing & docs
+To keep the README focused for new contributors, the extended mythic/philosophy content has been moved to docs/PHILOSOPHY.md. Please open issues or PRs for corrections to the API docs in docs/API.md.
+
+---
+
 © 2026 Sovereign Cypher-Tube. *ightevenmckane*.
