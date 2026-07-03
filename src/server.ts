@@ -8,8 +8,8 @@ import rateLimit from "express-rate-limit";
 import { LRUCache } from "lru-cache";
 import { buildCipherTube, decryptCipherTube } from "./cta";
 import { verifyCryptographicProof } from "./crypto/verifier";
-import { getBlindedRedisKey, blindToken, createSession, rotateSession, getSessionKeys } from "./session_rotator";
-import { ritualEngine, Archetypes } from "./myth/ritual-engine";
+import { blindToken, createSession, rotateSession, getSessionKeys } from "./session_rotator";
+import { Archetypes } from "./myth/ritual-engine";
 import { seasonalEngine } from "./myth/seasonal-engine";
 import { CosmologyMap } from "./ui/cosmology-map";
 import { TriShiftInterpretations, UnifiedMantra } from "./myth/tri-shift";
@@ -65,9 +65,6 @@ export const sessionUpdateCache = new LRUCache<string, boolean>({
 
 // Sentinel: Constant for negative caching to prevent Cache Penetration DoS
 const SESSION_NOT_FOUND = "__NOT_FOUND__";
-
-const UUID_V4_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const SESSION_TTL = 3600; // 1 hour in seconds
 
@@ -494,6 +491,22 @@ app.get("/", (req: Request, res: Response) => {
                 }
                 .archetype-name { font-weight: bold; margin-bottom: 2px; }
                 .archetype-realm { font-size: 0.5rem; opacity: 0.7; }
+                #archetype-info {
+                    margin-top: 1rem;
+                    margin-bottom: 1rem;
+                    padding: 1rem;
+                    background: rgba(0,0,0,0.05);
+                    border: 1px solid var(--border-color);
+                    border-radius: 6px;
+                    font-size: 0.875rem;
+                    min-height: 3rem;
+                    display: flex;
+                    align-items: center;
+                    transition: all 0.2s ease;
+                }
+                [data-theme='dark'] #archetype-info {
+                    background: rgba(255,255,255,0.05);
+                }
                 ${CosmologyMap.getAuraStyles()}
             </style>
         </head>
@@ -531,6 +544,9 @@ app.get("/", (req: Request, res: Response) => {
                     <p style="font-size: 0.8rem; opacity: 0.8;">Visualize the "living soul" of the civilization in real-time.</p>
                     <div id="cosmology-container">
                         ${PRE_RENDERED_COSMOLOGY}
+                    </div>
+                    <div id="archetype-info" role="status" aria-live="polite">
+                        Select an archetype above to view its mandate.
                     </div>
 
                     <div id="tri-shift-equation" style="background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 4px; border-left: 4px solid var(--primary);">
@@ -605,6 +621,43 @@ app.get("/", (req: Request, res: Response) => {
                 }
 
                 updateUI(document.documentElement.getAttribute('data-theme'));
+
+                // Archetype Info Interactions
+                const archetypeNodes = document.querySelectorAll('.archetype-node');
+                const archetypeInfo = document.getElementById('archetype-info');
+                const defaultInfo = 'Select an archetype above to view its mandate.';
+
+                archetypeNodes.forEach(node => {
+                    const updateInfo = () => {
+                        const label = node.getAttribute('aria-label');
+                        if (archetypeInfo && label) {
+                            const parts = label.split(':');
+                            const name = parts[0];
+                            const mandate = parts.slice(1).join(':');
+                            archetypeInfo.innerHTML = \`<strong>\${name}:</strong> \`;
+                            const span = document.createElement('span');
+                            span.textContent = mandate;
+                            archetypeInfo.appendChild(span);
+                            archetypeInfo.style.borderColor = 'var(--primary)';
+                            archetypeInfo.style.transform = 'translateY(-2px)';
+                            archetypeInfo.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                        }
+                    };
+
+                    const resetInfo = () => {
+                        if (archetypeInfo) {
+                            archetypeInfo.textContent = defaultInfo;
+                            archetypeInfo.style.borderColor = 'var(--border-color)';
+                            archetypeInfo.style.transform = 'none';
+                            archetypeInfo.style.boxShadow = 'none';
+                        }
+                    };
+
+                    node.addEventListener('mouseenter', updateInfo);
+                    node.addEventListener('focus', updateInfo);
+                    node.addEventListener('mouseleave', resetInfo);
+                    node.addEventListener('blur', resetInfo);
+                });
 
                 themeToggles.forEach(toggle => {
                     toggle.addEventListener('click', () => {

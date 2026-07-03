@@ -17,3 +17,7 @@
 ## 2026-09-05 - [Accessible Mythic Visualizations]
 **Learning:** Complex visual elements like the "Cosmology Map" nodes are often invisible to screen readers and inaccessible via keyboard. Providing `tabindex="0"`, `role="img"`, and a descriptive `aria-label` that combines the name and mandate ensures these "mythic" elements are perceivable and navigable for all users.
 **Action:** For all non-textual interactive or informative visual nodes, explicitly define ARIA roles and labels, and mirror `:hover` interactions with `:focus-visible` styles.
+
+## 2026-07-03 - [Contextual Info for Visual Nodes]
+**Learning:** Purely visual representations of system state (like the Cosmology Map) can be cryptic without contextual labels. Providing a dedicated, live-updated text area that mirrors ARIA labels upon interaction significantly improves both discoverability for sighted users and accessibility for those using assistive technology.
+**Action:** When implementing complex visualizations, include a persistent "detail" area that populates on hover/focus to provide immediate textual context for visual icons or nodes.
