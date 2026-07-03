@@ -55,10 +55,6 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
         const verificationMatrix = crypto.createHmac('sha256', String(salt));
         verificationMatrix.update(structuralHash);
 
-        // Bolt Optimization: Use digest() to obtain a Buffer directly.
-        // This avoids redundant hex encoding/decoding and is ~1.2x faster for verification.
-        const computedBuffer = verificationMatrix.digest();
-
         // Sentinel: Ensure buffer lengths match before calling timingSafeEqual to avoid internal
         // exceptions and prevent timing oracles in Node.js versions that throw on length mismatch.
         const challengeBuffer = Buffer.from(challengeProof, 'hex');
