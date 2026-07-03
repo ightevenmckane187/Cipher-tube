@@ -54,12 +54,10 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
         // Reconstruct the validation matrix using our native SHA-256 pipeline
         const verificationMatrix = crypto.createHmac('sha256', String(salt));
         verificationMatrix.update(structuralHash);
-        const computedProof = verificationMatrix.digest();
 
         // Sentinel: Ensure buffer lengths match before calling timingSafeEqual to avoid internal
         // exceptions and prevent timing oracles in Node.js versions that throw on length mismatch.
         const challengeBuffer = Buffer.from(challengeProof, 'hex');
-        const computedBuffer = computedProof;
 
         if (challengeBuffer.length !== computedBuffer.length) {
             return false;

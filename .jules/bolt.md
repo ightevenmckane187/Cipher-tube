@@ -10,6 +10,14 @@
 **Learning:** Node.js v21.7+ introduced `crypto.hash` which is ~2.2x faster than the streaming `createHash` API for small inputs (like session tokens or integrity hashes). Using the `encoding` parameter directly in `crypto.hash` further reduces overhead by avoiding intermediate `Buffer` allocations.
 **Action:** Use the `fastHash` utility for all one-shot hashing needs to leverage native performance gains while maintaining backward compatibility.
 
+## 2025-05-26 - Direct Buffer Digest for Timing-Safe HMAC
+**Learning:** Obtaining a Buffer directly from `hmac.digest()` is ~1.2x faster than encoding to hex and decoding back. Furthermore, despite Node.js v22 documentation, `crypto.hmac` is not globally available in this environment, making `createHmac` the mandatory one-shot path.
+**Action:** Prefer `digest()` over `digest('hex')` when the result is consumed as a Buffer; continue using `createHmac` for maximum compatibility.
+
+## 2025-05-26 - Module-Scope UI Pre-rendering
+**Learning:** Pre-rendering HTML fragments from static metadata at the module scope in `server.ts` eliminates redundant `split()`, `map()`, and `join()` overhead on every request to the root endpoint.
+**Action:** Move static template-literal logic to module-level constants to optimize hot request paths for landing pages.
+
 ## 2026-05-25 - Consolidating Redundant Hashing via Request Context
 **Learning:** Performing multiple independent SHA-256 hashes on the same token (e.g., once for local cache and once for Redis key) in the same request lifecycle is wasteful. Consolidating these into a single `getSessionKeys` call and storing the results in `res.locals` achieves a near 2x speedup for the hashing logic and reduces CPU pressure.
 **Action:** Always check for redundant cryptographic operations on the same inputs within a single request; use middleware to pre-compute and share these values via `res.locals`.

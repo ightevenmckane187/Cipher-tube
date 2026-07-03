@@ -17,6 +17,34 @@ import { TriShiftInterpretations, UnifiedMantra } from "./myth/tri-shift";
 dotenv.config();
 
 const app: Application = express();
+
+// Bolt Optimization: Pre-render static UI components to avoid repeated string operations
+// (split, map, join) on every request to the landing page.
+const PRE_RENDERED_COSMOLOGY = Object.values(Archetypes)
+  .map(
+    (a) => `
+    <div class="archetype-node aura-${a.aura.split("/")[0].split("-")[0].toLowerCase()}"
+         tabindex="0"
+         role="img"
+         aria-label="${a.name}: ${a.mandate}"
+         title="${a.name}: ${a.mandate}">
+        <div class="archetype-name">${a.name.split(" ")[1]}</div>
+        <div class="archetype-realm">${a.realm}</div>
+    </div>
+`,
+  )
+  .join("");
+
+const PRE_RENDERED_TRI_SHIFT = Object.values(TriShiftInterpretations)
+  .map(
+    (interp) => `
+    <div>
+        <strong style="display: block;">${interp.name}</strong>
+        <span style="opacity: 0.8;">${interp.description}</span>
+    </div>
+`,
+  )
+  .join("");
 export { app };
 const PORT = process.env.PORT || 3000;
 
@@ -502,28 +530,14 @@ app.get("/", (req: Request, res: Response) => {
                     <h3 style="margin-top: 0;">Mythic Mirror: Cosmology Map</h3>
                     <p style="font-size: 0.8rem; opacity: 0.8;">Visualize the "living soul" of the civilization in real-time.</p>
                     <div id="cosmology-container">
-                        ${Object.values(Archetypes).map(a => `
-                            <div class="archetype-node aura-${a.aura.split('/')[0].split('-')[0].toLowerCase()}"
-                                 tabindex="0"
-                                 role="img"
-                                 aria-label="${a.name}: ${a.mandate}"
-                                 title="${a.name}: ${a.mandate}">
-                                <div class="archetype-name">${a.name.split(' ')[1]}</div>
-                                <div class="archetype-realm">${a.realm}</div>
-                            </div>
-                        `).join('')}
+                        ${PRE_RENDERED_COSMOLOGY}
                     </div>
 
                     <div id="tri-shift-equation" style="background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 4px; border-left: 4px solid var(--primary);">
                         <h4 style="margin-top: 0; color: var(--primary);">Conconcom ××× = +++</h4>
                         <p style="font-style: italic; margin-bottom: 0.5rem;">"${UnifiedMantra}"</p>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; font-size: 0.8rem;">
-                            ${Object.values(TriShiftInterpretations).map(interp => `
-                                <div>
-                                    <strong style="display: block;">${interp.name}</strong>
-                                    <span style="opacity: 0.8;">${interp.description}</span>
-                                </div>
-                            `).join('')}
+                            ${PRE_RENDERED_TRI_SHIFT}
                         </div>
                     </div>
                 </section>
