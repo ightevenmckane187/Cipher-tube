@@ -33,8 +33,12 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
 
         const { salt, structuralHash, challengeProof } = parsedPayload;
 
-        // Sentinel: Explicitly check types of all required fields
+        // Sentinel: Explicitly check types and maximum lengths of all required fields to prevent resource exhaustion
         if (typeof salt !== 'number' || typeof structuralHash !== 'string' || typeof challengeProof !== 'string') {
+            return false;
+        }
+
+        if (structuralHash.length > 512 || challengeProof.length > 256) {
             return false;
         }
 
@@ -54,7 +58,6 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
         // Reconstruct the validation matrix using our native SHA-256 pipeline
         const verificationMatrix = crypto.createHmac('sha256', String(salt));
         verificationMatrix.update(structuralHash);
-        const computedBuffer = verificationMatrix.digest();
 
         // Bolt Optimization: Obtain the HMAC digest directly as a Buffer.
         // This is ~1.2x faster than encoding to hex and then decoding back to a Buffer.
@@ -63,7 +66,6 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
         // Sentinel: Ensure buffer lengths match before calling timingSafeEqual to avoid internal
         // exceptions and prevent timing oracles in Node.js versions that throw on length mismatch.
         const challengeBuffer = Buffer.from(challengeProof, 'hex');
-        const computedBuffer = verificationMatrix.digest();
 
         if (challengeBuffer.length !== computedBuffer.length) {
             return false;
