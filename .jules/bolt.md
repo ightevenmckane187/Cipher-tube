@@ -2,6 +2,10 @@
 **Learning:** Manual string traversal with `indexOf` and `substring` is significantly faster than regex matches and `split('.')` for deep object path resolution in Node.js. In hot recursive paths like `resolveParams`, avoiding intermediate array allocations from `split()` and regex capture groups can yield ~25-30% performance gains.
 **Action:** Prefer manual string parsing over regex/split for high-frequency path resolution; avoid redundant property validators by centralizing them in a single exported helper.
 
+## 2026-06-25 - Manual Interpolation Traversal
+**Learning:** Replacing global regex-based `String.prototype.replace` with a manual `indexOf` and `substring` loop for template interpolation (e.g., `${state.key}`) in hot code paths like `resolveParams` reduces execution time by ~30%. This avoids the overhead of the regex engine and intermediate capture group allocations.
+**Action:** Use manual string scanning for known, simple template patterns in high-frequency execution loops.
+
 ## 2025-05-25 - LRU-Cache for Sliding Session Throttling
 **Learning:** Throttling database write operations (like Redis `EXPIRE`) using a short-lived in-memory LRU cache (e.g., 60s TTL) significantly reduces external system load. Failing to define such a cache before use leads to a `ReferenceError`, causing server crashes on every authorized request.
 **Action:** Always verify that performance-related caches are correctly initialized; use LRU caches to throttle frequent but non-critical state updates.
@@ -25,3 +29,7 @@
 ## 2026-07-01 - Fast CSP Nonce Generation via `randomUUID`
 **Learning:** `crypto.randomUUID()` is significantly faster (~14x) than `crypto.randomBytes(16).toString('base64')` in Node.js because it avoids intermediate `Buffer` allocations and encoding overhead. Furthermore, pre-calculating the full CSP string (`'nonce-...'`) in `res.locals` eliminates redundant concatenations in the `helmet` CSP middleware.
 **Action:** Use `randomUUID()` for non-cryptographic unique tokens (like CSP nonces) where UUID v4 entropy (122 bits) is sufficient. Ensure that test regexes for nonces allow for hyphens when switching from Base64 to UUID.
+
+## 2026-07-02 - Timing Side-Channels in Security Caching
+**Learning:** Caching results of cryptographic verification (like HMAC checks) introduces a timing side-channel. Attackers can distinguish between cache hits (fast) and misses (slow), potentially leaking information about which inputs are "known" or "valid" to the system. This undermines the purpose of `timingSafeEqual`.
+**Action:** Avoid caching in cryptographic verification paths where constant-time execution is required; prioritize safety over micro-optimizations in these sensitive areas.
