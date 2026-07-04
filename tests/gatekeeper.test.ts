@@ -39,4 +39,9 @@ describe('ComplianceGatekeeper', () => {
     const result = gatekeeper.isHighImpactAIAuthorized(signatures);
     expect(result).toBe(false);
   });
+
+  it('should reject prototype-based gate IDs', () => {
+    const result = gatekeeper.verifyGate('toString', [], []);
+    expect(result).toBe(false);
+  });
 });

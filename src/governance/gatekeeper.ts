@@ -13,11 +13,11 @@ export class ComplianceGatekeeper {
   }
 
   public verifyGate(gateId: string, artifacts: string[], signatures: string[]): boolean {
-    const gate = this.manifest.lifecycle_gates[gateId];
-    if (!gate) {
+    if (!Object.prototype.hasOwnProperty.call(this.manifest.lifecycle_gates, gateId)) {
       console.warn(`[Gatekeeper] Lifecycle gate not found: ${gateId}`);
       return false;
     }
+    const gate = this.manifest.lifecycle_gates[gateId];
     return this.checkGateRequirements(gateId, gate, artifacts, signatures);
   }
 
