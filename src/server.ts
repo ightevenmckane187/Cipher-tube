@@ -8,8 +8,8 @@ import rateLimit from "express-rate-limit";
 import { LRUCache } from "lru-cache";
 import { buildCipherTube, decryptCipherTube } from "./cta";
 import { verifyCryptographicProof } from "./crypto/verifier";
-import { getBlindedRedisKey, blindToken, createSession, rotateSession, getSessionKeys } from "./session_rotator";
-import { ritualEngine, Archetypes } from "./myth/ritual-engine";
+import { blindToken, createSession, rotateSession, getSessionKeys } from "./session_rotator";
+import { Archetypes } from "./myth/ritual-engine";
 import { seasonalEngine } from "./myth/seasonal-engine";
 import { CosmologyMap } from "./ui/cosmology-map";
 import { TriShiftInterpretations, UnifiedMantra } from "./myth/tri-shift";
@@ -27,6 +27,7 @@ const PRE_RENDERED_COSMOLOGY = Object.values(Archetypes)
          tabindex="0"
          role="img"
          aria-label="${a.name}: ${a.mandate}"
+         data-mandate="${a.mandate}"
          title="${a.name}: ${a.mandate}">
         <div class="archetype-name">${a.name.split(" ")[1]}</div>
         <div class="archetype-realm">${a.realm}</div>
@@ -65,9 +66,6 @@ export const sessionUpdateCache = new LRUCache<string, boolean>({
 
 // Sentinel: Constant for negative caching to prevent Cache Penetration DoS
 const SESSION_NOT_FOUND = "__NOT_FOUND__";
-
-const UUID_V4_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const SESSION_TTL = 3600; // 1 hour in seconds
 
@@ -494,6 +492,18 @@ app.get("/", (req: Request, res: Response) => {
                 }
                 .archetype-name { font-weight: bold; margin-bottom: 2px; }
                 .archetype-realm { font-size: 0.5rem; opacity: 0.7; }
+                #archetype-info {
+                    margin-top: 1rem;
+                    padding: 0.75rem;
+                    background: rgba(0,0,0,0.1);
+                    border-radius: 4px;
+                    border-left: 3px solid var(--primary);
+                    min-height: 3em;
+                    font-size: 0.875rem;
+                    transition: opacity 0.2s;
+                }
+                #archetype-info:empty { opacity: 0; }
+                .mandate-label { font-weight: bold; color: var(--primary); display: block; margin-bottom: 2px; }
                 ${CosmologyMap.getAuraStyles()}
             </style>
         </head>
@@ -532,8 +542,9 @@ app.get("/", (req: Request, res: Response) => {
                     <div id="cosmology-container">
                         ${PRE_RENDERED_COSMOLOGY}
                     </div>
+                    <div id="archetype-info" aria-live="polite"></div>
 
-                    <div id="tri-shift-equation" style="background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 4px; border-left: 4px solid var(--primary);">
+                    <div id="tri-shift-equation" style="margin-top: 1.5rem; background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 4px; border-left: 4px solid var(--primary);">
                         <h4 style="margin-top: 0; color: var(--primary);">Conconcom ××× = +++</h4>
                         <p style="font-style: italic; margin-bottom: 0.5rem;">"${UnifiedMantra}"</p>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; font-size: 0.8rem;">
@@ -605,6 +616,23 @@ app.get("/", (req: Request, res: Response) => {
                 }
 
                 updateUI(document.documentElement.getAttribute('data-theme'));
+
+                // Archetype Info Handler
+                const archetypeNodes = document.querySelectorAll('.archetype-node');
+                const archetypeInfo = document.getElementById('archetype-info');
+
+                archetypeNodes.forEach(node => {
+                    const showInfo = () => {
+                        const nameNode = node.querySelector('.archetype-name');
+                        const name = nameNode ? nameNode.textContent : 'Unknown';
+                        const mandate = node.getAttribute('data-mandate');
+                        archetypeInfo.innerHTML = '<span class="mandate-label">' + name + ' Mandate:</span>' + mandate;
+                        archetypeInfo.style.opacity = '1';
+                    };
+
+                    node.addEventListener('mouseenter', showInfo);
+                    node.addEventListener('focus', showInfo);
+                });
 
                 themeToggles.forEach(toggle => {
                     toggle.addEventListener('click', () => {
