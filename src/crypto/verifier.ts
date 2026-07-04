@@ -58,6 +58,7 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
         // Sentinel: Ensure buffer lengths match before calling timingSafeEqual to avoid internal
         // exceptions and prevent timing oracles in Node.js versions that throw on length mismatch.
         const challengeBuffer = Buffer.from(challengeProof, 'hex');
+        const computedBuffer = verificationMatrix.digest();
 
         if (challengeBuffer.length !== computedBuffer.length) {
             return false;
