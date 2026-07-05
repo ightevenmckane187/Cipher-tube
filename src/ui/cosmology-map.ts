@@ -1,5 +1,5 @@
-import { Archetypes, globalLedger } from '../myth/ritual-engine';
-import { seasonalEngine } from '../myth/seasonal-engine';
+import { Archetypes, globalLedger } from "../myth/ritual-engine";
+import { seasonalEngine } from "../myth/seasonal-engine";
 
 /**
  * Cosmology Map: Visualizes the "living soul" of the Sovereign Cypher-Tube.
@@ -27,19 +27,19 @@ export const CosmologyMap = {
    */
   getMapConfig: () => {
     return {
-      nodes: Object.values(Archetypes).map(a => ({
+      nodes: Object.values(Archetypes).map((a) => ({
         id: a.id,
         label: a.name,
         group: a.realm,
-        aura: a.aura
+        aura: a.aura,
       })),
       edges: [
-        { from: 'ARCHIVE', to: 'SENTINEL', label: 'pulse_sync' },
-        { from: 'SENTINEL', to: 'WANDERER', label: 'drift_inquiry' },
-        { from: 'WANDERER', to: 'SHADE', label: 'shadow_trial' },
-        { from: 'SHADE', to: 'HEALER', label: 'return_ascent' },
-        { from: 'HEALER', to: 'ARCHIVE', label: 'lineage_record' }
-      ]
+        { from: "ARCHIVE", to: "SENTINEL", label: "pulse_sync" },
+        { from: "SENTINEL", to: "WANDERER", label: "drift_inquiry" },
+        { from: "WANDERER", to: "SHADE", label: "shadow_trial" },
+        { from: "SHADE", to: "HEALER", label: "return_ascent" },
+        { from: "HEALER", to: "ARCHIVE", label: "lineage_record" },
+      ],
     };
   },
 
@@ -85,5 +85,5 @@ export const CosmologyMap = {
         return this.lastValidState;
       }
     }
-  `
+  `,
 };

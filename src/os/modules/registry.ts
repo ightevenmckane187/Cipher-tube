@@ -1,4 +1,4 @@
-import { PredatorModule } from '../../predator/dsl/schema';
+import { PredatorModule } from "../../predator/dsl/schema";
 
 export class ModuleRegistry {
   private modules: Map<string, PredatorModule> = new Map();

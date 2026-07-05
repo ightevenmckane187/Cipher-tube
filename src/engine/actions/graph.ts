@@ -1,5 +1,7 @@
 export async function collect(params: any) {
-  console.log(`[Graph] Collecting inputs from sources: ${params.sources?.join(', ')}`);
+  console.log(
+    `[Graph] Collecting inputs from sources: ${params.sources?.join(", ")}`,
+  );
   return { data: [] };
 }
 
@@ -9,7 +11,9 @@ export async function build(params: any) {
 }
 
 export async function find_paths(params: any) {
-  console.log(`[Graph] Finding paths with criteria: ${JSON.stringify(params.criteria || params.where)}`);
+  console.log(
+    `[Graph] Finding paths with criteria: ${JSON.stringify(params.criteria || params.where)}`,
+  );
   return [];
 }
 

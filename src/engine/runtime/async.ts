@@ -1,9 +1,11 @@
-import crypto from 'crypto';
+import crypto from "crypto";
 
 export async function invokeAsync(workflowName: string, params: any) {
-  console.log(`[Async] Enqueuing workflow: ${workflowName} with params: ${JSON.stringify(params)}`);
+  console.log(
+    `[Async] Enqueuing workflow: ${workflowName} with params: ${JSON.stringify(params)}`,
+  );
   // Mock async execution
-  return { jobId: crypto.randomBytes(8).toString('hex') };
+  return { jobId: crypto.randomBytes(8).toString("hex") };
 }
 
 export function registerWorker(workflowName: string, handler: Function) {

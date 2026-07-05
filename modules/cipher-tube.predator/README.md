@@ -10,14 +10,14 @@ Modular execution engine for FedRAMP High enforcement and Attack Path destructio
 
 ## Configuration (Knobs)
 
-| Key | Default | Description |
-|-----|---------|-------------|
-| `predator_schedule` | `every10_minutes` | Frequency of the main predator engine loop. |
-| `predator_large_schedule` | `every5minutes` | Frequency of the hyperscale sharded loop. |
-| `shard_strategy` | `by-account-region` | How to divide assets for parallel processing. |
-| `max_assets_per_shard` | `5000` | Maximum assets processed by a single worker. |
-| `low_risk_sampling_rate` | `0.2` | Percentage of low-risk assets to validate (0.0 to 1.0). |
-| `remediation_concurrency` | `50` | Maximum parallel remediation actions. |
+| Key                       | Default             | Description                                             |
+| ------------------------- | ------------------- | ------------------------------------------------------- |
+| `predator_schedule`       | `every10_minutes`   | Frequency of the main predator engine loop.             |
+| `predator_large_schedule` | `every5minutes`     | Frequency of the hyperscale sharded loop.               |
+| `shard_strategy`          | `by-account-region` | How to divide assets for parallel processing.           |
+| `max_assets_per_shard`    | `5000`              | Maximum assets processed by a single worker.            |
+| `low_risk_sampling_rate`  | `0.2`               | Percentage of low-risk assets to validate (0.0 to 1.0). |
+| `remediation_concurrency` | `50`                | Maximum parallel remediation actions.                   |
 
 ## Usage
 

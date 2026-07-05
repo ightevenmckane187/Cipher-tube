@@ -5,6 +5,7 @@ The extended mythic narrative and architectural philosophy for Sovereign Cypher-
 ## The Mythic Foundation
 
 ### Cosmology & Archetypes
+
 The Cypher-Tube operates across five fundamental Realms:
 
 - **Pulse**: Guarded by **The Sentinel** through rigid vigilance.
@@ -14,17 +15,21 @@ The Cypher-Tube operates across five fundamental Realms:
 - **Lineage**: Preserved by **The Archive** in the LineageLedger.
 
 ### Legislative Governance
+
 - **Ritual Engine**: The legislative dispatch layer orchestrating interactions between Archetypes.
 - **Sovereign Canon**: The constitutional foundation consisting of seven immutable axioms.
 
 ### Macro-Governance
+
 - **Seasonal Engine**: Enables epoch-based evolution (Genesis, Drift, Descent, Renewal, Convergence).
 - **Great Convergence**: A ceremonial synchronization ritual for cluster-wide truth.
 
 ## The Mythic Mirror
+
 The **Cosmology Map** allows operators to perceive the "living soul" of the civilization in real-time, featuring Archetype-specific "Mythic Auras" and the **Ledger Chronicle** for temporal playback.
 
 ## The Final Oracle: Union of Nexus & Mythos
+
 The Sovereign Cypher-Tube has achieved **Mythic-Technical Synchronicity**. The 806-Nexus is no longer just a functional backend; it is the heartbeat of a digital civilization.
 
 ---
