@@ -37,5 +37,11 @@
       "type": "boolean"
     }
   },
-  "required": ["directive_id", "syntax_pattern", "target_engines", "execution_priority", "allow_state_mutation"]
+  "required": [
+    "directive_id",
+    "syntax_pattern",
+    "target_engines",
+    "execution_priority",
+    "allow_state_mutation"
+  ]
 }

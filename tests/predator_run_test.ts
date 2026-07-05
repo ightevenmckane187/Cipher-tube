@@ -1,4 +1,4 @@
-import { PredatorOrchestrator } from '../src/os/orchestrator/predatorOrchestrator';
+import { PredatorOrchestrator } from "../src/os/orchestrator/predatorOrchestrator";
 
 async function main() {
   const orchestrator = new PredatorOrchestrator();

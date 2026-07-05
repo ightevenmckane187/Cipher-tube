@@ -1,6 +1,10 @@
-import { executeWorkflow, executePipeline, ExecContext } from '../src/engine/runtime/orchestrator';
+import {
+  executeWorkflow,
+  executePipeline,
+  ExecContext,
+} from "../src/engine/runtime/orchestrator";
 
-describe('Orchestrator State Assignment Prototype Pollution PROTECTION', () => {
+describe("Orchestrator State Assignment Prototype Pollution PROTECTION", () => {
   let ctx: ExecContext;
 
   beforeEach(() => {
@@ -8,33 +12,35 @@ describe('Orchestrator State Assignment Prototype Pollution PROTECTION', () => {
       actions: {
         test: {
           getMalicious: async () => ({ isAdmin: true }),
-          check: async (params: any) => { /* will be shadowed in tests */ },
-        }
+          check: async (params: any) => {
+            /* will be shadowed in tests */
+          },
+        },
       },
-      config: {}
+      config: {},
     };
   });
 
-  it('should prevent logic bypass via local state prototype pollution in executeWorkflow', async () => {
+  it("should prevent logic bypass via local state prototype pollution in executeWorkflow", async () => {
     let capturedAdminValue: any = null;
     ctx.actions.test.check = async (params: any) => {
       capturedAdminValue = params.admin;
     };
 
     const workflow = {
-      name: 'Bypass Workflow',
+      name: "Bypass Workflow",
       steps: [
         {
-          action: 'test.getMalicious',
-          output: '__proto__'
+          action: "test.getMalicious",
+          output: "__proto__",
         },
         {
-          action: 'test.check',
+          action: "test.check",
           params: {
-            admin: '${state.isAdmin}'
-          }
-        }
-      ]
+            admin: "${state.isAdmin}",
+          },
+        },
+      ],
     };
 
     await executeWorkflow(workflow, ctx);
@@ -43,23 +49,23 @@ describe('Orchestrator State Assignment Prototype Pollution PROTECTION', () => {
     expect(capturedAdminValue).toBeUndefined();
   });
 
-  it('should prevent logic bypass via local state prototype pollution in executePipeline', async () => {
+  it("should prevent logic bypass via local state prototype pollution in executePipeline", async () => {
     const pipeline = {
-      name: 'Bypass Pipeline',
+      name: "Bypass Pipeline",
       sources: [
         {
-          use: 'test.getMalicious',
-          name: '__proto__'
-        }
+          use: "test.getMalicious",
+          name: "__proto__",
+        },
       ],
       stages: [
         {
-          use: 'test.check',
+          use: "test.check",
           params: {
-            admin: '${state.isAdmin}'
-          }
-        }
-      ]
+            admin: "${state.isAdmin}",
+          },
+        },
+      ],
     };
 
     let capturedAdminValue: any = null;
@@ -72,21 +78,21 @@ describe('Orchestrator State Assignment Prototype Pollution PROTECTION', () => {
     expect(capturedAdminValue).toBeUndefined();
   });
 
-  it('should prevent logic bypass via local state prototype pollution in executePipeline stage emit', async () => {
+  it("should prevent logic bypass via local state prototype pollution in executePipeline stage emit", async () => {
     const pipeline = {
-      name: 'Bypass Pipeline',
+      name: "Bypass Pipeline",
       stages: [
         {
-          use: 'test.getMalicious',
-          emit: '__proto__'
+          use: "test.getMalicious",
+          emit: "__proto__",
         },
         {
-          use: 'test.check',
+          use: "test.check",
           params: {
-            admin: '${state.isAdmin}'
-          }
-        }
-      ]
+            admin: "${state.isAdmin}",
+          },
+        },
+      ],
     };
 
     let capturedAdminValue: any = null;

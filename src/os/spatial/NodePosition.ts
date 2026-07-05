@@ -7,7 +7,7 @@ export interface CartesianPoint {
 export class NodePosition {
   constructor(
     public id: string,
-    public coordinates: CartesianPoint
+    public coordinates: CartesianPoint,
   ) {}
 
   updatePosition(newCoords: CartesianPoint) {
