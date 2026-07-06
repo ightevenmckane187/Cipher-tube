@@ -5,9 +5,10 @@ import crypto from 'crypto';
  * Verifies that the state token matches structural parameters without revealing origins.
  *
  * @param rawProof - The base64 encoded proof string from headers
+ * @param expectedHash - Optional hash to bind the proof to a specific resource
  * @returns Promise<boolean> - True if the proof matches system integrity parameters
  */
-export async function verifyCryptographicProof(rawProof: string): Promise<boolean> {
+export async function verifyCryptographicProof(rawProof: string, expectedHash?: string): Promise<boolean> {
     // Sentinel: Enforce a reasonable length limit on the proof string to prevent DoS.
     // Base64 encoded JSON for this structure is typically ~250-300 characters.
     if (!rawProof || typeof rawProof !== 'string' || rawProof.length > 4096) {
@@ -32,6 +33,12 @@ export async function verifyCryptographicProof(rawProof: string): Promise<boolea
         }
 
         const { salt, structuralHash, challengeProof } = parsedPayload;
+
+        // Sentinel: If an expected hash is provided, it must strictly match the structural hash in the proof
+        // to prevent proof re-use across different resources/channels.
+        if (expectedHash !== undefined && structuralHash !== expectedHash) {
+            return false;
+        }
 
         // Sentinel: Explicitly check types and maximum lengths of all required fields to prevent resource exhaustion
         if (typeof salt !== 'number' || typeof structuralHash !== 'string' || typeof challengeProof !== 'string') {
