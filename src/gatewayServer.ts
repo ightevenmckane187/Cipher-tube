@@ -1,71 +1,43 @@
-import express, { Request, Response, Application } from 'express';
+import express, { Request, Response, NextFunction, Application } from 'express';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { cipherTubeGateway } from './gateway/sessionMiddleware';
 import { cache } from './cache/redisPool';
 
 export const app: Application = express();
 const PORT = process.env.GATEWAY_PORT || 8080;
 
-// Standard body parsers restricted to essential sizes to prevent buffer exhaustion attacks
+app.use(helmet({ frameguard: { action: 'deny' }, hsts: { maxAge: 31536000, preload: true } }));
+app.use((req, res, next) => {
+    res.setHeader("Permissions-Policy", "geolocation=(), camera=(), microphone=(), interest-cohort=()");
+    next();
+});
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 1000, standardHeaders: true, legacyHeaders: false }));
 app.use(express.json({ limit: '10kb' }));
 
-/**
- * 📊 Live Gateway Telemetry Endpoint
- * Exposes core state diagnostics and cache performance metrics safely.
- * Sentinel: Guarded by cipherTubeGateway middleware to prevent unauthorized metrics exposure.
- */
-app.get('/system/analytics', cipherTubeGateway, async (req: Request, res: Response) => {
+const noCache = (req: Request, res: Response, next: NextFunction) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    next();
+};
+app.get('/system/analytics', cipherTubeGateway, noCache, async (req: Request, res: Response) => {
     try {
-        const cacheOpen = cache.rawClient.isOpen;
-        // In a live environment, these are aggregated from internal memory markers
-        const diagnosticSnapshot = {
-            component: "Cipher-Tube Cryptographic Gateway",
-            status: cacheOpen ? "Fully Operational" : "Degraded (Cache Disconnected)",
-            timestamp: Date.now(),
-            metrics: {
-                engineUptime: process.uptime(),
-                memoryUsage: process.memoryUsage().heapUsed,
-                cachePoolActive: cacheOpen
-            }
-        };
-        return res.status(200).json(diagnosticSnapshot);
-    } catch (err) {
-        return res.status(500).json({ error: "Failed to extract active telemetry." });
-    }
-});
-
-/**
- * 🔒 Cryptographically Guarded Communication Pipeline
- * Mounts our zero-knowledge structural evaluation layer before granting downstream access.
- */
-app.post('/v1/channel/verify', cipherTubeGateway, (req: Request, res: Response) => {
-    // If the request makes it here, it has passed all ZK validation boundaries
-    return res.status(200).json({
-        status: "verified",
-        channelState: "secure",
-        tokenSignature: (req as any).cipherState.originEpoch
-    });
-});
-
-// Deep fallback handler for unmapped entry attempts
-app.use((req: Request, res: Response) => {
-    res.status(404).json({ status: "rejected", message: "Specified channel route does not exist." });
-});
-
-// Bootstrapping execution layer
-if (process.env.NODE_ENV !== 'test') {
-    const server = app.listen(PORT, () => {
-        console.log(`🚀 [Cipher-Tube Core] Ephemeral gateway initialized on port ${PORT}`);
-    });
-
-    // Graceful breakdown procedures to maintain state cleanliness during cluster recycling
-    process.on('SIGTERM', async () => {
-        console.log('⚠️ [Cipher-Tube Core] SIGTERM detected. Closing connections gracefully...');
-        server.close(async () => {
-            if (cache.rawClient.isOpen) {
-                await cache.rawClient.quit();
-                console.log('📊 [Cache Telemetry] Redis pool connections terminated.');
-            }
-            process.exit(0);
+        const isOpen = cache.rawClient.isOpen;
+        return res.status(200).json({
+            status: isOpen ? "Operational" : "Degraded",
+            ts: Date.now(),
+            metrics: { uptime: process.uptime(), memory: process.memoryUsage().heapUsed, cache: isOpen }
         });
-    });
+    } catch (err) { return res.status(500).json({ error: "Telemetry fault." }); }
+});
+app.post('/v1/channel/verify', cipherTubeGateway, (req: Request, res: Response) => {
+    return res.status(200).json({ status: "verified", ts: (req as any).cipherState.originEpoch });
+});
+app.use((req: Request, res: Response) => res.status(404).json({ error: "Route missing." }));
+if (process.env.NODE_ENV !== 'test') {
+    const srv = app.listen(PORT, () => console.log(`🚀 Gateway on ${PORT}`));
+    process.on('SIGTERM', () => srv.close(async () => {
+        if (cache.rawClient.isOpen) await cache.rawClient.quit();
+        process.exit(0);
+    }));
 }
