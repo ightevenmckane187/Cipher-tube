@@ -97,3 +97,8 @@
 **Vulnerability:** Denial of Service (DoS) via redundant digest calls and duplicate variable declarations in security-critical code.
 **Learning:** In Node.js `crypto`, calling `.digest()` more than once on a single HMAC or Hash instance throws a `Error: digest already called`. When combined with a duplicate `const` declaration, this ensures the verification process crashes the entire request context, creating a high-availability risk.
 **Prevention:** Strictly separate data preparation from verification logic. Use unit tests that specifically target the compilation and execution of cryptographic hot-paths to ensure that manual porting of security fixes doesn't introduce fatal logic regressions.
+
+## 2026-07-05 - Cryptographic Proof Binding Vulnerability
+**Vulnerability:** Captured cryptographic proofs could be reused across different resources or sessions because they weren't bound to the intended context.
+**Learning:** Verification of structural integrity alone is insufficient if the proof payload doesn't include a mandatory binding to the specific resource it was generated for. Attackers could capture a valid proof for one channel and replay it to gain unauthorized access to another.
+**Prevention:** Implement mandatory cryptographic binding by passing the expected resource hash to the verifier and ensuring it matches the proof's internal claim. Use strict input length limits (e.g., 4096 chars) on raw proof strings to mitigate DoS risks.

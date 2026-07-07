@@ -1526,7 +1526,8 @@ app.post(
 
     const proof = req.headers["x-cipher-proof"] as string;
     if (proof) {
-      const isValid = await verifyCryptographicProof(proof);
+      // Sentinel: Bind the proof to the current session hash to prevent cross-session replay.
+      const isValid = await verifyCryptographicProof(proof, blindedToken);
       if (!isValid) {
         return res.status(403).json({ error: "Invalid cryptographic proof: Packet rejected." });
       }

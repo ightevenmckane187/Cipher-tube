@@ -48,8 +48,9 @@ export async function cipherTubeGateway(req: Request, res: Response, next: NextF
             return next();
         }
 
-        // Step 2: Fall back to cryptographic proof validation if hash is missing
-        const structuralIntegrityVerified = await verifyCryptographicProof(proof);
+        // Step 2: Fall back to cryptographic proof validation if hash is missing.
+        // Sentinel: Bind the proof to the requested hash to prevent unauthorized reuse.
+        const structuralIntegrityVerified = await verifyCryptographicProof(proof, hash);
         if (!structuralIntegrityVerified) {
             return res.status(403).json({
                 status: "failed",
