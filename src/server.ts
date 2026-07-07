@@ -1214,6 +1214,10 @@ const ensureSessionOwner = async (
   let sessionToken = req.headers["x-session-token"] as string;
   const userId = req.headers["x-user-id"] as string;
 
+  if (sessionToken && sessionToken.length > 256) {
+    return res.status(400).json({ error: "Invalid x-session-token: exceeds maximum length" });
+  }
+
   if (!sessionToken) {
     return res.status(401).json({ error: "Unauthorized: Missing session token" });
   }
