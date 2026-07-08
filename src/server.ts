@@ -37,6 +37,7 @@ const PRE_RENDERED_COSMOLOGY = Object.values(Archetypes)
   .join("");
 
 // Bolt Optimization: Pre-render static CSS to avoid redundant interpolations on every request.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const PRE_RENDERED_STYLES = `
     :root {
         --primary: #007bff;
@@ -1526,7 +1527,9 @@ app.post(
 
     const proof = req.headers["x-cipher-proof"] as string;
     if (proof) {
-      const isValid = await verifyCryptographicProof(proof);
+      // Sentinel: Bind the proof to the session's blinded token to prevent proof re-use
+      // across different sessions or channels.
+      const isValid = await verifyCryptographicProof(proof, blindedToken);
       if (!isValid) {
         return res.status(403).json({ error: "Invalid cryptographic proof: Packet rejected." });
       }
