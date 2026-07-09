@@ -37,6 +37,7 @@ const PRE_RENDERED_COSMOLOGY = Object.values(Archetypes)
   .join("");
 
 // Bolt Optimization: Pre-render static CSS to avoid redundant interpolations on every request.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const PRE_RENDERED_STYLES = `
     :root {
         --primary: #007bff;
@@ -324,15 +325,36 @@ const PRE_RENDERED_STYLES = `
     }
     .archetype-name { font-weight: bold; margin-bottom: 2px; }
     .archetype-realm { font-size: 0.5rem; opacity: 0.7; }
+    .info-placeholder { opacity: 0.6; font-style: italic; }
+    .tri-shift-item {
+        padding: 8px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.03);
+        transition: background 0.2s;
+    }
+    .tri-shift-item:hover {
+        background: rgba(255, 255, 255, 0.08);
+    }
+    .tri-shift-name {
+        display: block;
+        font-weight: bold;
+        color: var(--primary);
+    }
+    .tri-shift-desc {
+        font-size: 0.75rem;
+        opacity: 0.8;
+    }
+    .status-success { color: var(--success); }
+    .status-error { color: var(--error); }
     ${CosmologyMap.getAuraStyles()}
 `;
 
 const PRE_RENDERED_TRI_SHIFT = Object.values(TriShiftInterpretations)
   .map(
     (interp) => `
-    <div>
-        <strong style="display: block;">${interp.name}</strong>
-        <span style="opacity: 0.8;">${interp.description}</span>
+    <div class="tri-shift-item">
+        <strong class="tri-shift-name">${interp.name}</strong>
+        <span class="tri-shift-desc">${interp.description}</span>
     </div>
 `,
   )
@@ -814,6 +836,27 @@ app.get("/", (req: Request, res: Response) => {
                 }
                 #archetype-info:empty { opacity: 0; }
                 .mandate-label { font-weight: bold; color: var(--primary); display: block; margin-bottom: 2px; }
+                .info-placeholder { opacity: 0.6; font-style: italic; }
+                .tri-shift-item {
+                    padding: 8px;
+                    border-radius: 4px;
+                    background: rgba(255, 255, 255, 0.03);
+                    transition: background 0.2s;
+                }
+                .tri-shift-item:hover {
+                    background: rgba(255, 255, 255, 0.08);
+                }
+                .tri-shift-name {
+                    display: block;
+                    font-weight: bold;
+                    color: var(--primary);
+                }
+                .tri-shift-desc {
+                    font-size: 0.75rem;
+                    opacity: 0.8;
+                }
+                .status-success { color: var(--success); }
+                .status-error { color: var(--error); }
                 ${CosmologyMap.getAuraStyles()}
             </style>
         </head>
@@ -855,7 +898,9 @@ app.get("/", (req: Request, res: Response) => {
                     <div id="cosmology-container">
                         ${PRE_RENDERED_COSMOLOGY}
                     </div>
-                    <div id="archetype-info" aria-live="polite"></div>
+                    <div id="archetype-info" aria-live="polite">
+                        <span class="info-placeholder">Select an archetype to view its mandate.</span>
+                    </div>
 
                     <div id="tri-shift-equation" style="margin-top: 1.5rem; background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 4px; border-left: 4px solid var(--primary);">
                         <h4 style="margin-top: 0; color: var(--primary);">Conconcom ××× = +++</h4>
@@ -1101,8 +1146,12 @@ app.get("/", (req: Request, res: Response) => {
                     const showStatus = (msg, isError = false) => {
                         if (statusTimeout) clearTimeout(statusTimeout);
                         status.textContent = msg;
-                        status.style.color = isError ? 'var(--error)' : 'var(--success)';
-                        statusTimeout = setTimeout(() => status.textContent = '', 3000);
+                        status.classList.remove('status-success', 'status-error');
+                        status.classList.add(isError ? 'status-error' : 'status-success');
+                        statusTimeout = setTimeout(() => {
+                            status.textContent = '';
+                            status.classList.remove('status-success', 'status-error');
+                        }, 3000);
                     };
 
                     const resetBtn = () => {
