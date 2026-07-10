@@ -1211,7 +1211,7 @@ const ensureSessionOwner = async (
   res: Response,
   next: NextFunction,
 ) => {
-  let sessionToken = req.headers["x-session-token"] as string;
+  let sessionToken = req.headers["x-session-token"];
   const userId = req.headers["x-user-id"] as string;
 
   if (!sessionToken) {
@@ -1220,6 +1220,17 @@ const ensureSessionOwner = async (
 
   if (Array.isArray(sessionToken)) {
     sessionToken = sessionToken[0];
+  }
+
+  // Sentinel: Normalize session token by trimming whitespace and reassigning to headers
+  sessionToken = sessionToken.trim();
+  req.headers["x-session-token"] = sessionToken;
+
+  // Sentinel: Implement 256-character length limit to prevent DoS/Resource Exhaustion
+  if (sessionToken.length > 256) {
+    return res
+      .status(400)
+      .json({ error: "Invalid x-session-token: exceeds maximum length" });
   }
 
   const { blindedKey, redisKey } = getSessionKeys(sessionToken);
