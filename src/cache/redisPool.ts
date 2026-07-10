@@ -21,7 +21,8 @@ client.on('connect', () => {
 });
 
 client.on('error', (err: any) => {
-    console.error('🚨 [Cache Critical] Redis memory pool encountered an error:', err);
+    // Sentinel: Log only message to prevent potential credential leakage (e.g. connection strings)
+    console.error('🚨 [Cache Critical] Redis memory pool encountered an error:', err?.message || 'Unknown error');
 });
 
 client.on('end', () => {
@@ -33,8 +34,9 @@ if (process.env.NODE_ENV !== 'test') {
     (async () => {
         try {
             await client.connect();
-        } catch (err) {
-            console.error('🚨 [Cache Fault] Immediate initialization failed. Running in degraded failover state.', err);
+        } catch (err: any) {
+            // Sentinel: Log only message to prevent potential credential leakage
+            console.error('🚨 [Cache Fault] Immediate initialization failed. Running in degraded failover state.', err?.message || 'Unknown error');
         }
     })();
 }

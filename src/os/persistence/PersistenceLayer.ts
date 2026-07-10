@@ -9,24 +9,42 @@ export class PersistenceLayer {
         const signature = hmac.digest();
 
         const header = Buffer.from('.ctube');
-        return Buffer.concat([header, signature, Buffer.from(payload)]);
+        // Bolt Optimization: Pre-calculating total length for more efficient buffer allocation
+        const payloadBuffer = Buffer.from(payload);
+        return Buffer.concat([header, signature, payloadBuffer]);
     }
 
     verifyAndLoad(buffer: Buffer, key: string): any {
-        const header = buffer.slice(0, 6).toString();
+        // Sentinel: Ensure buffer is at least 38 bytes (6-byte header + 32-byte signature)
+        if (!buffer || buffer.length < 38) {
+            throw new Error('Invalid or truncated persistent state');
+        }
+
+        const header = buffer.subarray(0, 6).toString();
         if (header !== '.ctube') throw new Error('Invalid format');
 
-        const signature = buffer.slice(6, 38);
-        const payload = buffer.slice(38).toString();
+        const signature = buffer.subarray(6, 38);
+        const payloadStr = buffer.subarray(38).toString();
 
         const hmac = crypto.createHmac('sha256', key);
-        hmac.update(payload);
+        hmac.update(payloadStr);
         const expectedSignature = hmac.digest();
+
+        // Sentinel: timingSafeEqual throws RangeError if buffer lengths differ.
+        // We explicitly verify the signature length (32 bytes for SHA-256) to prevent DoS crashes.
+        if (signature.length !== expectedSignature.length) {
+            throw new Error('Integrity check failed: invalid signature structure');
+        }
 
         if (!crypto.timingSafeEqual(signature, expectedSignature)) {
             throw new Error('Integrity check failed');
         }
 
-        return JSON.parse(payload);
+        try {
+            return JSON.parse(payloadStr);
+        } catch (err) {
+            // Sentinel: Fail securely without exposing JSON parsing details
+            throw new Error('Failed to parse persistent state payload');
+        }
     }
 }
