@@ -102,3 +102,8 @@
 **Vulnerability:** Proof re-use/substitution vulnerability due to lack of binding between proof payload and request headers.
 **Learning:** Verifying that a proof is cryptographically valid is insufficient if the proof itself contains structural parameters (like `structuralHash`) that are not matched against the actual resource being requested (`x-cipher-hash`). An attacker could potentially use a valid proof from one channel to authenticate requests for a different channel.
 **Prevention:** Always pass the expected resource identifier to the verification function and strictly compare it against the value embedded within the decrypted/verified proof payload to ensure strong binding.
+
+## 2026-07-05 - Structural Validation in Persistence Layer
+**Vulnerability:** Denial of Service (DoS) and crash via malformed persistence buffers.
+**Learning:** Even if core cryptographic utilities are hardened, higher-level persistence layers can introduce vulnerabilities by failing to validate buffer boundaries before slicing or by calling JSON.parse on potentially malformed, albeit correctly signed, payloads.
+**Prevention:** Implement rigorous structural validation (minimum length checks) and safe parsing (try-catch) at the entry point of any persistence-loading logic, ensuring the system fails gracefully with diagnostic errors instead of crashing.
