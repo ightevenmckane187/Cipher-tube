@@ -21,3 +21,7 @@
 ## 2026-07-04 - [Dynamic Info Regions for Mythic Discovery]
 **Learning:** Static tooltips or ARIA labels on complex visual elements (like Archetype nodes) provide accessibility but lack "discoverability" for sighted users. Adding a dedicated, dynamic info region that updates on hover/focus provides a persistent place for users to learn about the system's "mandates" without needing to wait for browser tooltips.
 **Action:** Pair complex visual nodes with a persistent status or info region (`aria-live="polite"`) that exposes deeper metadata upon interaction.
+
+## 2026-10-18 - [Centralized Fragment Styling for Consistency]
+**Learning:** Inline styles in dynamically generated HTML fragments (like the Tri-shift Equation grid) prevent the use of pseudo-classes like `:hover` and complicate CSP compliance. Moving these styles to a central module-scope constant that is interpolated into the main `<style>` block ensures consistency, simplifies refactoring, and enables rich interactions across pre-rendered fragments.
+**Action:** Avoid inline styles in pre-rendered HTML constants; instead, define semantic classes and include their styles in the primary layout template to maintain a single source of truth for component appearance.
