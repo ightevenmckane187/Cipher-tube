@@ -88,6 +88,11 @@
 **Learning:** Node.js `crypto.timingSafeEqual` throws a `RangeError` if the input buffers have different lengths. If this isn't caught, a malformed proof with a short or long challenge can crash the entire worker process.
 **Prevention:** Always perform a strict length check or format validation (e.g., regex check for hex length) before calling `timingSafeEqual`. Ensure that both inputs are compared as same-length buffers to prevent runtime crashes.
 
+## 2026-07-05 - DoS in Persistence Layer via Buffer Manipulation
+**Vulnerability:** The PersistenceLayer was vulnerable to process crashes (DoS) when loading malformed `.ctube` files.
+**Learning:** Slicing buffers without length checks can lead to `RangeError` when the buffer is shorter than the expected slice range. Additionally, `timingSafeEqual` throws if lengths differ. Malformed JSON payloads also caused unhandled `SyntaxError`.
+**Prevention:** Implement strict minimum length checks (e.g., header + signature size) before any buffer operations. Use `subarray` for zero-copy operations and wrap `JSON.parse` in try-catch blocks to ensure fail-secure behavior with generic error messages.
+
 ## 2026-07-01 - Broken Cryptographic Proof Pipeline
 **Vulnerability:** Service-wide failure of cryptographic proof verification due to implementation errors (ReferenceError and Duplicate Declarations).
 **Learning:** A critical variable (`computedProof`) was missing from the `verifyCryptographicProof` function, while others (`challengeBuffer`, `computedBuffer`) were declared multiple times, causing runtime crashes that could be exploited for Denial of Service or to bypass security checks if errors were not handled securely.
