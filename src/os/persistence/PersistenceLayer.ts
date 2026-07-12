@@ -13,20 +13,38 @@ export class PersistenceLayer {
     }
 
     verifyAndLoad(buffer: Buffer, key: string): any {
-        const header = buffer.slice(0, 6).toString();
-        if (header !== '.ctube') throw new Error('Invalid format');
+        try {
+            // Sentinel: Enforce minimum length (6 bytes header + 32 bytes HMAC-SHA256 signature)
+            if (!buffer || buffer.length < 38) {
+                throw new Error('Invalid or malformed persistent state payload');
+            }
 
-        const signature = buffer.slice(6, 38);
-        const payload = buffer.slice(38).toString();
+            const header = buffer.slice(0, 6).toString();
+            if (header !== '.ctube') throw new Error('Invalid format');
 
-        const hmac = crypto.createHmac('sha256', key);
-        hmac.update(payload);
-        const expectedSignature = hmac.digest();
+            const signature = buffer.slice(6, 38);
+            const payload = buffer.slice(38).toString();
 
-        if (!crypto.timingSafeEqual(signature, expectedSignature)) {
-            throw new Error('Integrity check failed');
+            const hmac = crypto.createHmac('sha256', key);
+            hmac.update(payload);
+            const expectedSignature = hmac.digest();
+
+            // Sentinel: Ensure signatures have same length before comparison to prevent RangeError DoS
+            if (signature.length !== expectedSignature.length) {
+                throw new Error('Integrity check failed');
+            }
+
+            if (!crypto.timingSafeEqual(signature, expectedSignature)) {
+                throw new Error('Integrity check failed');
+            }
+
+            return JSON.parse(payload);
+        } catch (err: any) {
+            // Sentinel: Map internal errors and JSON parsing failures to generic messages
+            if (err.message === 'Invalid format' || err.message === 'Integrity check failed' || err.message === 'Invalid or malformed persistent state payload') {
+                throw err;
+            }
+            throw new Error('Invalid or malformed persistent state payload');
         }
-
-        return JSON.parse(payload);
     }
 }
