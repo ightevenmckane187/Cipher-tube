@@ -324,15 +324,21 @@ const PRE_RENDERED_STYLES = `
     }
     .archetype-name { font-weight: bold; margin-bottom: 2px; }
     .archetype-realm { font-size: 0.5rem; opacity: 0.7; }
+    .info-placeholder { color: var(--text-color); opacity: 0.6; font-style: italic; }
+    .tri-shift-item { margin-bottom: 0.5rem; }
+    .tri-shift-name { display: block; font-weight: bold; color: var(--primary); }
+    .tri-shift-desc { opacity: 0.8; font-size: 0.85rem; }
+    .status-success { color: var(--success); }
+    .status-error { color: var(--error); }
     ${CosmologyMap.getAuraStyles()}
 `;
 
 const PRE_RENDERED_TRI_SHIFT = Object.values(TriShiftInterpretations)
   .map(
     (interp) => `
-    <div>
-        <strong style="display: block;">${interp.name}</strong>
-        <span style="opacity: 0.8;">${interp.description}</span>
+    <div class="tri-shift-item">
+        <strong class="tri-shift-name">${interp.name}</strong>
+        <span class="tri-shift-desc">${interp.description}</span>
     </div>
 `,
   )
@@ -802,6 +808,12 @@ app.get("/", (req: Request, res: Response) => {
                 }
                 .archetype-name { font-weight: bold; margin-bottom: 2px; }
                 .archetype-realm { font-size: 0.5rem; opacity: 0.7; }
+                .info-placeholder { color: var(--text-color); opacity: 0.6; font-style: italic; }
+                .tri-shift-item { margin-bottom: 0.5rem; }
+                .tri-shift-name { display: block; font-weight: bold; color: var(--primary); }
+                .tri-shift-desc { opacity: 0.8; font-size: 0.85rem; }
+                .status-success { color: var(--success); }
+                .status-error { color: var(--error); }
                 #archetype-info {
                     margin-top: 1rem;
                     padding: 0.75rem;
@@ -855,7 +867,9 @@ app.get("/", (req: Request, res: Response) => {
                     <div id="cosmology-container">
                         ${PRE_RENDERED_COSMOLOGY}
                     </div>
-                    <div id="archetype-info" aria-live="polite"></div>
+                    <div id="archetype-info" aria-live="polite">
+                        <div class="info-placeholder">Hover or focus an archetype node to view its mandate.</div>
+                    </div>
 
                     <div id="tri-shift-equation" style="margin-top: 1.5rem; background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 4px; border-left: 4px solid var(--primary);">
                         <h4 style="margin-top: 0; color: var(--primary);">Conconcom ××× = +++</h4>
@@ -943,8 +957,14 @@ app.get("/", (req: Request, res: Response) => {
                         archetypeInfo.style.opacity = '1';
                     };
 
+                    const hideInfo = () => {
+                        archetypeInfo.innerHTML = '<div class="info-placeholder">Hover or focus an archetype node to view its mandate.</div>';
+                    };
+
                     node.addEventListener('mouseenter', showInfo);
                     node.addEventListener('focus', showInfo);
+                    node.addEventListener('mouseleave', hideInfo);
+                    node.addEventListener('blur', hideInfo);
                 });
 
                 themeToggles.forEach(toggle => {
@@ -1101,8 +1121,11 @@ app.get("/", (req: Request, res: Response) => {
                     const showStatus = (msg, isError = false) => {
                         if (statusTimeout) clearTimeout(statusTimeout);
                         status.textContent = msg;
-                        status.style.color = isError ? 'var(--error)' : 'var(--success)';
-                        statusTimeout = setTimeout(() => status.textContent = '', 3000);
+                        status.className = isError ? 'status-error' : 'status-success';
+                        statusTimeout = setTimeout(() => {
+                            status.textContent = '';
+                            status.className = '';
+                        }, 3000);
                     };
 
                     const resetBtn = () => {
