@@ -21,3 +21,7 @@
 ## 2026-07-04 - [Dynamic Info Regions for Mythic Discovery]
 **Learning:** Static tooltips or ARIA labels on complex visual elements (like Archetype nodes) provide accessibility but lack "discoverability" for sighted users. Adding a dedicated, dynamic info region that updates on hover/focus provides a persistent place for users to learn about the system's "mandates" without needing to wait for browser tooltips.
 **Action:** Pair complex visual nodes with a persistent status or info region (`aria-live="polite"`) that exposes deeper metadata upon interaction.
+
+## 2026-07-12 - [Empty States & Semantic Feedback]
+**Learning:** Interfaces that rely on user interaction (like hover/focus) for information discovery can feel broken or empty if they don't provide initial guidance. Using an "instructional empty state" (placeholder) improves discoverability. Furthermore, refactoring direct style manipulation into semantic CSS classes (.status-success) improves maintainability and CSP compliance.
+**Action:** Always provide initial instructional placeholders for dynamic info regions and prefer class-based state styling over direct element.style manipulation.
