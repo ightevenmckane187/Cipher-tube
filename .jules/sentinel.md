@@ -102,3 +102,8 @@
 **Vulnerability:** Proof re-use/substitution vulnerability due to lack of binding between proof payload and request headers.
 **Learning:** Verifying that a proof is cryptographically valid is insufficient if the proof itself contains structural parameters (like `structuralHash`) that are not matched against the actual resource being requested (`x-cipher-hash`). An attacker could potentially use a valid proof from one channel to authenticate requests for a different channel.
 **Prevention:** Always pass the expected resource identifier to the verification function and strictly compare it against the value embedded within the decrypted/verified proof payload to ensure strong binding.
+
+## 2026-07-12 - DoS via timingSafeEqual Length Mismatch in Persistence
+**Vulnerability:** Denial of Service (DoS) in the Sovereign OS persistence layer due to unhandled exceptions in `crypto.timingSafeEqual` when comparing mismatched buffer lengths.
+**Learning:** Node.js `crypto.timingSafeEqual` throws a `TypeError` (or `RangeError` in older versions) if the input buffers do not have identical lengths. An attacker can crash the persistent state loader by providing a truncated or malformed `.ctube` file.
+**Prevention:** Always perform explicit length validation on all buffer slices before passing them to `timingSafeEqual`. Enforce a minimum total buffer length and verify that extracted cryptographic signatures match the expected algorithm's output size (e.g., 32 bytes for HMAC-SHA256).
