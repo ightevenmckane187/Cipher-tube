@@ -88,6 +88,11 @@
 **Learning:** Node.js `crypto.timingSafeEqual` throws a `RangeError` if the input buffers have different lengths. If this isn't caught, a malformed proof with a short or long challenge can crash the entire worker process.
 **Prevention:** Always perform a strict length check or format validation (e.g., regex check for hex length) before calling `timingSafeEqual`. Ensure that both inputs are compared as same-length buffers to prevent runtime crashes.
 
+## 2026-07-05 - DoS in Persistence Layer via Buffer Slicing
+**Vulnerability:** Denial of Service (DoS) in `PersistenceLayer.verifyAndLoad` due to unhandled `RangeError` in `timingSafeEqual`.
+**Learning:** Directly slicing buffers based on hardcoded offsets without validating the total buffer length leads to variable-length segments. When these segments are passed to `crypto.timingSafeEqual`, they can trigger a `RangeError` (or `TypeError` in some Node versions) if they don't match the expected signature length, crashing the process.
+**Prevention:** Always validate the minimum required length of a buffer before performing any slicing or subarray operations. Additionally, explicitly verify that sliced segments (like signatures) match the expected byte length before passing them to constant-time comparison functions.
+
 ## 2026-07-01 - Broken Cryptographic Proof Pipeline
 **Vulnerability:** Service-wide failure of cryptographic proof verification due to implementation errors (ReferenceError and Duplicate Declarations).
 **Learning:** A critical variable (`computedProof`) was missing from the `verifyCryptographicProof` function, while others (`challengeBuffer`, `computedBuffer`) were declared multiple times, causing runtime crashes that could be exploited for Denial of Service or to bypass security checks if errors were not handled securely.
