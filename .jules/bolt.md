@@ -33,3 +33,7 @@
 ## 2026-07-02 - Timing Side-Channels in Security Caching
 **Learning:** Caching results of cryptographic verification (like HMAC checks) introduces a timing side-channel. Attackers can distinguish between cache hits (fast) and misses (slow), potentially leaking information about which inputs are "known" or "valid" to the system. This undermines the purpose of `timingSafeEqual`.
 **Action:** Avoid caching in cryptographic verification paths where constant-time execution is required; prioritize safety over micro-optimizations in these sensitive areas.
+
+## 2026-07-07 - Full-String Attribute Pre-calculation
+**Learning:** Pre-calculating the complete HTML attribute string (e.g., ` nonce="..."`) in middleware instead of just the token value further reduces per-request string concatenation overhead in template-heavy response paths. This pattern ensures that "hot" templates remain as static as possible.
+**Action:** Favor pre-calculating entire HTML attributes or fragments in middleware or module scope to minimize runtime template interpolation.
