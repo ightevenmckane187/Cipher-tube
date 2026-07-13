@@ -102,3 +102,8 @@
 **Vulnerability:** Proof re-use/substitution vulnerability due to lack of binding between proof payload and request headers.
 **Learning:** Verifying that a proof is cryptographically valid is insufficient if the proof itself contains structural parameters (like `structuralHash`) that are not matched against the actual resource being requested (`x-cipher-hash`). An attacker could potentially use a valid proof from one channel to authenticate requests for a different channel.
 **Prevention:** Always pass the expected resource identifier to the verification function and strictly compare it against the value embedded within the decrypted/verified proof payload to ensure strong binding.
+
+## 2026-07-05 - DoS Resilience in Persistence Layer
+**Vulnerability:** Application crash (DoS) via malformed `.ctube` files due to `timingSafeEqual` length mismatch.
+**Learning:** Security hardening in one layer (e.g., gateway) does not automatically protect other layers (e.g., CLI persistence) that use the same cryptographic primitives. Each layer must independently validate its structural integrity.
+**Prevention:** Implement strict minimum length checks and explicit signature length verification in all modules using `crypto.timingSafeEqual`, especially those handling file-based state.
