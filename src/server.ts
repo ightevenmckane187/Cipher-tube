@@ -37,6 +37,12 @@ const PRE_RENDERED_COSMOLOGY = Object.values(Archetypes)
   .join("");
 
 // Bolt Optimization: Pre-render static CSS to avoid redundant interpolations on every request.
+// Bolt Optimization: Consolidate static header values into module-scope constants
+// to avoid redundant string allocations in middleware.
+const PERMISSIONS_POLICY = "accelerometer=(), ambient-light-sensor=(), autoplay=(), battery=(), camera=(), display-capture=(), document-domain=(), encrypted-media=(), fullscreen=(), gamepad=(), geolocation=(), gyroscope=(), layout-animations=(), legacy-image-formats=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), speaker-selection=(), screen-wake-lock=(), sync-xhr=(), usb=(), web-share=(), xr-spatial-tracking=(), interest-cohort=()";
+const CACHE_CONTROL_NO_CACHE = "no-store, no-cache, must-revalidate, proxy-revalidate";
+
+// Bolt Optimization: Pre-render static CSS to avoid redundant interpolations on every request.
 const PRE_RENDERED_STYLES = `
     :root {
         --primary: #007bff;
@@ -100,6 +106,25 @@ const PRE_RENDERED_STYLES = `
     @keyframes pulse {
         0% { box-shadow: 0 0 0 0 var(--success-glow); }
         70% { box-shadow: 0 0 0 10px transparent; }
+        100% { box-shadow: 0 0 0 0 transparent; }
+    }
+    .pr-pulse {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(212, 175, 55, 0.1);
+        color: #d4af37;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: bold;
+        border: 1px solid rgba(212, 175, 55, 0.3);
+        margin-bottom: 1rem;
+        animation: pulse-gold 2s infinite;
+    }
+    @keyframes pulse-gold {
+        0% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); }
+        70% { box-shadow: 0 0 0 6px transparent; }
         100% { box-shadow: 0 0 0 0 transparent; }
     }
     .theme-toggle {
@@ -324,15 +349,65 @@ const PRE_RENDERED_STYLES = `
     }
     .archetype-name { font-weight: bold; margin-bottom: 2px; }
     .archetype-realm { font-size: 0.5rem; opacity: 0.7; }
+    #archetype-info {
+        margin-top: 1rem;
+        padding: 0.75rem;
+        background: rgba(0,0,0,0.1);
+        border-radius: 4px;
+        border-left: 3px solid var(--primary);
+        min-height: 3em;
+        font-size: 0.875rem;
+        transition: opacity 0.2s;
+    }
+    #archetype-info:empty { opacity: 0; }
+    .mandate-label { font-weight: bold; color: var(--primary); display: block; margin-bottom: 2px; }
+
+    /* Tri-Shift UI Classes (Bolt Optimization) */
+    .tri-shift-item {
+        transition: transform 0.2s;
+    }
+    .tri-shift-item:hover {
+        transform: translateX(4px);
+    }
+    .tri-shift-name {
+        display: block;
+        font-weight: bold;
+        color: var(--primary);
+    }
+    .tri-shift-desc {
+        opacity: 0.8;
+    }
+
+    /* Additional Semantic Classes (Bolt Optimization) */
+    .epoch-value { font-weight: bold; text-transform: uppercase; }
+    .mirror-title { margin-top: 0; }
+    .mirror-subtitle { font-size: 0.8rem; opacity: 0.8; }
+
+    #tri-shift-equation {
+        margin-top: 1.5rem;
+        background: rgba(0,0,0,0.05);
+        padding: 1rem;
+        border-radius: 4px;
+        border-left: 4px solid var(--primary);
+    }
+    .tri-shift-title { margin-top: 0; color: var(--primary); }
+    .tri-shift-mantra { font-style: italic; margin-bottom: 0.5rem; }
+    .tri-shift-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        font-size: 0.8rem;
+    }
+
     ${CosmologyMap.getAuraStyles()}
 `;
 
 const PRE_RENDERED_TRI_SHIFT = Object.values(TriShiftInterpretations)
   .map(
     (interp) => `
-    <div>
-        <strong style="display: block;">${interp.name}</strong>
-        <span style="opacity: 0.8;">${interp.description}</span>
+    <div class="tri-shift-item">
+        <strong class="tri-shift-name">${interp.name}</strong>
+        <span class="tri-shift-desc">${interp.description}</span>
     </div>
 `,
   )
@@ -397,10 +472,8 @@ const sessionLimiter = rateLimit({
  * Sets headers to ensure no-cache, no-store, and revalidation.
  */
 const noCache = (req: Request, res: Response, next: NextFunction) => {
-  res.setHeader(
-    "Cache-Control",
-    "no-store, no-cache, must-revalidate, proxy-revalidate",
-  );
+  // Bolt Optimization: Use pre-computed constant for Cache-Control
+  res.setHeader("Cache-Control", CACHE_CONTROL_NO_CACHE);
   res.setHeader("Pragma", "no-cache");
   res.setHeader("Expires", "0");
   res.setHeader("Surrogate-Control", "no-store");
@@ -424,10 +497,8 @@ app.use(
 // Sentinel: Manually apply hardened Permissions-Policy as helmet 8.x seems to lack built-in support.
 // Applied before the rate limiter to ensure all responses (including 429) are protected.
 app.use((req: Request, res: Response, next: NextFunction) => {
-  res.setHeader(
-    "Permissions-Policy",
-    "accelerometer=(), ambient-light-sensor=(), autoplay=(), battery=(), camera=(), display-capture=(), document-domain=(), encrypted-media=(), fullscreen=(), gamepad=(), geolocation=(), gyroscope=(), layout-animations=(), legacy-image-formats=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), speaker-selection=(), screen-wake-lock=(), sync-xhr=(), usb=(), web-share=(), xr-spatial-tracking=(), interest-cohort=()"
-  );
+  // Bolt Optimization: Use pre-computed constant for Permissions-Policy
+  res.setHeader("Permissions-Policy", PERMISSIONS_POLICY);
   next();
 });
 app.disable("x-powered-by"); // Further ensures the header is removed
@@ -497,324 +568,7 @@ app.get("/", (req: Request, res: Response) => {
                 })();
             </script>
             <style nonce="${res.locals.nonce}">
-                :root {
-                    --primary: #007bff;
-                    --success: #1e7e34;
-                    --success-glow: rgba(30, 126, 52, 0.4);
-                    --bg-color: #ffffff;
-                    --text-color: #1d1d1f;
-                    --border-color: #ccc;
-                    --error: #d93025;
-                }
-                [data-theme='dark'] {
-                    --bg-color: #121212;
-                    --text-color: #e0e0e0;
-                    --border-color: #333;
-                    --success: #2ecc71;
-                    --success-glow: rgba(46, 204, 113, 0.4);
-                    --error: #f28b82;
-                }
-                body {
-                    font-family: system-ui, -apple-system, sans-serif;
-                    line-height: 1.5;
-                    max-width: 800px;
-                    margin: 2rem auto;
-                    padding: 0 1rem;
-                    background-color: var(--bg-color);
-                    color: var(--text-color);
-                    transition: background-color 0.3s, color 0.3s;
-                }
-                h1, h2, h3 { color: var(--primary); }
-                .skip-link {
-                    position: absolute;
-                    top: -40px;
-                    left: 0;
-                    background: var(--primary);
-                    color: white;
-                    padding: 8px;
-                    z-index: 100;
-                    transition: top 0.3s;
-                    text-decoration: none;
-                }
-                .skip-link:focus { top: 0; }
-                .status-dot {
-                    display: inline-block;
-                    width: 10px;
-                    height: 10px;
-                    background-color: var(--success);
-                    border-radius: 50%;
-                    margin-right: 8px;
-                    box-shadow: 0 0 0 var(--success-glow);
-                    animation: pulse 2s infinite;
-                }
-                @media (prefers-reduced-motion: reduce) {
-                    .status-dot {
-                        animation: none;
-                    }
-                    * {
-                        transition: none !important;
-                        animation: none !important;
-                    }
-                }
-                @keyframes pulse {
-                    0% { box-shadow: 0 0 0 0 var(--success-glow); }
-                    70% { box-shadow: 0 0 0 10px transparent; }
-                    100% { box-shadow: 0 0 0 0 transparent; }
-                }
-                .pr-pulse {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 6px;
-                    background: rgba(212, 175, 55, 0.1);
-                    color: #d4af37;
-                    padding: 4px 12px;
-                    border-radius: 4px;
-                    font-size: 0.75rem;
-                    font-weight: bold;
-                    border: 1px solid rgba(212, 175, 55, 0.3);
-                    margin-bottom: 1rem;
-                    animation: pulse-gold 2s infinite;
-                }
-                @keyframes pulse-gold {
-                    0% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); }
-                    70% { box-shadow: 0 0 0 6px transparent; }
-                    100% { box-shadow: 0 0 0 0 transparent; }
-                }
-                .theme-toggle {
-                    background: none;
-                    border: 1px solid var(--border-color);
-                    color: var(--text-color);
-                    padding: 8px 16px;
-                    border-radius: 20px;
-                    cursor: pointer;
-                    font-size: 0.875rem;
-                    transition: transform 0.1s, background-color 0.2s, color 0.2s;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    float: right;
-                }
-                .theme-toggle:active {
-                    transform: scale(0.98);
-                }
-                .theme-toggle:hover {
-                    background-color: var(--border-color);
-                }
-                .input-group {
-                    margin-bottom: 1.5rem;
-                }
-                label {
-                    display: block;
-                    font-size: 0.875rem;
-                    font-weight: 500;
-                    margin-bottom: 0.5rem;
-                }
-                #user-id-input {
-                    background: var(--bg-color);
-                    border: 1px solid var(--border-color);
-                    color: var(--text-color);
-                    padding: 8px 12px;
-                    border-radius: 6px;
-                    font-size: 1rem;
-                    width: 100%;
-                    max-width: 300px;
-                    transition: border-color 0.2s;
-                }
-                .theme-icon {
-                    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                    display: inline-block;
-                }
-                .theme-toggle:active .theme-icon {
-                    transform: scale(0.8);
-                }
-                footer { margin-top: 4rem; font-size: 0.875rem; border-top: 1px solid var(--border-color); padding-top: 1rem; }
-                a { color: var(--primary); text-decoration: none; }
-                a:hover { text-decoration: underline; }
-                a:focus-visible,
-                button:focus-visible,
-                input:focus-visible,
-                pre[tabindex="0"]:focus-visible {
-                    outline: 3px solid var(--primary);
-                    outline-offset: 2px;
-                }
-                .code-container {
-                    position: relative;
-                    margin: 1rem 0;
-                    background: #1e1e1e;
-                    border-radius: 8px;
-                    overflow: hidden;
-                    border: 1px solid var(--border-color);
-                }
-                .code-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    background: rgba(255, 255, 255, 0.05);
-                    padding: 8px 12px;
-                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-                }
-                pre {
-                    margin: 0;
-                    padding: 1rem;
-                    overflow-x: auto;
-                    color: #dcdcdc;
-                    font-size: 0.875rem;
-                    scroll-behavior: smooth;
-                }
-                .copy-button {
-                    background: rgba(255, 255, 255, 0.1);
-                    border: 1px solid rgba(255, 255, 255, 0.2);
-                    color: #fff;
-                    padding: 4px 8px;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    font-size: 0.75rem;
-                    transition: transform 0.1s, background-color 0.2s;
-                    display: flex;
-                    align-items: center;
-                    gap: 4px;
-                }
-                .copy-button:hover { background: rgba(255, 255, 255, 0.2); }
-                .copy-button:active { transform: scale(0.95); }
-                .kb-shortcut {
-                    margin-left: 4px;
-                    opacity: 0.9;
-                    font-size: 0.7rem;
-                    background: var(--bg-color);
-                    color: var(--text-color);
-                    padding: 1px 4px;
-                    border-radius: 3px;
-                    border: 1px solid var(--border-color);
-                    box-shadow: 0 1px 1px rgba(0,0,0,0.2);
-                }
-                @media (max-width: 480px) {
-                    .kb-shortcut { display: none; }
-                }
-                .copy-icon, .check-icon {
-                    width: 14px;
-                    height: 14px;
-                    fill: currentColor;
-                }
-                .check-icon { display: none; color: var(--success); }
-                .copy-button.copied .copy-icon { display: none; }
-                .copy-button.copied .check-icon { display: block; }
-                .input-group { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
-                .input-group label { font-size: 0.875rem; font-weight: 500; }
-                .input-group input { background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 8px 12px; border-radius: 6px; font-size: 0.875rem; width: 100%; max-width: 300px; }
-                .counter-container { display: flex; justify-content: space-between; max-width: 300px; align-items: baseline; flex-wrap: wrap; gap: 8px; }
-                #user-id-counter { font-size: 0.75rem; opacity: 0.7; }
-                #user-id-counter.near-limit { color: #d63031; opacity: 1; font-weight: bold; }
-                #timeout-banner {
-                    display: none;
-                    position: fixed;
-                    bottom: 20px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    background: var(--primary);
-                    color: white;
-                    padding: 12px 24px;
-                    border-radius: 8px;
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                    z-index: 1000;
-                    align-items: center;
-                    gap: 16px;
-                }
-                #extend-session-btn {
-                    background: white;
-                    color: var(--primary);
-                    border: none;
-                    padding: 6px 12px;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    font-weight: bold;
-                    transition: transform 0.1s, opacity 0.2s;
-                }
-                #extend-session-btn:hover { opacity: 0.9; }
-                #extend-session-btn:active { transform: scale(0.98); }
-                #extension-status { margin-left: 8px; font-weight: bold; }
-                #create-session-btn {
-                    background: var(--primary);
-                    color: white;
-                    border: none;
-                    padding: 8px 16px;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    font-weight: 500;
-                    transition: transform 0.1s;
-                    display: flex;
-                    align-items: center;
-                    gap: 4px;
-                }
-                #create-session-btn:active { transform: scale(0.98); }
-                #create-session-btn:hover { opacity: 0.9; }
-                #create-session-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-                .input-row {
-                    display: flex;
-                    gap: 8px;
-                    flex-wrap: wrap;
-                    align-items: flex-start;
-                }
-                /* Mythic Mirror Styles */
-                #mythic-mirror {
-                    margin-top: 2rem;
-                    border: 1px solid var(--border-color);
-                    padding: 1rem;
-                    border-radius: 8px;
-                    background: rgba(0,0,0,0.02);
-                }
-                #cosmology-container {
-                    height: 220px;
-                    background: #050505;
-                    position: relative;
-                    overflow: hidden;
-                    display: flex;
-                    flex-direction: row;
-                    justify-content: center;
-                    align-items: center;
-                    gap: 20px;
-                    border-radius: 4px;
-                    padding: 0 10px;
-                }
-                .archetype-node {
-                  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                  width: 70px;
-                  height: 70px;
-                  display: flex;
-                  flex-direction: column;
-                  align-items: center;
-                  justify-content: center;
-                  color: white;
-                  font-size: 0.6rem;
-                  text-align: center;
-                  border: 1px solid rgba(255,255,255,0.2);
-                  border-radius: 8px;
-                  padding: 4px;
-                  cursor: help;
-                  background: rgba(20,20,20,0.8);
-                  flex-shrink: 0;
-                }
-                .archetype-node:hover,
-                .archetype-node:focus-visible {
-                  transform: scale(1.1);
-                  z-index: 10;
-                  box-shadow: 0 0 15px white;
-                  outline: none;
-                }
-                .archetype-name { font-weight: bold; margin-bottom: 2px; }
-                .archetype-realm { font-size: 0.5rem; opacity: 0.7; }
-                #archetype-info {
-                    margin-top: 1rem;
-                    padding: 0.75rem;
-                    background: rgba(0,0,0,0.1);
-                    border-radius: 4px;
-                    border-left: 3px solid var(--primary);
-                    min-height: 3em;
-                    font-size: 0.875rem;
-                    transition: opacity 0.2s;
-                }
-                #archetype-info:empty { opacity: 0; }
-                .mandate-label { font-weight: bold; color: var(--primary); display: block; margin-bottom: 2px; }
-                ${CosmologyMap.getAuraStyles()}
+                ${PRE_RENDERED_STYLES}
             </style>
         </head>
         <body>
@@ -841,7 +595,7 @@ app.get("/", (req: Request, res: Response) => {
                     <p>
                         <span class="status-dot" aria-hidden="true"></span>
                         <strong>Status:</strong> <span class="status-text">Online</span> |
-                        <strong>Epoch:</strong> <span id="epoch-display" style="font-weight: bold; text-transform: uppercase;">${seasonalEngine.getCurrentEpoch()}</span> |
+                        <strong>Epoch:</strong> <span id="epoch-display" class="epoch-value">${seasonalEngine.getCurrentEpoch()}</span> |
                         <strong>Strictness:</strong> <span id="strictness-display">${seasonalEngine.getStrictness().toFixed(1)}</span>
                     </p>
                 </div>
@@ -850,17 +604,17 @@ app.get("/", (req: Request, res: Response) => {
                     <div class="pr-pulse" role="status" aria-label="PR Gates status: operational">
                         <span aria-hidden="true">🛡️</span> PR GATES: OPERATIONAL
                     </div>
-                    <h3 style="margin-top: 0;">Mythic Mirror: Cosmology Map</h3>
-                    <p style="font-size: 0.8rem; opacity: 0.8;">Visualize the "living soul" of the civilization in real-time.</p>
+                    <h3 class="mirror-title">Mythic Mirror: Cosmology Map</h3>
+                    <p class="mirror-subtitle">Visualize the "living soul" of the civilization in real-time.</p>
                     <div id="cosmology-container">
                         ${PRE_RENDERED_COSMOLOGY}
                     </div>
                     <div id="archetype-info" aria-live="polite"></div>
 
-                    <div id="tri-shift-equation" style="margin-top: 1.5rem; background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 4px; border-left: 4px solid var(--primary);">
-                        <h4 style="margin-top: 0; color: var(--primary);">Conconcom ××× = +++</h4>
-                        <p style="font-style: italic; margin-bottom: 0.5rem;">"${UnifiedMantra}"</p>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; font-size: 0.8rem;">
+                    <div id="tri-shift-equation">
+                        <h4 class="tri-shift-title">Conconcom ××× = +++</h4>
+                        <p class="tri-shift-mantra">"${UnifiedMantra}"</p>
+                        <div class="tri-shift-grid">
                             ${PRE_RENDERED_TRI_SHIFT}
                         </div>
                     </div>
