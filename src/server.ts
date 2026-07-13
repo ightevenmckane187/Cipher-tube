@@ -325,14 +325,49 @@ const PRE_RENDERED_STYLES = `
     .archetype-name { font-weight: bold; margin-bottom: 2px; }
     .archetype-realm { font-size: 0.5rem; opacity: 0.7; }
     ${CosmologyMap.getAuraStyles()}
+    .tri-shift-container {
+        margin-top: 1.5rem;
+        background: rgba(0,0,0,0.05);
+        padding: 1rem;
+        border-radius: 4px;
+        border-left: 4px solid var(--primary);
+    }
+    .tri-shift-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        font-size: 0.8rem;
+    }
+    .tri-shift-item {
+        padding: 0.5rem;
+        border-radius: 4px;
+        transition: background-color 0.2s, transform 0.2s;
+    }
+    .tri-shift-item:hover {
+        background-color: rgba(0,0,0,0.05);
+        transform: translateX(4px);
+    }
+    [data-theme='dark'] .tri-shift-item:hover {
+        background-color: rgba(255,255,255,0.05);
+    }
+    .tri-shift-name {
+        display: block;
+        color: var(--primary);
+        font-weight: bold;
+        margin-bottom: 2px;
+    }
+    .tri-shift-desc {
+        opacity: 0.8;
+        display: block;
+    }
 `;
 
 const PRE_RENDERED_TRI_SHIFT = Object.values(TriShiftInterpretations)
   .map(
     (interp) => `
-    <div>
-        <strong style="display: block;">${interp.name}</strong>
-        <span style="opacity: 0.8;">${interp.description}</span>
+    <div class="tri-shift-item">
+        <strong class="tri-shift-name">${interp.name}</strong>
+        <span class="tri-shift-desc">${interp.description}</span>
     </div>
 `,
   )
@@ -497,6 +532,7 @@ app.get("/", (req: Request, res: Response) => {
                 })();
             </script>
             <style nonce="${res.locals.nonce}">
+                ${PRE_RENDERED_STYLES}
                 :root {
                     --primary: #007bff;
                     --success: #1e7e34;
@@ -857,10 +893,10 @@ app.get("/", (req: Request, res: Response) => {
                     </div>
                     <div id="archetype-info" aria-live="polite"></div>
 
-                    <div id="tri-shift-equation" style="margin-top: 1.5rem; background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 4px; border-left: 4px solid var(--primary);">
+                    <div id="tri-shift-equation" class="tri-shift-container">
                         <h4 style="margin-top: 0; color: var(--primary);">Conconcom ××× = +++</h4>
                         <p style="font-style: italic; margin-bottom: 0.5rem;">"${UnifiedMantra}"</p>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; font-size: 0.8rem;">
+                        <div class="tri-shift-grid">
                             ${PRE_RENDERED_TRI_SHIFT}
                         </div>
                     </div>
