@@ -102,3 +102,8 @@
 **Vulnerability:** Proof re-use/substitution vulnerability due to lack of binding between proof payload and request headers.
 **Learning:** Verifying that a proof is cryptographically valid is insufficient if the proof itself contains structural parameters (like `structuralHash`) that are not matched against the actual resource being requested (`x-cipher-hash`). An attacker could potentially use a valid proof from one channel to authenticate requests for a different channel.
 **Prevention:** Always pass the expected resource identifier to the verification function and strictly compare it against the value embedded within the decrypted/verified proof payload to ensure strong binding.
+
+## 2026-07-05 - Session Token Length Validation
+**Vulnerability:** Potential DoS and resource exhaustion via oversized session token headers.
+**Learning:** Even if session tokens are validated against a database or cache, an attacker can send extremely large headers that consume significant memory during parsing or CPU during hashing/blinding operations before the lookup fails.
+**Prevention:** Implement strict length limits on all security-sensitive custom headers (like `x-session-token`) at the earliest possible stage in the middleware pipeline.
