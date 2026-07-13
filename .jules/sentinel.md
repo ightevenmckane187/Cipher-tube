@@ -102,3 +102,8 @@
 **Vulnerability:** Proof re-use/substitution vulnerability due to lack of binding between proof payload and request headers.
 **Learning:** Verifying that a proof is cryptographically valid is insufficient if the proof itself contains structural parameters (like `structuralHash`) that are not matched against the actual resource being requested (`x-cipher-hash`). An attacker could potentially use a valid proof from one channel to authenticate requests for a different channel.
 **Prevention:** Always pass the expected resource identifier to the verification function and strictly compare it against the value embedded within the decrypted/verified proof payload to ensure strong binding.
+
+## 2026-07-05 - DoS via timingSafeEqual in PersistenceLayer
+**Vulnerability:** Denial of Service (DoS) in persistence layer due to unhandled RangeError in `timingSafeEqual`.
+**Learning:** Like the cryptographic verifier, the `PersistenceLayer` was vulnerable to process crashes if provided with buffers shorter than the expected signature length, as `crypto.timingSafeEqual` throws when input lengths mismatch.
+**Prevention:** Always validate the total buffer length and individual component lengths (header, signature) before slicing and before performing constant-time comparisons.

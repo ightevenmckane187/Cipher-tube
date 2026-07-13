@@ -13,6 +13,12 @@ export class PersistenceLayer {
     }
 
     verifyAndLoad(buffer: Buffer, key: string): any {
+        // Sentinel: Ensure buffer has minimum length for header (6) and signature (32)
+        // to prevent RangeError in timingSafeEqual which can lead to DoS.
+        if (!buffer || buffer.length < 38) {
+            throw new Error('Invalid format: Buffer too short');
+        }
+
         const header = buffer.slice(0, 6).toString();
         if (header !== '.ctube') throw new Error('Invalid format');
 
@@ -23,7 +29,8 @@ export class PersistenceLayer {
         hmac.update(payload);
         const expectedSignature = hmac.digest();
 
-        if (!crypto.timingSafeEqual(signature, expectedSignature)) {
+        // Sentinel: Double check lengths match before constant-time comparison
+        if (signature.length !== expectedSignature.length || !crypto.timingSafeEqual(signature, expectedSignature)) {
             throw new Error('Integrity check failed');
         }
 
