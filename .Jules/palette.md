@@ -21,3 +21,7 @@
 ## 2026-07-04 - [Dynamic Info Regions for Mythic Discovery]
 **Learning:** Static tooltips or ARIA labels on complex visual elements (like Archetype nodes) provide accessibility but lack "discoverability" for sighted users. Adding a dedicated, dynamic info region that updates on hover/focus provides a persistent place for users to learn about the system's "mandates" without needing to wait for browser tooltips.
 **Action:** Pair complex visual nodes with a persistent status or info region (`aria-live="polite"`) that exposes deeper metadata upon interaction.
+
+## 2026-10-12 - [Info Region Guidance & Placeholder States]
+**Learning:** Empty dynamic regions (like the Archetype mandate panel) can appear broken or inactive until first interaction. Providing a default "placeholder" message with reduced opacity guides users toward the interaction and provides immediate visual feedback that the area is functional.
+**Action:** Always initialize dynamic info panels with a helpful "Select an item to view details" placeholder that is restored when interactions end.
