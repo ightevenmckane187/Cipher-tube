@@ -324,15 +324,24 @@ const PRE_RENDERED_STYLES = `
     }
     .archetype-name { font-weight: bold; margin-bottom: 2px; }
     .archetype-realm { font-size: 0.5rem; opacity: 0.7; }
+    .tri-shift-item {
+        transition: transform 0.2s ease;
+    }
+    .tri-shift-item:hover {
+        transform: translateX(4px);
+    }
+    .tri-shift-name { display: block; font-weight: bold; color: var(--primary); }
+    .tri-shift-desc { opacity: 0.8; font-size: 0.75rem; }
+    .info-placeholder { opacity: 0.6; font-style: italic; }
     ${CosmologyMap.getAuraStyles()}
 `;
 
 const PRE_RENDERED_TRI_SHIFT = Object.values(TriShiftInterpretations)
   .map(
     (interp) => `
-    <div>
-        <strong style="display: block;">${interp.name}</strong>
-        <span style="opacity: 0.8;">${interp.description}</span>
+    <div class="tri-shift-item">
+        <strong class="tri-shift-name">${interp.name}</strong>
+        <span class="tri-shift-desc">${interp.description}</span>
     </div>
 `,
   )
@@ -802,6 +811,15 @@ app.get("/", (req: Request, res: Response) => {
                 }
                 .archetype-name { font-weight: bold; margin-bottom: 2px; }
                 .archetype-realm { font-size: 0.5rem; opacity: 0.7; }
+                .tri-shift-item {
+                    transition: transform 0.2s ease;
+                }
+                .tri-shift-item:hover {
+                    transform: translateX(4px);
+                }
+                .tri-shift-name { display: block; font-weight: bold; color: var(--primary); }
+                .tri-shift-desc { opacity: 0.8; font-size: 0.75rem; }
+                .info-placeholder { opacity: 0.6; font-style: italic; }
                 #archetype-info {
                     margin-top: 1rem;
                     padding: 0.75rem;
@@ -855,7 +873,9 @@ app.get("/", (req: Request, res: Response) => {
                     <div id="cosmology-container">
                         ${PRE_RENDERED_COSMOLOGY}
                     </div>
-                    <div id="archetype-info" aria-live="polite"></div>
+                    <div id="archetype-info" aria-live="polite">
+                        <span class="info-placeholder">Select an archetype to view its mandate.</span>
+                    </div>
 
                     <div id="tri-shift-equation" style="margin-top: 1.5rem; background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 4px; border-left: 4px solid var(--primary);">
                         <h4 style="margin-top: 0; color: var(--primary);">Conconcom ××× = +++</h4>
@@ -943,8 +963,14 @@ app.get("/", (req: Request, res: Response) => {
                         archetypeInfo.style.opacity = '1';
                     };
 
+                    const hideInfo = () => {
+                        archetypeInfo.innerHTML = '<span class="info-placeholder">Select an archetype to view its mandate.</span>';
+                    };
+
                     node.addEventListener('mouseenter', showInfo);
                     node.addEventListener('focus', showInfo);
+                    node.addEventListener('mouseleave', hideInfo);
+                    node.addEventListener('blur', hideInfo);
                 });
 
                 themeToggles.forEach(toggle => {
