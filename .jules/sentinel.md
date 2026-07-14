@@ -85,7 +85,7 @@
 
 ## 2026-06-30 - DoS via timingSafeEqual Length Mismatch
 **Vulnerability:** Denial of Service (DoS) in cryptographic verification due to unhandled exceptions in `timingSafeEqual`.
-**Learning:** Node.js `crypto.timingSafeEqual` throws a `RangeError` if the input buffers have different lengths. If this isn't caught, a malformed proof with a short or long challenge can crash the entire worker process.
+**Learning:** Node.js `crypto.timingSafeEqual` throws a `RangeError` (or `TypeError` in newer versions) if the input buffers have different lengths. If this isn't caught, a malformed payload can crash the process or cause unhandled exceptions.
 **Prevention:** Always perform a strict length check or format validation (e.g., regex check for hex length) before calling `timingSafeEqual`. Ensure that both inputs are compared as same-length buffers to prevent runtime crashes.
 
 ## 2026-07-01 - Broken Cryptographic Proof Pipeline
