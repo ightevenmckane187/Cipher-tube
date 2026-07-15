@@ -1,8 +1,8 @@
 export enum SovereignNodeSpecies {
-  TOOLBOX = 'Toolbox',
-  RITUAL = 'Ritual',
-  ARCHETYPE = 'Archetype',
-  DIAGNOSTIC = 'Diagnostic'
+  TOOLBOX = "Toolbox",
+  RITUAL = "Ritual",
+  ARCHETYPE = "Archetype",
+  DIAGNOSTIC = "Diagnostic",
 }
 
 export interface NodeMetadata {
@@ -12,29 +12,29 @@ export interface NodeMetadata {
 }
 
 export const NODE_TAXONOMY: Record<string, NodeMetadata> = {
-  'sentinel-node': {
+  "sentinel-node": {
     species: SovereignNodeSpecies.ARCHETYPE,
-    identity806: '806-SENTINEL',
-    mandate: 'Guard the Pulse with rigid vigilance.'
+    identity806: "806-SENTINEL",
+    mandate: "Guard the Pulse with rigid vigilance.",
   },
-  'wanderer-node': {
+  "wanderer-node": {
     species: SovereignNodeSpecies.ARCHETYPE,
-    identity806: '806-WANDERER',
-    mandate: 'Navigate the Drift through aggressive inquiry.'
+    identity806: "806-WANDERER",
+    mandate: "Navigate the Drift through aggressive inquiry.",
   },
-  'shade-node': {
+  "shade-node": {
     species: SovereignNodeSpecies.ARCHETYPE,
-    identity806: '806-SHADE',
-    mandate: 'Judge the Shadow through immutable trial protocols.'
+    identity806: "806-SHADE",
+    mandate: "Judge the Shadow through immutable trial protocols.",
   },
-  'healer-node': {
+  "healer-node": {
     species: SovereignNodeSpecies.ARCHETYPE,
-    identity806: '806-HEALER',
-    mandate: 'Restore the Return through harmonic ascent.'
+    identity806: "806-HEALER",
+    mandate: "Restore the Return through harmonic ascent.",
   },
-  'archive-node': {
+  "archive-node": {
     species: SovereignNodeSpecies.ARCHETYPE,
-    identity806: '806-ARCHIVE',
-    mandate: 'Preserve the Lineage in the LineageLedger.'
-  }
+    identity806: "806-ARCHIVE",
+    mandate: "Preserve the Lineage in the LineageLedger.",
+  },
 };

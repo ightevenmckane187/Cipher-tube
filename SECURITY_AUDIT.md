@@ -16,13 +16,13 @@ Due to technical blockers in the environment (unrelated Git histories in PR bran
 
 ## PR Details
 
-| PR / Branch | Scope | Security Impact | Decision | Notes |
-|-------------|-------|-----------------|----------|-------|
-| PR #111 | Fix ReferenceError and enhance fail-secure error handling | High | Ported | Fixed `sessionKey` ReferenceError and implemented generic decryption error messages. |
-| PR #75 | Standardize rate-limit error responses to JSON | Medium | Ported | Ensured rate limiter returns JSON instead of plain text to prevent info leakage. |
-| PR #69 | implement 404 JSON handler and header normalization | Medium | Ported | Added catch-all 404 JSON handler and normalized `x-user-id` header. |
-| PR #15 | add x-user-id validation | Medium | Ported | Implemented length validation for `x-user-id` header. |
-| PR #98 | Harden structural validation in AuthorityChainValidator | Medium | Ported | Improved validation logic in `AuthorityChainValidator` to prevent prototype-based bypasses. |
+| PR / Branch | Scope                                                     | Security Impact | Decision | Notes                                                                                       |
+| ----------- | --------------------------------------------------------- | --------------- | -------- | ------------------------------------------------------------------------------------------- |
+| PR #111     | Fix ReferenceError and enhance fail-secure error handling | High            | Ported   | Fixed `sessionKey` ReferenceError and implemented generic decryption error messages.        |
+| PR #75      | Standardize rate-limit error responses to JSON            | Medium          | Ported   | Ensured rate limiter returns JSON instead of plain text to prevent info leakage.            |
+| PR #69      | implement 404 JSON handler and header normalization       | Medium          | Ported   | Added catch-all 404 JSON handler and normalized `x-user-id` header.                         |
+| PR #15      | add x-user-id validation                                  | Medium          | Ported   | Implemented length validation for `x-user-id` header.                                       |
+| PR #98      | Harden structural validation in AuthorityChainValidator   | Medium          | Ported   | Improved validation logic in `AuthorityChainValidator` to prevent prototype-based bypasses. |
 
 ## Verification Note
 

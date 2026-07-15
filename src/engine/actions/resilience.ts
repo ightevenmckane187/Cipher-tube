@@ -6,7 +6,7 @@ export async function verify_state(params: any, state: any, config: any) {
     verified: true,
     timestamp: new Date().toISOString(),
     driftDetected,
-    status: "STABLE"
+    status: "STABLE",
   };
 }
 
@@ -15,6 +15,6 @@ export async function self_correct(params: any, state: any, config: any) {
   // Mock logic for self-correcting node drift
   return {
     corrected: true,
-    actionsTaken: ["reset_config", "revalidate_ledger_root"]
+    actionsTaken: ["reset_config", "revalidate_ledger_root"],
   };
 }

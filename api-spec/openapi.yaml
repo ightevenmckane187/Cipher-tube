@@ -36,7 +36,7 @@ paths:
                 clientSecret:
                   type: string
       responses:
-        '200':
+        "200":
           description: Token issued
           content:
             application/json:
@@ -47,7 +47,7 @@ paths:
                     type: string
                   expiresIn:
                     type: integer
-        '401':
+        "401":
           description: Invalid credentials
 
   /sessions:
@@ -69,7 +69,7 @@ paths:
                 metadata:
                   type: object
       responses:
-        '201':
+        "201":
           description: Session created
 
   /sessions/{sessionId}:
@@ -86,7 +86,7 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Session details
 
   /tubes:
@@ -108,7 +108,7 @@ paths:
                 config:
                   type: object
       responses:
-        '201':
+        "201":
           description: Tube created
 
   /messages:
@@ -130,7 +130,7 @@ paths:
                 payload:
                   type: object
       responses:
-        '202':
+        "202":
           description: Message accepted
 
 components:

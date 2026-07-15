@@ -45,12 +45,7 @@
       "winston",
       "zod"
     ],
-    "blocked": [
-      "eval5",
-      "vm2",
-      "node-serialize",
-      "js-yaml < 3.13.1"
-    ],
+    "blocked": ["eval5", "vm2", "node-serialize", "js-yaml < 3.13.1"],
     "blocked_reasons": {
       "eval5": "Arbitrary code execution risk — use vm2-alternatives or isolated-vm",
       "vm2": "CVE-2023-37466 — sandbox escape; use isolated-vm instead",
@@ -81,10 +76,7 @@
       "uvicorn",
       "uvloop"
     ],
-    "blocked": [
-      "pickle5",
-      "pyyaml < 5.4"
-    ],
+    "blocked": ["pickle5", "pyyaml < 5.4"],
     "blocked_reasons": {
       "pickle5": "Deserialization RCE risk — use JSON or msgpack",
       "pyyaml < 5.4": "CVE-2020-14343 — arbitrary code execution via yaml.load()"
@@ -116,9 +108,7 @@
       "uuid",
       "x25519-dalek"
     ],
-    "blocked": [
-      "openssl < 0.10.60"
-    ],
+    "blocked": ["openssl < 0.10.60"],
     "blocked_reasons": {
       "openssl < 0.10.60": "Multiple memory safety CVEs — use ring or rustls where possible"
     }

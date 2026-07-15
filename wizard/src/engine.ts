@@ -1,15 +1,15 @@
-import { simpleGit, SimpleGit } from 'simple-git';
-import pino from 'pino';
-import { analyzeSecurity } from './modules/security.js';
-import { analyzePerformance } from './modules/performance.js';
-import { analyzeUX } from './modules/ux.js';
-import { analyzeGovernance } from './modules/governance.js';
-import { repairSecurity } from './repairs/security.js';
-import { repairPerformance } from './repairs/performance.js';
-import { MergeResolver } from './resolve-conflicts.js';
+import { simpleGit, SimpleGit } from "simple-git";
+import pino from "pino";
+import { analyzeSecurity } from "./modules/security.js";
+import { analyzePerformance } from "./modules/performance.js";
+import { analyzeUX } from "./modules/ux.js";
+import { analyzeGovernance } from "./modules/governance.js";
+import { repairSecurity } from "./repairs/security.js";
+import { repairPerformance } from "./repairs/performance.js";
+import { MergeResolver } from "./resolve-conflicts.js";
 
 export const logger = pino({
-  level: process.env.LOG_LEVEL || 'info'
+  level: process.env.LOG_LEVEL || "info",
 });
 
 export interface WizardReport {
@@ -26,8 +26,8 @@ export interface WizardReport {
 
 export interface Finding {
   id: string;
-  pillar: 'security' | 'performance' | 'ux' | 'governance' | 'merge';
-  severity: 'critical' | 'high' | 'medium' | 'low';
+  pillar: "security" | "performance" | "ux" | "governance" | "merge";
+  severity: "critical" | "high" | "medium" | "low";
   message: string;
   file?: string;
   line?: number;
@@ -45,7 +45,7 @@ export class WizardEngine {
   }
 
   async analyze(): Promise<WizardReport> {
-    logger.info('Starting Wizard Analysis...');
+    logger.info("Starting Wizard Analysis...");
     const rootDir = process.cwd();
 
     const securityFindings = await analyzeSecurity(rootDir);
@@ -57,7 +57,7 @@ export class WizardEngine {
       ...securityFindings,
       ...perfFindings,
       ...uxFindings,
-      ...govFindings
+      ...govFindings,
     ];
 
     const securityScore = Math.max(0, 100 - securityFindings.length * 20);
@@ -69,7 +69,7 @@ export class WizardEngine {
     const mergeScore = status.conflicted.length === 0 ? 100 : 0;
 
     const overallScore = Math.round(
-      (securityScore + perfScore + uxScore + govScore + mergeScore) / 5
+      (securityScore + perfScore + uxScore + govScore + mergeScore) / 5,
     );
 
     return {
@@ -79,14 +79,14 @@ export class WizardEngine {
         performance: perfScore,
         ux: uxScore,
         governance: govScore,
-        mergeHealth: mergeScore
+        mergeHealth: mergeScore,
       },
-      findings
+      findings,
     };
   }
 
   async repair(report: WizardReport): Promise<void> {
-    logger.info('Starting Wizard Repair...');
+    logger.info("Starting Wizard Repair...");
 
     for (const finding of report.findings) {
       if (!finding.autoFixable) continue;
@@ -95,10 +95,10 @@ export class WizardEngine {
 
       try {
         switch (finding.pillar) {
-          case 'security':
+          case "security":
             await repairSecurity(finding);
             break;
-          case 'performance':
+          case "performance":
             await repairPerformance(finding);
             break;
           // Add others as needed
@@ -111,19 +111,27 @@ export class WizardEngine {
     // After repairs, check if we need to commit
     const status = await this.git.status();
     if (status.modified.length > 0) {
-      const isRisky = status.modified.length > 3 || status.modified.some(f => f.includes('governance/') || f.includes('crypto/'));
+      const isRisky =
+        status.modified.length > 3 ||
+        status.modified.some(
+          (f) => f.includes("governance/") || f.includes("crypto/"),
+        );
 
       if (isRisky) {
         const branchName = `wizard-fix/${Math.random().toString(36).substring(7)}`;
-        logger.info(`Risky changes detected, moving to separate branch: ${branchName}`);
-        await this.git.checkout(['-b', branchName]);
-        await this.git.add('.');
-        await this.git.commit('🧙‍♂️ Wizard: Applied complex repairs (risky)');
+        logger.info(
+          `Risky changes detected, moving to separate branch: ${branchName}`,
+        );
+        await this.git.checkout(["-b", branchName]);
+        await this.git.add(".");
+        await this.git.commit("🧙‍♂️ Wizard: Applied complex repairs (risky)");
         // In real CI we would push and open a PR
       } else {
-        logger.info('Safe changes detected, committing directly...');
-        await this.git.add('.');
-        await this.git.commit('🧙‍♂️ Wizard: Auto-applied security and performance repairs');
+        logger.info("Safe changes detected, committing directly...");
+        await this.git.add(".");
+        await this.git.commit(
+          "🧙‍♂️ Wizard: Auto-applied security and performance repairs",
+        );
       }
     }
   }
