@@ -812,7 +812,7 @@ app.get("/", (req: Request, res: Response) => {
                     font-size: 0.875rem;
                     transition: opacity 0.2s;
                 }
-                #archetype-info:empty { opacity: 0; }
+                .info-placeholder { opacity: 0.7; font-style: italic; }
                 .mandate-label { font-weight: bold; color: var(--primary); display: block; margin-bottom: 2px; }
                 ${CosmologyMap.getAuraStyles()}
             </style>
@@ -855,7 +855,7 @@ app.get("/", (req: Request, res: Response) => {
                     <div id="cosmology-container">
                         ${PRE_RENDERED_COSMOLOGY}
                     </div>
-                    <div id="archetype-info" aria-live="polite"></div>
+                    <div id="archetype-info" aria-live="polite"><span class="info-placeholder">Hover or focus an archetype to reveal its mandate.</span></div>
 
                     <div id="tri-shift-equation" style="margin-top: 1.5rem; background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 4px; border-left: 4px solid var(--primary);">
                         <h4 style="margin-top: 0; color: var(--primary);">Conconcom ××× = +++</h4>
@@ -933,6 +933,7 @@ app.get("/", (req: Request, res: Response) => {
                 // Archetype Info Handler
                 const archetypeNodes = document.querySelectorAll('.archetype-node');
                 const archetypeInfo = document.getElementById('archetype-info');
+                const defaultInfoHTML = archetypeInfo.innerHTML;
 
                 archetypeNodes.forEach(node => {
                     const showInfo = () => {
@@ -943,8 +944,14 @@ app.get("/", (req: Request, res: Response) => {
                         archetypeInfo.style.opacity = '1';
                     };
 
+                    const hideInfo = () => {
+                        archetypeInfo.innerHTML = defaultInfoHTML;
+                    };
+
                     node.addEventListener('mouseenter', showInfo);
                     node.addEventListener('focus', showInfo);
+                    node.addEventListener('mouseleave', hideInfo);
+                    node.addEventListener('blur', hideInfo);
                 });
 
                 themeToggles.forEach(toggle => {
