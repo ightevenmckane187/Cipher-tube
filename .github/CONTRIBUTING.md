@@ -1,5 +1,3 @@
-
-
 Contributing to Cipher-tube
 
 > Modular zero-trust platform — Sentinel · Bolt · Palette
@@ -41,11 +39,11 @@ Architecture Overview
 
 Cipher-tube is organized into three modular pillars connected by cryptographic tube layers:
 
-| Pillar | Domain | Scope |
-|---|---|---|
-| Sentinel | Security | Zero-trust policy enforcement, cryptographic identity, threat detection, audit logging |
-| Bolt | Performance | Latency optimization, throughput scaling, resource budgets, benchmark harnesses |
-| Palette | UX / Accessibility | Interface rendering, WCAG compliance, theming, interaction telemetry |
+| Pillar   | Domain             | Scope                                                                                  |
+| -------- | ------------------ | -------------------------------------------------------------------------------------- |
+| Sentinel | Security           | Zero-trust policy enforcement, cryptographic identity, threat detection, audit logging |
+| Bolt     | Performance        | Latency optimization, throughput scaling, resource budgets, benchmark harnesses        |
+| Palette  | UX / Accessibility | Interface rendering, WCAG compliance, theming, interaction telemetry                   |
 
 Each pillar exposes its own agent interface. The Tube Layer provides encrypted inter-pillar communication, certificate rotation, and tamper-evident message chaining.
 
@@ -74,25 +72,25 @@ Cipher-tube employs a multi-agent architecture where automated agents and human 
 
 Every PR that touches a trust boundary must be reviewed by agents from at least two distinct pillars. No contributor may approve their own PR.
 
-| Change Scope | Required Reviewers |
-|---|---|
+| Change Scope                                   | Required Reviewers                                 |
+| ---------------------------------------------- | -------------------------------------------------- |
 | Sentinel-only (security logic, crypto, policy) | 1 Sentinel maintainer + 1 Bolt or Palette reviewer |
-| Bolt-only (perf, scaling, benchmarks) | 1 Bolt maintainer + 1 Sentinel reviewer |
-| Palette-only (UI, a11y, theming) | 1 Palette maintainer + 1 Sentinel reviewer |
-| Cross-pillar or Tube Layer | 1 maintainer from each affected pillar |
-| Governance / CI config / workflow changes | 2 maintainers + project lead sign-off |
+| Bolt-only (perf, scaling, benchmarks)          | 1 Bolt maintainer + 1 Sentinel reviewer            |
+| Palette-only (UI, a11y, theming)               | 1 Palette maintainer + 1 Sentinel reviewer         |
+| Cross-pillar or Tube Layer                     | 1 maintainer from each affected pillar             |
+| Governance / CI config / workflow changes      | 2 maintainers + project lead sign-off              |
 
 2. Trust Tiers
 
 Agents and contributors operate within defined trust tiers:
 
-| Tier | Label | Permissions |
-|---|---|---|
-| T0 | Observer | Read access, issue creation, discussion |
-| T1 | Contributor | Fork, branch, open PRs, request reviews |
-| T2 | Trusted Agent | Approve PRs within their pillar, triage issues |
-| T3 | Maintainer | Merge authority, CI/CD config, release management |
-| T4 | Project Lead | Governance policy changes, trust-tier promotions, security escalations |
+| Tier | Label         | Permissions                                                            |
+| ---- | ------------- | ---------------------------------------------------------------------- |
+| T0   | Observer      | Read access, issue creation, discussion                                |
+| T1   | Contributor   | Fork, branch, open PRs, request reviews                                |
+| T2   | Trusted Agent | Approve PRs within their pillar, triage issues                         |
+| T3   | Maintainer    | Merge authority, CI/CD config, release management                      |
+| T4   | Project Lead  | Governance policy changes, trust-tier promotions, security escalations |
 
 Promotion criteria:
 
@@ -141,12 +139,10 @@ Responsibilities:
 - Gate PRs that introduce new dependencies against the approved-dependencies allowlist.
 
 Owned paths:
-`
-sentinel/
+`sentinel/
 governance/policies/
 security/
-.github/workflows/sentinel-*.yml
-`
+.github/workflows/sentinel-*.yml`
 
 Bolt Agent
 
@@ -162,12 +158,10 @@ Responsibilities:
 - Ensure horizontal scaling configurations remain valid after infrastructure changes.
 
 Owned paths:
-`
-bolt/
+`bolt/
 benchmarks/
 perf/
-.github/workflows/bolt-*.yml
-`
+.github/workflows/bolt-*.yml`
 
 Palette Agent
 
@@ -183,12 +177,10 @@ Responsibilities:
 - Maintain component library documentation and Storybook instances.
 
 Owned paths:
-`
-palette/
+`palette/
 ui/
 themes/
-.github/workflows/palette-*.yml
-`
+.github/workflows/palette-*.yml`
 
 Tube Layer (Shared Ownership)
 
@@ -202,10 +194,8 @@ Responsibilities:
 - Cross-pillar event routing and dead-letter handling.
 
 Owned paths:
-`
-tube/
-crypto/
-`
+`tube/
+crypto/`
 
 ---
 
@@ -214,46 +204,52 @@ Safer-Tube Security Checklist
 Every PR must satisfy the Safer-Tube checklist before requesting review. Copy this checklist into your PR description and check each item.
 
 ```markdown
-
 Safer-Tube Security Checklist
 
 Identity & Authentication
+
 - [ ] All new endpoints require mTLS or Ed25519 token authentication.
 - [ ] No hardcoded secrets, API keys, or credentials in source or config.
 - [ ] Secret detection scan (detect-secrets) passes with zero findings.
 - [ ] New service accounts are scoped to minimum required permissions.
 
 Input Validation & Injection Defense
+
 - [ ] All external inputs are validated, sanitized, and placed in DATA_CONTEXT.
 - [ ] No external data is injected into SYSTEM_INSTRUCTION or policy-evaluation paths.
 - [ ] SQL/NoSQL queries use parameterized statements — no string concatenation.
 - [ ] GraphQL/REST endpoints enforce depth limits and rate limiting.
 
 Dependency & Supply Chain
+
 - [ ] New dependencies are on the approved-dependencies allowlist (governance/allowed-deps.json).
 - [ ] npm audit / pip audit / cargo audit returns zero critical or high findings.
 - [ ] Lock files (package-lock.json, poetry.lock, Cargo.lock) are committed and up to date.
 - [ ] No dependency uses a known-vulnerable version per CISA KEV or NVD.
 
 Cryptography & Data Protection
+
 - [ ] Encryption at rest uses AES-256-GCM or better.
 - [ ] Encryption in transit uses TLS 1.3; no fallback to TLS 1.2 without explicit justification.
 - [ ] Key material is managed via the designated secrets manager — never stored in repos.
 - [ ] PII/PHI fields are masked in logs and telemetry.
 
 Access Control & Least Privilege
+
 - [ ] RBAC/ABAC policies updated in governance/policies/ if new roles or resources are introduced.
-- [ ] No wildcard permissions (*) granted in policy files.
+- [ ] No wildcard permissions (\*) granted in policy files.
 - [ ] Cross-pillar calls enforce the caller's trust tier at the Tube Layer boundary.
 - [ ] Elevated-privilege operations require explicit justification in the PR description.
 
 Audit & Observability
+
 - [ ] Security-relevant actions emit structured audit events to the hash-chain ledger.
 - [ ] Log entries do not contain secrets, tokens, or unmasked PII.
 - [ ] New alert rules are added for anomalous patterns introduced by the change.
 - [ ] Dashboards and runbooks are updated if operational procedures change.
 
 Compliance Alignment
+
 - [ ] Changes maintain alignment with M-25-22 zero-trust requirements.
 - [ ] NIST 800-53 control mappings in governance/compliance/ are updated if applicable.
 - [ ] Accessibility changes maintain WCAG 2.2 AA compliance.
@@ -362,7 +358,7 @@ Before opening a PR:
 
 2. Open the PR
 
-- Target branch: main (or release/* for hotfixes).
+- Target branch: main (or release/\* for hotfixes).
 - Fill in the PR template completely, including:
   - Summary of changes.
   - Motivation and context.
@@ -374,19 +370,19 @@ Before opening a PR:
 
 The following automated checks run on every PR:
 
-| Gate | Agent | Blocking? |
-|---|---|---|
-| Unit tests | Bolt | Yes |
-| Integration tests | Bolt | Yes |
-| SAST / secret detection | Sentinel | Yes |
-| Dependency audit (SCA) | Sentinel | Yes |
-| OPA policy validation | Sentinel | Yes |
-| Performance regression check | Bolt | Yes (if perf-sensitive paths touched) |
-| Accessibility audit | Palette | Yes (if UI paths touched) |
-| Lint / format check | All | Yes |
-| Signed-commit verification | Governance | Yes |
-| License compliance scan | Governance | Yes |
-| Hash-chain audit integrity | Tube | Yes (if audit paths touched) |
+| Gate                         | Agent      | Blocking?                             |
+| ---------------------------- | ---------- | ------------------------------------- |
+| Unit tests                   | Bolt       | Yes                                   |
+| Integration tests            | Bolt       | Yes                                   |
+| SAST / secret detection      | Sentinel   | Yes                                   |
+| Dependency audit (SCA)       | Sentinel   | Yes                                   |
+| OPA policy validation        | Sentinel   | Yes                                   |
+| Performance regression check | Bolt       | Yes (if perf-sensitive paths touched) |
+| Accessibility audit          | Palette    | Yes (if UI paths touched)             |
+| Lint / format check          | All        | Yes                                   |
+| Signed-commit verification   | Governance | Yes                                   |
+| License compliance scan      | Governance | Yes                                   |
+| Hash-chain audit integrity   | Tube       | Yes (if audit paths touched)          |
 
 4. Human Review
 
@@ -424,27 +420,25 @@ Verification Requirements
 
 Mandatory for All PRs
 
-| Requirement | Description | Enforced By |
-|---|---|---|
-| Signed commits | GPG or SSH signature on every commit | CI (governance gate) |
-| CLA signature | Contributor License Agreement on file | CLA bot |
-| Safer-Tube checklist | All applicable items checked in PR description | Reviewer + CI |
-| Passing CI | All blocking gates green | GitHub Actions |
-| Minimum 2 approvals | From authorized reviewers per CODEOWNERS | Branch protection |
-| No unresolved conversations | All review threads resolved before merge | Branch protection |
+| Requirement                 | Description                                    | Enforced By          |
+| --------------------------- | ---------------------------------------------- | -------------------- |
+| Signed commits              | GPG or SSH signature on every commit           | CI (governance gate) |
+| CLA signature               | Contributor License Agreement on file          | CLA bot              |
+| Safer-Tube checklist        | All applicable items checked in PR description | Reviewer + CI        |
+| Passing CI                  | All blocking gates green                       | GitHub Actions       |
+| Minimum 2 approvals         | From authorized reviewers per CODEOWNERS       | Branch protection    |
+| No unresolved conversations | All review threads resolved before merge       | Branch protection    |
 
 Additional for Security-Sensitive PRs
 
 PRs that touch any of the following paths require enhanced verification:
 
-`
-sentinel/
+`sentinel/
 governance/
 tube/crypto/
 *.rego
 /auth/
-/secrets/
-`
+/secrets/`
 
 Enhanced verification includes:
 

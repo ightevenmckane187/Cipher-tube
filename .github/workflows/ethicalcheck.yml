@@ -2,9 +2,9 @@ name: EthicalCheck-Workflow
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
   schedule:
     - cron: "38 12 * * 5"
   workflow_dispatch:

@@ -17,7 +17,11 @@
           "id": "ID-1",
           "requirement": "Enterprise-managed identity for all users and services",
           "ciphertubeimplementation": "All contributors authenticate via GitHub-managed identity with GPG/SSH-signed commits. Automated agents use Ed25519-signed tokens scoped to their pillar with TTL-based expiry.",
-          "implementingcomponents": ["governance/policies/trusttier.rego", "governance/policies/agent_boundary.rego", "governance-signed-commits.yml"],
+          "implementingcomponents": [
+            "governance/policies/trusttier.rego",
+            "governance/policies/agent_boundary.rego",
+            "governance-signed-commits.yml"
+          ],
           "status": "implemented"
         },
         {
@@ -32,7 +36,11 @@
           "id": "ID-3",
           "requirement": "Identity lifecycle management with automated provisioning and deprovisioning",
           "ciphertubeimplementation": "Trust-tier system manages contributor lifecycle (T0→T4). Agent credentials revocable via kill-switch by T3+. Quarterly drift detection suspends divergent agents. CODEOWNERS auto-assigns based on team membership.",
-          "implementingcomponents": ["CONTRIBUTING.md §Trust Tiers", "governance/policies/agentboundary.rego", "CODEOWNERS"],
+          "implementingcomponents": [
+            "CONTRIBUTING.md §Trust Tiers",
+            "governance/policies/agentboundary.rego",
+            "CODEOWNERS"
+          ],
           "status": "implemented"
         }
       ]
@@ -70,7 +78,10 @@
           "id": "NW-2",
           "requirement": "Network micro-segmentation around applications",
           "ciphertubeimplementation": "Pillar-based architecture provides logical segmentation. Cross-pillar calls must traverse the Tube Layer, which validates caller identity and trust tier at every boundary crossing. Dead-letter handling prevents lateral movement via failed messages.",
-          "implementingcomponents": ["tube/", "governance/policies/agentboundary.rego"],
+          "implementingcomponents": [
+            "tube/",
+            "governance/policies/agentboundary.rego"
+          ],
           "status": "implemented"
         }
       ]
@@ -85,7 +96,12 @@
           "id": "AW-1",
           "requirement": "All applications treated as internet-connected with rigorous testing",
           "ciphertubeimplementation": "Every PR undergoes SAST (CodeQL, Semgrep), SCA (dependency audit), secret detection (detect-secrets, TruffleHog), OPA policy evaluation, and pillar-specific testing (perf benchmarks, a11y audits). Minimum 80% line coverage for new code.",
-          "implementing_components": ["sentinel-security-scan.yml", "bolt-perf-check.yml", "palette-a11y-check.yml", "governance-policy-gate.yml"],
+          "implementing_components": [
+            "sentinel-security-scan.yml",
+            "bolt-perf-check.yml",
+            "palette-a11y-check.yml",
+            "governance-policy-gate.yml"
+          ],
           "status": "implemented"
         },
         {
@@ -99,7 +115,12 @@
           "id": "AW-3",
           "requirement": "Immutable workloads and infrastructure as code",
           "ciphertubeimplementation": "Infrastructure defined via Docker Compose and Makefiles. CI pipelines are declarative YAML. Governance policies are version-controlled Rego files. Performance baselines committed to repo.",
-          "implementing_components": ["docker-compose*.yml", "Makefile", ".github/workflows/", "governance/policies/"],
+          "implementing_components": [
+            "docker-compose*.yml",
+            "Makefile",
+            ".github/workflows/",
+            "governance/policies/"
+          ],
           "status": "implemented"
         }
       ]
@@ -114,14 +135,20 @@
           "id": "DA-1",
           "requirement": "Data categorization and protection based on sensitivity",
           "ciphertubeimplementation": "Safer-Tube checklist enforces PII/PHI masking in logs and telemetry. Data-minimization and retention policies referenced in compliance section. External inputs sanitized into DATACONTEXT — never SYSTEMINSTRUCTION.",
-          "implementingcomponents": ["sentinel/", "governance/policies/safertube_checklist.rego"],
+          "implementingcomponents": [
+            "sentinel/",
+            "governance/policies/safertube_checklist.rego"
+          ],
           "status": "implemented"
         },
         {
           "id": "DA-2",
           "requirement": "Enterprise-wide audit logging",
           "ciphertubeimplementation": "Tamper-evident hash-chain audit ledger records all security-relevant actions. Logs are immutable, append-only, and integrity-verified by CI. Structured audit events include actor identity, action, target, timestamp, and outcome.",
-          "implementing_components": ["sentinel/audit/", "governance-signed-commits.yml"],
+          "implementing_components": [
+            "sentinel/audit/",
+            "governance-signed-commits.yml"
+          ],
           "status": "implemented"
         },
         {

@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import crypto from "crypto";
 
 export class LedgerConsensusGovernor {
   /**
@@ -8,13 +8,15 @@ export class LedgerConsensusGovernor {
   static async verifyTransition(transition: any, signatures: string[]) {
     console.log(`[LedgerConsensus] Verifying transition: ${transition.id}`);
     if (signatures.length < 3) {
-      throw new Error("LedgerConsensus: Insufficient signatures for state transition (requires 3/5)");
+      throw new Error(
+        "LedgerConsensus: Insufficient signatures for state transition (requires 3/5)",
+      );
     }
     // Mock cryptographic verification of signatures
     return {
       transitionId: transition.id,
       verified: true,
-      rootHash: crypto.randomBytes(32).toString('hex')
+      rootHash: crypto.randomBytes(32).toString("hex"),
     };
   }
 }
@@ -28,8 +30,13 @@ export class CipherTubeGovernanceGovernor {
    */
   static async submitProposal(proposal: any) {
     console.log(`[Governance] Submitting proposal: ${proposal.title}`);
-    const id = crypto.randomBytes(4).toString('hex');
-    const newProposal = { ...proposal, id, status: 'PENDING_CONSENSUS', createdAt: new Date().toISOString() };
+    const id = crypto.randomBytes(4).toString("hex");
+    const newProposal = {
+      ...proposal,
+      id,
+      status: "PENDING_CONSENSUS",
+      createdAt: new Date().toISOString(),
+    };
     this.proposals.push(newProposal);
     return newProposal;
   }
@@ -39,18 +46,24 @@ export class CipherTubeGovernanceGovernor {
   }
 
   static async enforce(proposalId: string) {
-      const proposal = this.proposals.find(p => p.id === proposalId);
-      if (!proposal) throw new Error("Proposal not found");
+    const proposal = this.proposals.find((p) => p.id === proposalId);
+    if (!proposal) throw new Error("Proposal not found");
 
-      console.log(`[Governance] Enforcing proposal: ${proposalId}`);
-      proposal.status = 'ENFORCED';
-      return { status: 'STABLE', proposalId };
+    console.log(`[Governance] Enforcing proposal: ${proposalId}`);
+    proposal.status = "ENFORCED";
+    return { status: "STABLE", proposalId };
   }
 }
 
 // Action stubs for integration into the Predator engine
 export const governance = {
-  submit: async (params: any) => await CipherTubeGovernanceGovernor.submitProposal(params),
-  enforce: async (params: any) => await CipherTubeGovernanceGovernor.enforce(params.id),
-  verify_ledger: async (params: any) => await LedgerConsensusGovernor.verifyTransition(params.transition, params.signatures)
+  submit: async (params: any) =>
+    await CipherTubeGovernanceGovernor.submitProposal(params),
+  enforce: async (params: any) =>
+    await CipherTubeGovernanceGovernor.enforce(params.id),
+  verify_ledger: async (params: any) =>
+    await LedgerConsensusGovernor.verifyTransition(
+      params.transition,
+      params.signatures,
+    ),
 };

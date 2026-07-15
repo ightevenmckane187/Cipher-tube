@@ -47,7 +47,9 @@ describe("Session Rotation and E2EE Data Plane", () => {
     it("should rotate the token and burn the old one (Replay Protection)", async () => {
       // 1. Create session
       redisMock.set.mockResolvedValue("OK");
-      const createRes = await request(app).post("/mcp").set("x-user-id", userId);
+      const createRes = await request(app)
+        .post("/mcp")
+        .set("x-user-id", userId);
       const oldToken = createRes.body.sessionToken;
 
       // 2. Rotate session
@@ -144,7 +146,7 @@ describe("Session Rotation and E2EE Data Plane", () => {
 
       expect(res.status).toBe(403);
       expect(res.body.error).toBe(
-        "Session hash mismatch: Routing integrity failure"
+        "Session hash mismatch: Routing integrity failure",
       );
     });
 
@@ -190,7 +192,9 @@ describe("Session Rotation and E2EE Data Plane", () => {
 
       // Should be rejected because blinded_session_hash is not an OWN property
       expect(res.status).toBe(400);
-      expect(res.body.error).toBe("Malformed packet: Missing blinded_session_hash");
+      expect(res.body.error).toBe(
+        "Malformed packet: Missing blinded_session_hash",
+      );
     });
   });
 });
