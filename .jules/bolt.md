@@ -33,3 +33,7 @@
 ## 2026-07-02 - Timing Side-Channels in Security Caching
 **Learning:** Caching results of cryptographic verification (like HMAC checks) introduces a timing side-channel. Attackers can distinguish between cache hits (fast) and misses (slow), potentially leaking information about which inputs are "known" or "valid" to the system. This undermines the purpose of `timingSafeEqual`.
 **Action:** Avoid caching in cryptographic verification paths where constant-time execution is required; prioritize safety over micro-optimizations in these sensitive areas.
+
+## 2026-07-03 - High-Performance Buffer Operations in Persistence
+**Learning:** For performance-critical data persistence, using `Buffer.allocUnsafe()` combined with `.set()` and `.write()` is faster than `Buffer.concat()` as it avoids intermediate array allocations and redundant copies. Furthermore, Node.js v22.x allows `JSON.parse()` to accept a Buffer directly, and `subarray()` provides a zero-copy view that significantly reduces memory overhead when extracting payloads for HMAC verification.
+**Action:** Prefer `Buffer.allocUnsafe` and `subarray` for hot binary data paths; use direct Buffer parsing in `JSON.parse` on supported Node.js versions.
