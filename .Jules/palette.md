@@ -21,3 +21,7 @@
 ## 2026-07-04 - [Dynamic Info Regions for Mythic Discovery]
 **Learning:** Static tooltips or ARIA labels on complex visual elements (like Archetype nodes) provide accessibility but lack "discoverability" for sighted users. Adding a dedicated, dynamic info region that updates on hover/focus provides a persistent place for users to learn about the system's "mandates" without needing to wait for browser tooltips.
 **Action:** Pair complex visual nodes with a persistent status or info region (`aria-live="polite"`) that exposes deeper metadata upon interaction.
+
+## 2026-07-18 - [Placeholder Restoration & Transition-Aware E2E Testing]
+**Learning:** Interactive information regions (like cosmology map mandate displays) must restore their default descriptive text or instructions once user focus/hover ends, otherwise users are left with stale context. Additionally, when testing interactive states of nodes featuring CSS transition/pulsing animations via E2E testing tools like Playwright, elements can be flagged as "unstable", causing hangs during standard interaction helpers.
+**Action:** Always implement matching `mouseleave` and `blur` handlers to revert dynamic information blocks to a discoverable `.info-placeholder` state. When writing Playwright verification tests for elements animated with transitions, pass `{ force: true }` to `hover()` or `click()` to bypass stability checks and prevent timeouts.
