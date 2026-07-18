@@ -60,7 +60,7 @@
 
 ## 2026-06-25 - Prototype Pollution in Object Iteration
 **Vulnerability:** Prototype pollution during recursive object resolution in orchestrator.
-**Learning:** Even if individual path resolution is protected, a recursive function that iterates over object entries and assigns them to a new object can still be vulnerable to prototype pollution if it encounters a `__proto__` key in the input object.
+**Learning:** Assigning entries of an untrusted object to a new object during recursive iteration can lead to prototype pollution if a `__proto__` key is processed.
 **Prevention:** Always filter out sensitive keys like `__proto__`, `constructor`, and `prototype` when iterating over untrusted object entries and creating new objects based on them.
 
 ## 2026-06-26 - Cache Penetration via Non-Existent Sessions
@@ -96,9 +96,14 @@
 ## 2026-07-03 - Fatal Redundancy in Cryptographic Pipelines
 **Vulnerability:** Denial of Service (DoS) via redundant digest calls and duplicate variable declarations in security-critical code.
 **Learning:** In Node.js `crypto`, calling `.digest()` more than once on a single HMAC or Hash instance throws a `Error: digest already called`. When combined with a duplicate `const` declaration, this ensures the verification process crashes the entire request context, creating a high-availability risk.
-**Prevention:** Strictly separate data preparation from verification logic. Use unit tests that specifically target the compilation and execution of cryptographic hot-paths to ensure that manual porting of security fixes doesn't introduce fatal logic regressions.
+**Prevention:** Changes must avoid repeating critical lifecycle calls on cryptographic state objects, and duplicate declarations must be checked through static analysis or test coverage.
 
 ## 2026-07-04 - Cryptographic Proof Binding Enforcement
 **Vulnerability:** Proof re-use/substitution vulnerability due to lack of binding between proof payload and request headers.
 **Learning:** Verifying that a proof is cryptographically valid is insufficient if the proof itself contains structural parameters (like `structuralHash`) that are not matched against the actual resource being requested (`x-cipher-hash`). An attacker could potentially use a valid proof from one channel to authenticate requests for a different channel.
 **Prevention:** Always pass the expected resource identifier to the verification function and strictly compare it against the value embedded within the decrypted/verified proof payload to ensure strong binding.
+
+## 2026-07-05 - DoS via Truncated Buffers in Persistence Layer
+**Vulnerability:** Denial of Service (DoS) in the `PersistenceLayer` due to unhandled exceptions when processing truncated or typed-mismatched payloads.
+**Learning:** If a binary persistence payload does not contain enough bytes to form both the file header and the cryptographic signature (38 bytes), slicing the buffer and calling `crypto.timingSafeEqual` on a truncated signature of length < 32 throws an unhandled RangeError or TypeError.
+**Prevention:** Always check `Buffer.isBuffer(buffer)` and explicitly enforce bounds checks (`buffer.length >= 38`) and verify that the sliced signature length matches the expected HMAC size (32 bytes) prior to calling `timingSafeEqual`. Ensure that `JSON.parse` is wrapped in secure try-catch handlers.
