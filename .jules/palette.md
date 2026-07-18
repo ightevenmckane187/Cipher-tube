@@ -33,3 +33,7 @@
 ## 2026-06-17 - [Context-Aware Keyboard Shortcuts]
 **Learning:** Global single-key shortcuts (e.g., 's' for "Save" or "Create") can severely degrade UX by interfering with text entry in form fields. Implementing a simple check for active elements like `INPUT` or `TEXTAREA` ensures shortcuts only trigger when the user is not actively typing.
 **Action:** Always wrap global keyboard listeners in a check for `document.activeElement.tagName` to prevent shortcut collision during data entry. Pair this with visual shortcuts hints (`<kbd>`) that are preserved even during asynchronous state changes.
+
+## 2026-07-18 - [Placeholder Restoration & Transition-Aware E2E Testing]
+**Learning:** Interactive information regions (like cosmology map mandate displays) must restore their default descriptive text or instructions once user focus/hover ends, otherwise users are left with stale context. Additionally, when testing interactive states of nodes featuring CSS transition/pulsing animations via E2E testing tools like Playwright, elements can be flagged as "unstable", causing hangs during standard interaction helpers.
+**Action:** Always implement matching `mouseleave` and `blur` handlers to revert dynamic information blocks to a discoverable `.info-placeholder` state. When writing Playwright verification tests for elements animated with transitions, pass `{ force: true }` to `hover()` or `click()` to bypass stability checks and prevent timeouts.
