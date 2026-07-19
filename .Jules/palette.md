@@ -21,3 +21,7 @@
 ## 2026-07-04 - [Dynamic Info Regions for Mythic Discovery]
 **Learning:** Static tooltips or ARIA labels on complex visual elements (like Archetype nodes) provide accessibility but lack "discoverability" for sighted users. Adding a dedicated, dynamic info region that updates on hover/focus provides a persistent place for users to learn about the system's "mandates" without needing to wait for browser tooltips.
 **Action:** Pair complex visual nodes with a persistent status or info region (`aria-live="polite"`) that exposes deeper metadata upon interaction.
+
+## 2026-07-19 - [Restoring Default Context in Dynamic Info Regions]
+**Learning:** Dynamically updating a status or info region on hover/focus without restoring a default/placeholder state leaves the interface "stuck" on the last selected item's metadata once interaction ends. Implementing `mouseleave` and `blur` event listeners ensures the visual and screen-reader experience resets to a helpful guiding prompt.
+**Action:** For any region populated dynamically by hover or focus events, always include robust `mouseleave` and `blur` restoration logic to bring back the default placeholder state.
