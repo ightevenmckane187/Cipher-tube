@@ -40,6 +40,31 @@ describe('Sovereign OS Core v1.0', () => {
             const batch = buffer.getSynchronizedBatch();
             expect(batch.length).toBe(2);
         });
+
+        it('should prune expired events beyond the 500ms fusion window', () => {
+            const buffer = new FusionBuffer();
+            let mockTime = 1000;
+            const dateSpy = vi.spyOn(Date, 'now').mockImplementation(() => mockTime);
+
+            buffer.push({ type: 'voice', value: 'old-voice' }); // pushed at t=1000
+            mockTime = 1200;
+            buffer.push({ type: 'gesture', value: 'mid-gesture' }); // pushed at t=1200
+
+            expect(buffer.getSynchronizedBatch().length).toBe(2);
+
+            mockTime = 1550; // past 500ms for first event (t=1000), but not for second (t=1200)
+            buffer.push({ type: 'gaze', value: 'new-gaze' }); // pushed at t=1550
+
+            const batch = buffer.getSynchronizedBatch();
+            // The first event (old-voice) should be pruned because 1550 - 1000 = 550 > 500.
+            // The second (mid-gesture) should remain because 1550 - 1200 = 350 <= 500.
+            // The third (new-gaze) should be present.
+            expect(batch.length).toBe(2);
+            expect(batch[0].value).toBe('mid-gesture');
+            expect(batch[1].value).toBe('new-gaze');
+
+            dateSpy.mockRestore();
+        });
     });
 
     describe('PersistenceLayer & Disk Consistency', () => {
