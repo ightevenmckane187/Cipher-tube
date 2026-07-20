@@ -33,3 +33,7 @@
 ## 2026-07-02 - Timing Side-Channels in Security Caching
 **Learning:** Caching results of cryptographic verification (like HMAC checks) introduces a timing side-channel. Attackers can distinguish between cache hits (fast) and misses (slow), potentially leaking information about which inputs are "known" or "valid" to the system. This undermines the purpose of `timingSafeEqual`.
 **Action:** Avoid caching in cryptographic verification paths where constant-time execution is required; prioritize safety over micro-optimizations in these sensitive areas.
+
+## 2026-07-03 - Unsafe Buffer Casting for Implicit Coercion in JSON.parse
+**Learning:** Lying to the TypeScript compiler with unsafe type casts (e.g., `as unknown as string` on a Buffer) to pass it directly to standard functions like `JSON.parse` is a major hazard. While Node.js v22's native `JSON.parse` supports Buffers directly without intermediate allocations, standard JS/TS typings do not. If the underlying data type changes to a standard `Uint8Array` (e.g., in edge or cloud environment migrations), standard implicit coercion will produce comma-separated byte strings (e.g., `"123,98,111"`), resulting in catastrophic runtime `SyntaxError` crashes.
+**Action:** Always prefer explicit standard string conversion or safe platform APIs over type-cast-based implicit coercion.
