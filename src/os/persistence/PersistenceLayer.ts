@@ -13,6 +13,13 @@ export class PersistenceLayer {
     }
 
     verifyAndLoad(buffer: Buffer, key: string): any {
+        if (!Buffer.isBuffer(buffer)) {
+            throw new Error('Input must be a Buffer');
+        }
+        if (buffer.length < 38) {
+            throw new Error('Invalid format');
+        }
+
         const header = buffer.slice(0, 6).toString();
         if (header !== '.ctube') throw new Error('Invalid format');
 
@@ -23,10 +30,14 @@ export class PersistenceLayer {
         hmac.update(payload);
         const expectedSignature = hmac.digest();
 
-        if (!crypto.timingSafeEqual(signature, expectedSignature)) {
+        if (signature.length !== expectedSignature.length || !crypto.timingSafeEqual(signature, expectedSignature)) {
             throw new Error('Integrity check failed');
         }
 
-        return JSON.parse(payload);
+        try {
+            return JSON.parse(payload);
+        } catch {
+            throw new Error('Invalid JSON payload');
+        }
     }
 }
