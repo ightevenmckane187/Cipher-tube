@@ -77,6 +77,10 @@ export class ClientManifestVerifier {
   }
 
   verifyManifest(manifest) {
+    if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+      throw new Error("CYPHERTUBE_CRYPTO_ERR: Manifest must be a valid non-null object.");
+    }
+
     const {
       delegation_token,
       manifest_signature,
@@ -84,6 +88,30 @@ export class ClientManifestVerifier {
       segment_index,
       crypto_metadata,
     } = manifest;
+
+    if (!delegation_token || typeof delegation_token !== 'object' || Array.isArray(delegation_token)) {
+      throw new Error("CYPHERTUBE_CRYPTO_ERR: Delegation token must be a valid non-null object.");
+    }
+
+    // Sentinel: Defensive type and structure validation of fields
+    if (typeof manifest_signature !== 'string' ||
+        typeof canonical_blind_id !== 'string' ||
+        typeof delegation_token.op_public_key !== 'string' ||
+        typeof delegation_token.issuer_node_did !== 'string' ||
+        typeof delegation_token.delegation_signature !== 'string') {
+      throw new Error("CYPHERTUBE_CRYPTO_ERR: Invalid manifest field types.");
+    }
+
+    // Prevent NaN bypasses or unsafe integer values on cryptographic constraints
+    if (typeof delegation_token.valid_until_epoch !== 'number' ||
+        !Number.isSafeInteger(delegation_token.valid_until_epoch)) {
+      throw new Error("CYPHERTUBE_CRYPTO_ERR: Invalid valid_until_epoch.");
+    }
+
+    if (typeof segment_index !== 'number' ||
+        !Number.isSafeInteger(segment_index)) {
+      throw new Error("CYPHERTUBE_CRYPTO_ERR: Invalid segment_index.");
+    }
 
     if (this.revocationBlacklist.has(delegation_token.op_public_key)) {
       throw new Error(
