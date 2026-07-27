@@ -93,4 +93,12 @@ describe('Server Security and Health', () => {
       .send(largePayload);
     expect(response.status).toBe(413);
   });
+
+  it('should serve / with archetype-info default placeholder and correct classes', async () => {
+    const response = await request(app).get('/');
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('id="archetype-info"');
+    expect(response.text).toContain('class="info-placeholder"');
+    expect(response.text).toContain('Hover or focus an archetype to view its mythic mandate.');
+  });
 });
