@@ -37,7 +37,7 @@ const PRE_RENDERED_COSMOLOGY = Object.values(Archetypes)
   .join("");
 
 // Bolt Optimization: Pre-render static CSS to avoid redundant interpolations on every request.
-const PRE_RENDERED_STYLES = `
+export const PRE_RENDERED_STYLES = `
     :root {
         --primary: #007bff;
         --success: #1e7e34;
@@ -1211,8 +1211,7 @@ const ensureSessionOwner = async (
   res: Response,
   next: NextFunction,
 ) => {
-  let sessionToken = req.headers["x-session-token"] as string;
-  const userId = req.headers["x-user-id"] as string;
+  let sessionToken = req.headers["x-session-token"];
 
   if (!sessionToken) {
     return res.status(401).json({ error: "Unauthorized: Missing session token" });
@@ -1222,6 +1221,19 @@ const ensureSessionOwner = async (
     sessionToken = sessionToken[0];
   }
 
+  if (typeof sessionToken !== "string" || sessionToken.trim() === "") {
+    return res.status(401).json({ error: "Unauthorized: Missing session token" });
+  }
+
+  sessionToken = sessionToken.trim();
+  req.headers["x-session-token"] = sessionToken;
+
+  // Sentinel: Enforce a strict length limit to protect CPU from hashing-based DoS
+  if (sessionToken.length > 128) {
+    return res.status(400).json({ error: "Invalid x-session-token: exceeds maximum length" });
+  }
+
+  const userId = req.headers["x-user-id"] as string;
   const { blindedKey, redisKey } = getSessionKeys(sessionToken);
   // Store keys in res.locals for downstream reuse (Bolt Optimization)
   res.locals.sessionKeys = { blindedKey, redisKey };
