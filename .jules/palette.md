@@ -33,3 +33,7 @@
 ## 2026-06-17 - [Context-Aware Keyboard Shortcuts]
 **Learning:** Global single-key shortcuts (e.g., 's' for "Save" or "Create") can severely degrade UX by interfering with text entry in form fields. Implementing a simple check for active elements like `INPUT` or `TEXTAREA` ensures shortcuts only trigger when the user is not actively typing.
 **Action:** Always wrap global keyboard listeners in a check for `document.activeElement.tagName` to prevent shortcut collision during data entry. Pair this with visual shortcuts hints (`<kbd>`) that are preserved even during asynchronous state changes.
+
+## 2026-06-25 - [Restoring Default State to Interactive Information Display]
+**Learning:** Interactive hover-and-focus maps or dashboards can leave users confused or leave stale text on screen if the metadata display box remains statically on the last active item. Providing a clear default visual placeholder text guides the user on how to interact on page load, and restoring this default on `mouseleave` and `blur` events ensures a pristine visual state and accurate live announcement state.
+**Action:** Always couple mouseenter/focus metadata handlers with matching mouseleave/blur event listeners to restore a helpful default placeholder, keeping visual and assistive technology states clear and intuitive.

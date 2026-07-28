@@ -814,6 +814,10 @@ app.get("/", (req: Request, res: Response) => {
                 }
                 #archetype-info:empty { opacity: 0; }
                 .mandate-label { font-weight: bold; color: var(--primary); display: block; margin-bottom: 2px; }
+                .info-placeholder {
+                    font-style: italic;
+                    opacity: 0.75;
+                }
                 ${CosmologyMap.getAuraStyles()}
             </style>
         </head>
@@ -855,7 +859,9 @@ app.get("/", (req: Request, res: Response) => {
                     <div id="cosmology-container">
                         ${PRE_RENDERED_COSMOLOGY}
                     </div>
-                    <div id="archetype-info" aria-live="polite"></div>
+                    <div id="archetype-info" aria-live="polite">
+                        <div class="info-placeholder">Hover or focus on an archetype above to view its mandate.</div>
+                    </div>
 
                     <div id="tri-shift-equation" style="margin-top: 1.5rem; background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 4px; border-left: 4px solid var(--primary);">
                         <h4 style="margin-top: 0; color: var(--primary);">Conconcom ××× = +++</h4>
@@ -933,6 +939,7 @@ app.get("/", (req: Request, res: Response) => {
                 // Archetype Info Handler
                 const archetypeNodes = document.querySelectorAll('.archetype-node');
                 const archetypeInfo = document.getElementById('archetype-info');
+                const defaultPlaceholder = '<div class="info-placeholder">Hover or focus on an archetype above to view its mandate.</div>';
 
                 archetypeNodes.forEach(node => {
                     const showInfo = () => {
@@ -943,8 +950,14 @@ app.get("/", (req: Request, res: Response) => {
                         archetypeInfo.style.opacity = '1';
                     };
 
+                    const restoreDefault = () => {
+                        archetypeInfo.innerHTML = defaultPlaceholder;
+                    };
+
                     node.addEventListener('mouseenter', showInfo);
                     node.addEventListener('focus', showInfo);
+                    node.addEventListener('mouseleave', restoreDefault);
+                    node.addEventListener('blur', restoreDefault);
                 });
 
                 themeToggles.forEach(toggle => {
