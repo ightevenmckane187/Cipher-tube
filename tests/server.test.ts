@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import request from 'supertest';
 import { app, sessionCache } from '../src/server';
 
@@ -92,5 +93,15 @@ describe('Server Security and Health', () => {
       .set('x-user-id', 'test-user')
       .send(largePayload);
     expect(response.status).toBe(413);
+  });
+
+  it('should render the cosmology map default info placeholder on the landing page', async () => {
+    const response = await request(app).get('/');
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('class="info-placeholder"');
+    expect(response.text).toContain('Hover or focus on an archetype above to view its mandate.');
+    expect(response.text).toContain('restoreDefault');
+    expect(response.text).toContain('mouseleave');
+    expect(response.text).toContain('blur');
   });
 });
