@@ -33,3 +33,7 @@
 ## 2026-06-17 - [Context-Aware Keyboard Shortcuts]
 **Learning:** Global single-key shortcuts (e.g., 's' for "Save" or "Create") can severely degrade UX by interfering with text entry in form fields. Implementing a simple check for active elements like `INPUT` or `TEXTAREA` ensures shortcuts only trigger when the user is not actively typing.
 **Action:** Always wrap global keyboard listeners in a check for `document.activeElement.tagName` to prevent shortcut collision during data entry. Pair this with visual shortcuts hints (`<kbd>`) that are preserved even during asynchronous state changes.
+
+## 2026-06-18 - [Persistent Visual Placeholders for Interactive Dashboard Blocks]
+**Learning:** For complex, interactive dashboard indicators like node maps, leaving status or details cards completely empty before user interaction creates visual dead space and obscures the component's discoverability. Providing a persistent, styled placeholder guides users, while registering `mouseleave` and `blur` events ensures that once interaction ceases, the clean baseline state is gracefully restored.
+**Action:** Always design detailing containers with a descriptive placeholder. Use mouseleave/blur events on trigger elements to reliably restore pristine default states, preventing stale details or awkward empty blocks.
