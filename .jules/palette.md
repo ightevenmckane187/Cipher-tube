@@ -33,3 +33,7 @@
 ## 2026-06-17 - [Context-Aware Keyboard Shortcuts]
 **Learning:** Global single-key shortcuts (e.g., 's' for "Save" or "Create") can severely degrade UX by interfering with text entry in form fields. Implementing a simple check for active elements like `INPUT` or `TEXTAREA` ensures shortcuts only trigger when the user is not actively typing.
 **Action:** Always wrap global keyboard listeners in a check for `document.activeElement.tagName` to prevent shortcut collision during data entry. Pair this with visual shortcuts hints (`<kbd>`) that are preserved even during asynchronous state changes.
+
+## 2026-07-30 - [Restoring Default Context in Interactive Map Displays]
+**Learning:** Visual elements that display context-specific information on hover or focus (like our Cosmology Map archetype nodes) can leave stale information on the screen when the interaction ends, which confuses screen-reader and visual users alike. Providing a clear, styled visual placeholder inside the live-region and restoring it via `mouseleave`/`blur` event listeners improves spatial understanding and avoids stale, confusing state presentation.
+**Action:** Always design interactive panels with a default empty-state or instruction placeholder. Register both touch/mouse leave and keyboard blur event listeners to restore the pristine state of the display area once active interaction stops.
