@@ -37,3 +37,7 @@
 ## 2026-07-03 - Unsafe Buffer Casting for Implicit Coercion in JSON.parse
 **Learning:** Lying to the TypeScript compiler with unsafe type casts (e.g., `as unknown as string` on a Buffer) to pass it directly to standard functions like `JSON.parse` is a major hazard. While Node.js v22's native `JSON.parse` supports Buffers directly without intermediate allocations, standard JS/TS typings do not. If the underlying data type changes to a standard `Uint8Array` (e.g., in edge or cloud environment migrations), standard implicit coercion will produce comma-separated byte strings (e.g., `"123,98,111"`), resulting in catastrophic runtime `SyntaxError` crashes.
 **Action:** Always prefer explicit standard string conversion or safe platform APIs over type-cast-based implicit coercion.
+
+## 2026-07-30 - Buffer Allocation and Slicing in Persistence Layers
+**Learning:** In hot serialization/deserialization loops (e.g. `PersistenceLayer`), `Buffer.concat` and intermediate buffer `.slice()` calls create unnecessary memory overhead and GC pressure. Allocating a single contiguous chunk via `Buffer.allocUnsafe` and manually filling it with `.set()`, combined with `.subarray()` views and direct offset-based string decoding (e.g. `buffer.toString('utf8', offset)`), avoids redundant allocations and yields a measurable increase in throughput.
+**Action:** Prefer unsafe/manual buffer allocations and view-based operations (like `.subarray`) over high-level buffer operations like `.slice()` or `Buffer.concat` in hot execution paths.
