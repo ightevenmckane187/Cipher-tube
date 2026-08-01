@@ -93,4 +93,13 @@ describe('Server Security and Health', () => {
       .send(largePayload);
     expect(response.status).toBe(413);
   });
+
+  it('should render the cosmology map with info-placeholder and script event listeners', async () => {
+    const response = await request(app).get('/');
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('class="info-placeholder"');
+    expect(response.text).toContain('Hover or focus an archetype node to view its mythic mandate.');
+    expect(response.text).toContain('mouseleave');
+    expect(response.text).toContain('blur');
+  });
 });
