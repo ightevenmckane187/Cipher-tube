@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import request from 'supertest';
 import { app, sessionCache } from '../src/server';
 
@@ -92,5 +93,15 @@ describe('Server Security and Health', () => {
       .set('x-user-id', 'test-user')
       .send(largePayload);
     expect(response.status).toBe(413);
+  });
+
+  it('should render landing page with cosmology map, default mandate placeholder, and mouseleave/blur script recovery', async () => {
+    const response = await request(app).get('/');
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('class="info-placeholder"');
+    expect(response.text).toContain('Hover or focus an archetype node above to reveal its mandate.');
+    expect(response.text).toContain("mouseleave");
+    expect(response.text).toContain("blur");
+    expect(response.text).toContain("restorePlaceholder");
   });
 });
