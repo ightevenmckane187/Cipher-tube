@@ -102,3 +102,8 @@
 **Vulnerability:** Proof re-use/substitution vulnerability due to lack of binding between proof payload and request headers.
 **Learning:** Verifying that a proof is cryptographically valid is insufficient if the proof itself contains structural parameters (like `structuralHash`) that are not matched against the actual resource being requested (`x-cipher-hash`). An attacker could potentially use a valid proof from one channel to authenticate requests for a different channel.
 **Prevention:** Always pass the expected resource identifier to the verification function and strictly compare it against the value embedded within the decrypted/verified proof payload to ensure strong binding.
+
+## 2026-07-27 - Type Confusion and NaN Bypass in Revocation Tunnels
+**Vulnerability:** Absence of defensive schema validation on incoming asymmetric revocation ticket payloads allowed type-confusion crashes and time-window check bypasses.
+**Learning:** Destructuring and numeric conversions on raw JSON payloads without checking object structures can crash the verification pipeline (e.g., via type-confusion DoS). Additionally, performing operations using non-numeric types can bypass security protections if not strictly checked for type alignment.
+**Prevention:** Perform centralized non-null/non-array object verification and strict type checks on both string metadata fields and numeric epoch constraints using safe integer validations before processing any cryptographic signatures.

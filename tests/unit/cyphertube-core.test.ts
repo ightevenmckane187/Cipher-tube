@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import crypto from "crypto";
 
@@ -323,6 +324,51 @@ describe("CypherTube Sovereign, Zero-Knowledge P2P Streaming Engine Core", () =>
       };
 
       expect(() => verifier.verifyManifest(expiredManifest)).toThrow("revoked");
+    });
+
+    it("should reject malformed or type-mismatched revocation tickets", () => {
+      expect(() => verifier.ingestRevocationTicket(null as any)).toThrow(
+        "Revocation ticket must be a valid non-null object.",
+      );
+      expect(() => verifier.ingestRevocationTicket([] as any)).toThrow(
+        "Revocation ticket must be a valid non-null object.",
+      );
+      expect(() => verifier.ingestRevocationTicket("ticket" as any)).toThrow(
+        "Revocation ticket must be a valid non-null object.",
+      );
+
+      const invalidFieldsTicket = {
+        revocation_target: 123 as any,
+        revocation_epoch: 1000,
+        reason_code: "REASON",
+        issuer_node_did: "node-1",
+        revocation_signature: "sig",
+      };
+      expect(() =>
+        verifier.ingestRevocationTicket(invalidFieldsTicket as any),
+      ).toThrow("Invalid revocation ticket field types.");
+
+      const invalidEpochTicket = {
+        revocation_target: "target",
+        revocation_epoch: "not-a-number" as any,
+        reason_code: "REASON",
+        issuer_node_did: "node-1",
+        revocation_signature: "sig",
+      };
+      expect(() =>
+        verifier.ingestRevocationTicket(invalidEpochTicket as any),
+      ).toThrow("Invalid revocation_epoch.");
+
+      const floatEpochTicket = {
+        revocation_target: "target",
+        revocation_epoch: 123.45,
+        reason_code: "REASON",
+        issuer_node_did: "node-1",
+        revocation_signature: "sig",
+      };
+      expect(() => verifier.ingestRevocationTicket(floatEpochTicket)).toThrow(
+        "Invalid revocation_epoch.",
+      );
     });
   });
 
