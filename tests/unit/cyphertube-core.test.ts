@@ -324,6 +324,39 @@ describe("CypherTube Sovereign, Zero-Knowledge P2P Streaming Engine Core", () =>
 
       expect(() => verifier.verifyManifest(expiredManifest)).toThrow("revoked");
     });
+
+    it("should reject malformed or type-mismatched revocation tickets", () => {
+      expect(() => verifier.ingestRevocationTicket(null as any)).toThrow("Revocation ticket must be a valid non-null object.");
+      expect(() => verifier.ingestRevocationTicket([] as any)).toThrow("Revocation ticket must be a valid non-null object.");
+      expect(() => verifier.ingestRevocationTicket("not-an-object" as any)).toThrow("Revocation ticket must be a valid non-null object.");
+
+      const invalidFieldsTicket = {
+        revocation_target: 123 as any,
+        revocation_epoch: Math.floor(Date.now() / 1000),
+        reason_code: "KEY_COMPROMISE",
+        issuer_node_did: "did:ctube:node-1",
+        revocation_signature: "sig",
+      };
+      expect(() => verifier.ingestRevocationTicket(invalidFieldsTicket)).toThrow("Invalid revocation ticket field types.");
+
+      const invalidEpochTicket = {
+        revocation_target: "target",
+        revocation_epoch: "not-a-number" as any,
+        reason_code: "KEY_COMPROMISE",
+        issuer_node_did: "did:ctube:node-1",
+        revocation_signature: "sig",
+      };
+      expect(() => verifier.ingestRevocationTicket(invalidEpochTicket)).toThrow("Invalid revocation_epoch.");
+
+      const invalidEpochTicketNaN = {
+        revocation_target: "target",
+        revocation_epoch: NaN,
+        reason_code: "KEY_COMPROMISE",
+        issuer_node_did: "did:ctube:node-1",
+        revocation_signature: "sig",
+      };
+      expect(() => verifier.ingestRevocationTicket(invalidEpochTicketNaN)).toThrow("Invalid revocation_epoch.");
+    });
   });
 
   describe("Layer 3: End-to-End Encrypted Group CRDT Storage (PlaylistMetadataStore)", () => {

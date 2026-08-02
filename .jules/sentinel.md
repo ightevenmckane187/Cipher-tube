@@ -100,5 +100,10 @@
 
 ## 2026-07-04 - Cryptographic Proof Binding Enforcement
 **Vulnerability:** Proof re-use/substitution vulnerability due to lack of binding between proof payload and request headers.
-**Learning:** Verifying that a proof is cryptographically valid is insufficient if the proof itself contains structural parameters (like `structuralHash`) that are not matched against the actual resource being requested (`x-cipher-hash`). An attacker could potentially use a valid proof from one channel to authenticate requests for a different channel.
+**Learning:** Verifying that a proof is cryptographically valid is insufficient if the proof itself contains structural parameters (like `structuralHash`) of another target resource than the requested (`x-cipher-hash`). An attacker could potentially use a valid proof from one channel to authenticate requests for a different channel.
 **Prevention:** Always pass the expected resource identifier to the verification function and strictly compare it against the value embedded within the decrypted/verified proof payload to ensure strong binding.
+
+## 2026-07-05 - Type Confusion and Validation Gap in Revocation Ticket Ingestion
+**Vulnerability:** Potential Denial of Service (DoS) and logic bypass via malformed, null, or type-mismatched revocation ticket objects.
+**Learning:** Failing to validate the input type and properties of a revocation ticket before destructuring and processing leads to uncaught type exceptions (crashing the worker thread) and could potentially bypass revocation checks if parameter coercion behaves unexpectedly.
+**Prevention:** Always implement strict non-null, non-array object checks and property type/safe-integer assertions on all incoming structures before extracting properties or passing them to validation subroutines.
