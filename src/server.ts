@@ -8,7 +8,12 @@ import rateLimit from "express-rate-limit";
 import { LRUCache } from "lru-cache";
 import { buildCipherTube, decryptCipherTube } from "./cta";
 import { verifyCryptographicProof } from "./crypto/verifier";
-import { blindToken, createSession, rotateSession, getSessionKeys } from "./session_rotator";
+import {
+  blindToken,
+  createSession,
+  rotateSession,
+  getSessionKeys,
+} from "./session_rotator";
 import { Archetypes } from "./myth/ritual-engine";
 import { seasonalEngine } from "./myth/seasonal-engine";
 import { CosmologyMap } from "./ui/cosmology-map";
@@ -344,8 +349,8 @@ const PORT = process.env.PORT || 3000;
 // Sentinel: TTL reduced to 5s to ensure fast propagation of session revocations.
 // Sentinel: Negative caching of non-existent sessions to prevent cache penetration.
 export const sessionCache = new LRUCache<string, string>({
-    max: 1000,
-    ttl: 5 * 1000, // 5 seconds (Fast propagation)
+  max: 1000,
+  ttl: 5 * 1000, // 5 seconds (Fast propagation)
 });
 
 // Bolt Optimization: Cache to throttle Redis EXPIRE calls (Activity Refresh)
@@ -363,9 +368,9 @@ const SESSION_TTL = 3600; // 1 hour in seconds
 // Rate limiter for general API operations
 // Entropy Anchor: Strictness affects the rate limit.
 const getDynamicLimit = (base: number) => {
-    const strictness = seasonalEngine.getStrictness();
-    // As strictness approaches 1.0, limit decreases (stricter)
-    return Math.floor(base * (1.1 - strictness));
+  const strictness = seasonalEngine.getStrictness();
+  // As strictness approaches 1.0, limit decreases (stricter)
+  return Math.floor(base * (1.1 - strictness));
 };
 
 const apiLimiter = rateLimit({
@@ -426,7 +431,7 @@ app.use(
 app.use((req: Request, res: Response, next: NextFunction) => {
   res.setHeader(
     "Permissions-Policy",
-    "accelerometer=(), ambient-light-sensor=(), autoplay=(), battery=(), camera=(), display-capture=(), document-domain=(), encrypted-media=(), fullscreen=(), gamepad=(), geolocation=(), gyroscope=(), layout-animations=(), legacy-image-formats=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), speaker-selection=(), screen-wake-lock=(), sync-xhr=(), usb=(), web-share=(), xr-spatial-tracking=(), interest-cohort=()"
+    "accelerometer=(), ambient-light-sensor=(), autoplay=(), battery=(), camera=(), display-capture=(), document-domain=(), encrypted-media=(), fullscreen=(), gamepad=(), geolocation=(), gyroscope=(), layout-animations=(), legacy-image-formats=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), speaker-selection=(), screen-wake-lock=(), sync-xhr=(), usb=(), web-share=(), xr-spatial-tracking=(), interest-cohort=()",
   );
   next();
 });
@@ -452,14 +457,8 @@ app.use(
     directives: {
       ...helmet.contentSecurityPolicy.getDefaultDirectives(),
       "img-src": ["'self'", "data:", "img.shields.io"],
-      "script-src": [
-        "'self'",
-        (req: any, res: any) => res.locals.cspNonce,
-      ],
-      "style-src": [
-        "'self'",
-        (req: any, res: any) => res.locals.cspNonce,
-      ],
+      "script-src": ["'self'", (req: any, res: any) => res.locals.cspNonce],
+      "style-src": ["'self'", (req: any, res: any) => res.locals.cspNonce],
       "object-src": ["'none'"],
       "base-uri": ["'none'"],
       "form-action": ["'self'"],
@@ -469,7 +468,7 @@ app.use(
 );
 
 // Serve accessible documentation (WCAG 602.3 compliance)
-app.use('/docs', express.static(path.join(__dirname, '../docs')));
+app.use("/docs", express.static(path.join(__dirname, "../docs")));
 
 export const redisClient: RedisClientType = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
@@ -813,6 +812,11 @@ app.get("/", (req: Request, res: Response) => {
                     transition: opacity 0.2s;
                 }
                 #archetype-info:empty { opacity: 0; }
+                .info-placeholder {
+                    color: var(--text-color);
+                    opacity: 0.6;
+                    font-style: italic;
+                }
                 .mandate-label { font-weight: bold; color: var(--primary); display: block; margin-bottom: 2px; }
                 ${CosmologyMap.getAuraStyles()}
             </style>
@@ -855,7 +859,9 @@ app.get("/", (req: Request, res: Response) => {
                     <div id="cosmology-container">
                         ${PRE_RENDERED_COSMOLOGY}
                     </div>
-                    <div id="archetype-info" aria-live="polite"></div>
+                    <div id="archetype-info" aria-live="polite">
+                        <div class="info-placeholder">Hover or focus on an archetype node to view its mandate.</div>
+                    </div>
 
                     <div id="tri-shift-equation" style="margin-top: 1.5rem; background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 4px; border-left: 4px solid var(--primary);">
                         <h4 style="margin-top: 0; color: var(--primary);">Conconcom ××× = +++</h4>
@@ -943,8 +949,14 @@ app.get("/", (req: Request, res: Response) => {
                         archetypeInfo.style.opacity = '1';
                     };
 
+                    const hideInfo = () => {
+                        archetypeInfo.innerHTML = '<div class="info-placeholder">Hover or focus on an archetype node to view its mandate.</div>';
+                    };
+
                     node.addEventListener('mouseenter', showInfo);
                     node.addEventListener('focus', showInfo);
+                    node.addEventListener('mouseleave', hideInfo);
+                    node.addEventListener('blur', hideInfo);
                 });
 
                 themeToggles.forEach(toggle => {
@@ -1177,7 +1189,6 @@ app.get("/health", (req: Request, res: Response) => {
 
 const jsonParser = express.json({ limit: "10kb" });
 
-
 const validateUserId = (req: Request, res: Response, next: NextFunction) => {
   let userId = req.headers["x-user-id"];
 
@@ -1214,7 +1225,9 @@ const ensureSessionOwner = async (
   let sessionToken = req.headers["x-session-token"];
 
   if (!sessionToken) {
-    return res.status(401).json({ error: "Unauthorized: Missing session token" });
+    return res
+      .status(401)
+      .json({ error: "Unauthorized: Missing session token" });
   }
 
   if (Array.isArray(sessionToken)) {
@@ -1222,7 +1235,9 @@ const ensureSessionOwner = async (
   }
 
   if (typeof sessionToken !== "string" || sessionToken.trim() === "") {
-    return res.status(401).json({ error: "Unauthorized: Missing session token" });
+    return res
+      .status(401)
+      .json({ error: "Unauthorized: Missing session token" });
   }
 
   sessionToken = sessionToken.trim();
@@ -1230,7 +1245,9 @@ const ensureSessionOwner = async (
 
   // Sentinel: Enforce a strict length limit to protect CPU from hashing-based DoS
   if (sessionToken.length > 128) {
-    return res.status(400).json({ error: "Invalid x-session-token: exceeds maximum length" });
+    return res
+      .status(400)
+      .json({ error: "Invalid x-session-token: exceeds maximum length" });
   }
 
   const userId = req.headers["x-user-id"] as string;
@@ -1262,7 +1279,7 @@ const ensureSessionOwner = async (
     // Sentinel: Activity Refresh - Extend Redis TTL on every successful access
     // Bolt Optimization: Throttle Redis EXPIRE calls to once per 60 seconds to reduce write load
     if (typeof redisClient.expire === "function") {
-      const isTest = process.env.NODE_ENV === 'test';
+      const isTest = process.env.NODE_ENV === "test";
       const needsUpdate = isTest || !sessionUpdateCache.has(blindedKey);
       if (needsUpdate) {
         await redisClient.expire(redisKey, SESSION_TTL);
@@ -1291,7 +1308,11 @@ app.post(
     const userId = req.headers["x-user-id"] as string;
 
     try {
-      const sessionToken = await createSession(userId, redisClient, SESSION_TTL);
+      const sessionToken = await createSession(
+        userId,
+        redisClient,
+        SESSION_TTL,
+      );
       // Optimization: Pre-warm the in-memory cache to skip the first Redis lookup (Bolt Optimization)
       const blinded = blindToken(sessionToken);
       if (blinded) sessionCache.set(blinded, userId);
@@ -1325,7 +1346,11 @@ app.post(
     }
 
     try {
-      const { newToken } = await rotateSession(oldToken, redisClient, SESSION_TTL);
+      const { newToken } = await rotateSession(
+        oldToken,
+        redisClient,
+        SESSION_TTL,
+      );
       const { blindedKey: oldBlindedKey } = getSessionKeys(oldToken);
       const { blindedKey: newBlindedKey } = getSessionKeys(newToken);
 
@@ -1334,14 +1359,17 @@ app.post(
       sessionCache.delete(oldBlindedKey);
 
       // Bolt Optimization: Pre-warm the cache with the new token
-      sessionCache.set(newBlindedKey, (req.headers["x-user-id"] as string).trim());
+      sessionCache.set(
+        newBlindedKey,
+        (req.headers["x-user-id"] as string).trim(),
+      );
 
       res.json({ newToken });
     } catch (err: any) {
       console.error("Rotation failed:", err.message);
       res.status(401).json({ error: err.message });
     }
-  }
+  },
 );
 
 app.get(
@@ -1367,8 +1395,11 @@ app.post(
   validateUserId,
   ensureSessionOwner,
   (req: Request, res: Response) => {
-    res.json({ message: "Session extended successfully", expiresIn: SESSION_TTL });
-  }
+    res.json({
+      message: "Session extended successfully",
+      expiresIn: SESSION_TTL,
+    });
+  },
 );
 
 /**
@@ -1454,40 +1485,49 @@ app.post(
       );
       res.json(result);
     } catch (err: any) {
-        // Sentinel: Log only message to avoid leaking sensitive internal state
-        console.error('Decryption failed:', err?.message || 'Unknown error');
+      // Sentinel: Log only message to avoid leaking sensitive internal state
+      console.error("Decryption failed:", err?.message || "Unknown error");
 
-        // Sentinel: Map cryptographic and validation errors to 400 Bad Request
-        const errorMessage = err.message || '';
-        const isClientError =
-            errorMessage.includes('Invalid ciphertext') ||
-            errorMessage.includes('Invalid tube metadata') ||
-            errorMessage.includes('Missing encryption tube') ||
-            errorMessage.includes('Missing hash-lock tube') ||
-            errorMessage.includes('Integrity check failed') ||
-            errorMessage.includes('bad decrypt') ||
-            errorMessage.includes('Wrong tag') ||
-            errorMessage.includes('Unsupported state') ||
-            errorMessage.includes('first argument must be of type string') ||
-            errorMessage.includes('Invalid tag length');
+      // Sentinel: Map cryptographic and validation errors to 400 Bad Request
+      const errorMessage = err.message || "";
+      const isClientError =
+        errorMessage.includes("Invalid ciphertext") ||
+        errorMessage.includes("Invalid tube metadata") ||
+        errorMessage.includes("Missing encryption tube") ||
+        errorMessage.includes("Missing hash-lock tube") ||
+        errorMessage.includes("Integrity check failed") ||
+        errorMessage.includes("bad decrypt") ||
+        errorMessage.includes("Wrong tag") ||
+        errorMessage.includes("Unsupported state") ||
+        errorMessage.includes("first argument must be of type string") ||
+        errorMessage.includes("Invalid tag length");
 
-        if (isClientError) {
-             // Sentinel: Return 400 for all client-side crypto/validation errors.
-             // We use the original error message if it's explicitly allowed in the test expectations,
-             // otherwise we return a generic message to prevent info leakage.
-             const allowedMessages = ['Integrity check failed'];
-             const returnedMessage = allowedMessages.some(msg => errorMessage.includes(msg))
-                 ? 'Decryption failed: ' + errorMessage
-                 : 'Decryption failed';
+      if (isClientError) {
+        // Sentinel: Return 400 for all client-side crypto/validation errors.
+        // We use the original error message if it's explicitly allowed in the test expectations,
+        // otherwise we return a generic message to prevent info leakage.
+        const allowedMessages = ["Integrity check failed"];
+        const returnedMessage = allowedMessages.some((msg) =>
+          errorMessage.includes(msg),
+        )
+          ? "Decryption failed: " + errorMessage
+          : "Decryption failed";
 
-             // Bolt Optimization: Ensure compatibility with tests/cta_api.test.ts expectations
-             // while maintaining Sentinel's fail-secure principles.
-             const finalError = errorMessage.includes('Integrity check failed') ? `Decryption failed: ${errorMessage}` : returnedMessage;
+        // Bolt Optimization: Ensure compatibility with tests/cta_api.test.ts expectations
+        // while maintaining Sentinel's fail-secure principles.
+        const finalError = errorMessage.includes("Integrity check failed")
+          ? `Decryption failed: ${errorMessage}`
+          : returnedMessage;
 
-             return res.status(400).json({ error: finalError });
-        }
+        return res.status(400).json({ error: finalError });
+      }
 
-        res.status(500).json({ error: 'Internal server error: An unexpected error occurred during decryption.' });
+      res
+        .status(500)
+        .json({
+          error:
+            "Internal server error: An unexpected error occurred during decryption.",
+        });
     }
   },
 );
@@ -1507,13 +1547,19 @@ app.post(
   async (req: Request, res: Response) => {
     const packet = req.body;
 
-    const requiredKeys = ["chunk_index", "blinded_session_hash", "crypto_envelope"];
+    const requiredKeys = [
+      "chunk_index",
+      "blinded_session_hash",
+      "crypto_envelope",
+    ];
     const cryptoKeys = ["iv", "auth_tag", "ciphertext_blob"];
 
     // Ensure structural integrity
     for (const key of requiredKeys) {
       if (!Object.prototype.hasOwnProperty.call(packet, key)) {
-        return res.status(400).json({ error: `Malformed packet: Missing ${key}` });
+        return res
+          .status(400)
+          .json({ error: `Malformed packet: Missing ${key}` });
       }
     }
 
@@ -1528,24 +1574,34 @@ app.post(
 
     for (const key of cryptoKeys) {
       if (!Object.prototype.hasOwnProperty.call(packet.crypto_envelope, key)) {
-        return res.status(400).json({ error: `Malformed packet: Missing ${key} in crypto_envelope` });
+        return res
+          .status(400)
+          .json({
+            error: `Malformed packet: Missing ${key} in crypto_envelope`,
+          });
       }
     }
 
     // Verify session routing metadata matches the session being used
     // Bolt Optimization: Use pre-computed hash from res.locals.sessionKeys if available
-    const blindedToken = res.locals.sessionKeys?.blindedKey || blindToken(req.headers["x-session-token"] as string);
+    const blindedToken =
+      res.locals.sessionKeys?.blindedKey ||
+      blindToken(req.headers["x-session-token"] as string);
 
     const proof = req.headers["x-cipher-proof"] as string;
     if (proof) {
       const isValid = await verifyCryptographicProof(proof);
       if (!isValid) {
-        return res.status(403).json({ error: "Invalid cryptographic proof: Packet rejected." });
+        return res
+          .status(403)
+          .json({ error: "Invalid cryptographic proof: Packet rejected." });
       }
     }
 
     if (packet.blinded_session_hash !== blindedToken) {
-      return res.status(403).json({ error: "Session hash mismatch: Routing integrity failure" });
+      return res
+        .status(403)
+        .json({ error: "Session hash mismatch: Routing integrity failure" });
     }
 
     // Route package to stream buffer (mocked for now)
@@ -1554,7 +1610,7 @@ app.post(
       sequence: packet.chunk_index,
       dispatch_ready: true,
     });
-  }
+  },
 );
 
 /**
@@ -1586,7 +1642,6 @@ app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
 app.use((req: Request, res: Response) => {
   res.status(404).json({ error: "Not Found" });
 });
-
 
 if (process.env.NODE_ENV !== "test") {
   app.listen(PORT, () => {
