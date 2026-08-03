@@ -272,6 +272,56 @@ class TestSecurityPayloadCryptography(unittest.TestCase):
             self.encryptor.secure_unwrap(tampered_sig_envelope)
         self.assertIn("verification failed", str(context_sig.exception))
 
+    def test_secure_unwrap_type_handling_robustness(self):
+        # Assert that passing a non-dictionary raises ValueError rather than a TypeError
+        with self.assertRaises(ValueError) as ctx:
+            self.encryptor.secure_unwrap("not-a-dict")
+        self.assertIn("Invalid secure envelope format", str(ctx.exception))
+
+        with self.assertRaises(ValueError) as ctx:
+            self.encryptor.secure_unwrap(None)
+        self.assertIn("Invalid secure envelope format", str(ctx.exception))
+
+        with self.assertRaises(ValueError) as ctx:
+            self.encryptor.secure_unwrap([1, 2, 3])
+        self.assertIn("Invalid secure envelope format", str(ctx.exception))
+
+        # Assert that dictionary envelopes with non-string fields raise ValueError
+        bad_envelope_1 = {
+            "nonce_hex": 123,
+            "ciphertext_hex": "00ff",
+            "signature_hex": "aabb"
+        }
+        with self.assertRaises(ValueError) as ctx:
+            self.encryptor.secure_unwrap(bad_envelope_1)
+        self.assertIn("Invalid secure envelope format", str(ctx.exception))
+
+        bad_envelope_2 = {
+            "nonce_hex": "00ff",
+            "ciphertext_hex": None,
+            "signature_hex": "aabb"
+        }
+        with self.assertRaises(ValueError) as ctx:
+            self.encryptor.secure_unwrap(bad_envelope_2)
+        self.assertIn("Invalid secure envelope format", str(ctx.exception))
+
+        bad_envelope_3 = {
+            "nonce_hex": "00ff",
+            "ciphertext_hex": "aabb",
+            "signature_hex": ["list-of-things"]
+        }
+        with self.assertRaises(ValueError) as ctx:
+            self.encryptor.secure_unwrap(bad_envelope_3)
+        self.assertIn("Invalid secure envelope format", str(ctx.exception))
+
+    def test_verify_signature_type_handling_robustness(self):
+        # Assert that verify_signature returns False rather than crashing with TypeError on malformed types
+        self.assertFalse(self.encryptor.verify_signature(None, b"abc"))
+        self.assertFalse(self.encryptor.verify_signature(b"abc", None))
+        self.assertFalse(self.encryptor.verify_signature("string", b"abc"))
+        self.assertFalse(self.encryptor.verify_signature(b"abc", "string"))
+        self.assertFalse(self.encryptor.verify_signature([1], b"abc"))
+
 
 if __name__ == "__main__":
     unittest.main()
