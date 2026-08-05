@@ -9,7 +9,9 @@ export async function loadframeworkcached(params: any) {
 }
 
 export async function validatecontrolset(params: any) {
-  console.log(`[Compliance] Validating controls in scope: ${JSON.stringify(params.scope)}`);
+  console.log(
+    `[Compliance] Validating controls in scope: ${JSON.stringify(params.scope)}`,
+  );
   return { results: [] };
 }
 
@@ -19,6 +21,8 @@ export async function findfailedcontrols(params: any) {
 }
 
 export async function generate_summary(params: any) {
-  console.log(`[Compliance] Generating summary for modules: ${params.modules.join(', ')}`);
+  console.log(
+    `[Compliance] Generating summary for modules: ${params.modules.join(", ")}`,
+  );
   return { summary: "All systems operational" };
 }

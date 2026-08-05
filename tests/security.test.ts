@@ -122,7 +122,7 @@ describe("Security Validation", () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('Decryption failed');
+      expect(response.body.error).toBe("Decryption failed");
     });
 
     it("should return 400 for invalid hex in ciphertext", async () => {
@@ -146,7 +146,7 @@ describe("Security Validation", () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('Decryption failed');
+      expect(response.body.error).toBe("Decryption failed");
     });
 
     it("should return 400 for missing tube fields", async () => {
@@ -163,56 +163,62 @@ describe("Security Validation", () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('Decryption failed');
+      expect(response.body.error).toBe("Decryption failed");
     });
 
-    it('should return 400 for malformed tubes array (null element)', async () => {
-        const response = await request(app)
-          .post(`/mcp/decrypt`)
-          .set('x-user-id', userId)
-          .set('x-session-token', sessionToken)
-          .send({
-            ciphertext: '0'.repeat(800),
-            masterSeed,
-            tubes: [null]
-          });
+    it("should return 400 for malformed tubes array (null element)", async () => {
+      const response = await request(app)
+        .post(`/mcp/decrypt`)
+        .set("x-user-id", userId)
+        .set("x-session-token", sessionToken)
+        .send({
+          ciphertext: "0".repeat(800),
+          masterSeed,
+          tubes: [null],
+        });
 
-        expect(response.status).toBe(400);
-        expect(response.body.error).toBe('Decryption failed');
-      });
-
-    it('should return 400 for missing or invalid fields in encryption tube', async () => {
-        const response = await request(app)
-          .post(`/mcp/decrypt`)
-          .set('x-user-id', userId)
-          .set('x-session-token', sessionToken)
-          .send({
-            ciphertext: '0'.repeat(800),
-            masterSeed,
-            tubes: [
-              { layer: 24, type: 'aes-256-gcm' } // missing salt, iv, tag
-            ]
-          });
-
-        expect(response.status).toBe(400);
-        expect(response.body.error).toBe('Decryption failed');
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe("Decryption failed");
     });
 
-    it('should return 400 for invalid layer indexing', async () => {
-        const response = await request(app)
-          .post(`/mcp/decrypt`)
-          .set('x-user-id', userId)
-          .set('x-session-token', sessionToken)
-          .send({
-            ciphertext: '0'.repeat(800),
-            masterSeed,
-            tubes: [
-              { layer: 99, salt: 'salt', iv: 'iv', tag: 'tag', type: 'aes-256-gcm' }
-            ]
-          });
+    it("should return 400 for missing or invalid fields in encryption tube", async () => {
+      const response = await request(app)
+        .post(`/mcp/decrypt`)
+        .set("x-user-id", userId)
+        .set("x-session-token", sessionToken)
+        .send({
+          ciphertext: "0".repeat(800),
+          masterSeed,
+          tubes: [
+            { layer: 24, type: "aes-256-gcm" }, // missing salt, iv, tag
+          ],
+        });
 
-        expect(response.status).toBe(400);
-        expect(response.body.error).toBe('Decryption failed');
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe("Decryption failed");
+    });
+
+    it("should return 400 for invalid layer indexing", async () => {
+      const response = await request(app)
+        .post(`/mcp/decrypt`)
+        .set("x-user-id", userId)
+        .set("x-session-token", sessionToken)
+        .send({
+          ciphertext: "0".repeat(800),
+          masterSeed,
+          tubes: [
+            {
+              layer: 99,
+              salt: "salt",
+              iv: "iv",
+              tag: "tag",
+              type: "aes-256-gcm",
+            },
+          ],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe("Decryption failed");
     });
   });
 

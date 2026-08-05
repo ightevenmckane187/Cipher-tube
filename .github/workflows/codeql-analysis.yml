@@ -2,12 +2,12 @@ name: "CypherTube DevSecOps Scan"
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
   schedule:
     # Triggers a deeper weekly sweep automatically every Monday at 4:30 AM UTC
-    - cron: '30 4 * * 1'
+    - cron: "30 4 * * 1"
 
 jobs:
   analyze:
@@ -23,25 +23,25 @@ jobs:
       matrix:
         # CodeQL supports: javascript-typescript, python, go, ruby, java-kotlin, c-cpp, csharp
         # Scanning our primary web stack first
-        language: [ 'javascript-typescript' ]
+        language: ["javascript-typescript"]
 
     steps:
-    - name: Checkout CypherTube Codebase
-      uses: actions/checkout@v4
+      - name: Checkout CypherTube Codebase
+        uses: actions/checkout@v4
 
-    - name: Initialize CodeQL Engine
-      uses: github/codeql-action/init@v3
-      with:
-        languages: ${{ matrix.language }}
-        # LINKING YOUR INFRASTRUCTURE:
-        # If you build custom query suites inside your code-l-cypherTube fork,
-        # uncomment the line below to enforce your custom rules automatically:
-        # queries: ightevenmckane187/code-l-cypherTube/suites/custom.qls@main
+      - name: Initialize CodeQL Engine
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # LINKING YOUR INFRASTRUCTURE:
+          # If you build custom query suites inside your code-l-cypherTube fork,
+          # uncomment the line below to enforce your custom rules automatically:
+          # queries: ightevenmckane187/code-l-cypherTube/suites/custom.qls@main
 
-    - name: AutoBuild Dependencies
-      uses: github/codeql-action/autobuild@v3
+      - name: AutoBuild Dependencies
+        uses: github/codeql-action/autobuild@v3
 
-    - name: Execute Semantic Security Analysis
-      uses: github/codeql-action/analyze@v3
-      with:
-        category: "/language:${{matrix.language}}"
+      - name: Execute Semantic Security Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{matrix.language}}"

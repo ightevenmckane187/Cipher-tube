@@ -242,8 +242,12 @@ describe("CypherTube Sovereign, Zero-Knowledge P2P Streaming Engine Core", () =>
     });
 
     it("should reject malformed or typed-mismatched manifests/delegations", () => {
-      expect(() => verifier.verifyManifest(null as any)).toThrow("Manifest must be a valid non-null object.");
-      expect(() => verifier.verifyManifest({} as any)).toThrow("Delegation token must be a valid non-null object.");
+      expect(() => verifier.verifyManifest(null as any)).toThrow(
+        "Manifest must be a valid non-null object.",
+      );
+      expect(() => verifier.verifyManifest({} as any)).toThrow(
+        "Delegation token must be a valid non-null object.",
+      );
 
       const invalidFieldsManifest = {
         delegation_token: {
@@ -256,7 +260,9 @@ describe("CypherTube Sovereign, Zero-Knowledge P2P Streaming Engine Core", () =>
         canonical_blind_id: "blind",
         segment_index: 0,
       };
-      expect(() => verifier.verifyManifest(invalidFieldsManifest as any)).toThrow("Invalid manifest field types.");
+      expect(() =>
+        verifier.verifyManifest(invalidFieldsManifest as any),
+      ).toThrow("Invalid manifest field types.");
 
       const invalidEpochManifest = {
         delegation_token: {
@@ -269,7 +275,9 @@ describe("CypherTube Sovereign, Zero-Knowledge P2P Streaming Engine Core", () =>
         canonical_blind_id: "blind",
         segment_index: 0,
       };
-      expect(() => verifier.verifyManifest(invalidEpochManifest as any)).toThrow("Invalid valid_until_epoch.");
+      expect(() =>
+        verifier.verifyManifest(invalidEpochManifest as any),
+      ).toThrow("Invalid valid_until_epoch.");
 
       const invalidSegmentIndexManifest = {
         delegation_token: {
@@ -282,7 +290,9 @@ describe("CypherTube Sovereign, Zero-Knowledge P2P Streaming Engine Core", () =>
         canonical_blind_id: "blind",
         segment_index: NaN,
       };
-      expect(() => verifier.verifyManifest(invalidSegmentIndexManifest as any)).toThrow("Invalid segment_index.");
+      expect(() =>
+        verifier.verifyManifest(invalidSegmentIndexManifest as any),
+      ).toThrow("Invalid segment_index.");
     });
 
     it("should reject manifest if signing key is revoked via revocation tickets", () => {

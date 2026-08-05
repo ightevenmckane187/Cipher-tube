@@ -1,24 +1,27 @@
-import { executeWorkflow, ExecContext } from '../src/engine/runtime/orchestrator';
+import {
+  executeWorkflow,
+  ExecContext,
+} from "../src/engine/runtime/orchestrator";
 
-describe('Action Injection Protection', () => {
-  it('should not allow executing prototype methods as actions', async () => {
+describe("Action Injection Protection", () => {
+  it("should not allow executing prototype methods as actions", async () => {
     const ctx: ExecContext = {
       actions: {
         safe: {
-          run: () => 'safe'
-        }
+          run: () => "safe",
+        },
       },
-      config: {}
+      config: {},
     };
 
     const workflow = {
-      name: 'vulnerable-workflow',
+      name: "vulnerable-workflow",
       steps: [
         {
-          action: 'toString.call', // Exploits prototype chain
-          output: 'result'
-        }
-      ]
+          action: "toString.call", // Exploits prototype chain
+          output: "result",
+        },
+      ],
     };
 
     const state = await executeWorkflow(workflow, ctx);
@@ -27,48 +30,48 @@ describe('Action Injection Protection', () => {
     expect(state.result).toBeNull();
   });
 
-  it('should not allow access to __proto__ namespace', async () => {
-      const ctx: ExecContext = {
-          actions: {
-              safe: { run: () => 'safe' }
-          },
-          config: {}
-      };
-
-      const workflow = {
-          name: 'proto-workflow',
-          steps: [
-              {
-                  action: '__proto__.toString',
-                  output: 'result'
-              }
-          ]
-      };
-
-      const state = await executeWorkflow(workflow, ctx);
-      expect(state.result).toBeNull();
-  });
-
-  it('should not allow malformed action strings', async () => {
+  it("should not allow access to __proto__ namespace", async () => {
     const ctx: ExecContext = {
-        actions: {
-            safe: { run: () => 'safe' }
-        },
-        config: {}
+      actions: {
+        safe: { run: () => "safe" },
+      },
+      config: {},
     };
 
     const workflow = {
-        name: 'malformed-workflow',
-        steps: [
-            {
-                action: 'safe.run.extra', // Too many segments
-                output: 'result'
-            },
-            {
-                action: 'onlyone', // Too few segments
-                output: 'result2'
-            }
-        ]
+      name: "proto-workflow",
+      steps: [
+        {
+          action: "__proto__.toString",
+          output: "result",
+        },
+      ],
+    };
+
+    const state = await executeWorkflow(workflow, ctx);
+    expect(state.result).toBeNull();
+  });
+
+  it("should not allow malformed action strings", async () => {
+    const ctx: ExecContext = {
+      actions: {
+        safe: { run: () => "safe" },
+      },
+      config: {},
+    };
+
+    const workflow = {
+      name: "malformed-workflow",
+      steps: [
+        {
+          action: "safe.run.extra", // Too many segments
+          output: "result",
+        },
+        {
+          action: "onlyone", // Too few segments
+          output: "result2",
+        },
+      ],
     };
 
     const state = await executeWorkflow(workflow, ctx);

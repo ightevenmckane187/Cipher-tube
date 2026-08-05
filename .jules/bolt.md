@@ -37,3 +37,7 @@
 ## 2026-07-03 - Unsafe Buffer Casting for Implicit Coercion in JSON.parse
 **Learning:** Lying to the TypeScript compiler with unsafe type casts (e.g., `as unknown as string` on a Buffer) to pass it directly to standard functions like `JSON.parse` is a major hazard. While Node.js v22's native `JSON.parse` supports Buffers directly without intermediate allocations, standard JS/TS typings do not. If the underlying data type changes to a standard `Uint8Array` (e.g., in edge or cloud environment migrations), standard implicit coercion will produce comma-separated byte strings (e.g., `"123,98,111"`), resulting in catastrophic runtime `SyntaxError` crashes.
 **Action:** Always prefer explicit standard string conversion or safe platform APIs over type-cast-based implicit coercion.
+
+## 2026-07-04 - High-Performance Binary Validation and Buffer pre-allocation in State Serialization
+**Learning:** Constructing buffers via `Buffer.allocUnsafe()` and writing directly into pre-calculated offsets (using `.write()` and zero-copy `.subarray()`) is significantly faster than `Buffer.concat()`. Additionally, validating 6-byte string headers (like `.ctube`) via high-performance binary integer matching (`readUInt32BE` and `readUInt16BE`) completely avoids string decoding overhead and memory allocation, yielding massive throughput gains on hot persistence paths.
+**Action:** Always prefer pre-allocation and direct buffer writing for high-performance serialization layers; validate static protocol headers using direct integer reading instead of string conversion.

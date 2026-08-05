@@ -1,10 +1,10 @@
-import { SovereignNodeSpecies } from '../taxonomy/NodeTaxonomy';
+import { SovereignNodeSpecies } from "../taxonomy/NodeTaxonomy";
 
 export enum NodeState {
-  IDLE = 'IDLE',
-  ACTIVE = 'ACTIVE',
-  EVOLVING = 'EVOLVING',
-  DORMANT = 'DORMANT'
+  IDLE = "IDLE",
+  ACTIVE = "ACTIVE",
+  EVOLVING = "EVOLVING",
+  DORMANT = "DORMANT",
 }
 
 export interface NodeStatus {
@@ -22,7 +22,7 @@ export class NodeStateMachine {
       id,
       species,
       state: NodeState.IDLE,
-      lastUpdate: Date.now()
+      lastUpdate: Date.now(),
     });
   }
 
