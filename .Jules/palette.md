@@ -21,3 +21,7 @@
 ## 2026-07-04 - [Dynamic Info Regions for Mythic Discovery]
 **Learning:** Static tooltips or ARIA labels on complex visual elements (like Archetype nodes) provide accessibility but lack "discoverability" for sighted users. Adding a dedicated, dynamic info region that updates on hover/focus provides a persistent place for users to learn about the system's "mandates" without needing to wait for browser tooltips.
 **Action:** Pair complex visual nodes with a persistent status or info region (`aria-live="polite"`) that exposes deeper metadata upon interaction.
+
+## 2026-10-15 - [High-Contrast Focus Indicators for Visual Nodes]
+**Learning:** Overwriting browser default focus states with `outline: none` or using a low-contrast indicator (such as a white `box-shadow` on a light background) makes visual interactive components entirely invisible to keyboard navigators. Focus states should always use prominent, high-contrast outlines (e.g., `outline: 3px solid var(--primary)`) that adapt seamlessly across light and dark themes.
+**Action:** Always pair interactive focus states with high-contrast outlines using theme-adaptive variables like `var(--primary)`.
