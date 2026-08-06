@@ -1,5 +1,9 @@
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as crypto from 'crypto';
+
+const HEADER_MAGIC = Buffer.from('.ctube');
+const HEADER_LENGTH = 6;
+const SIGNATURE_LENGTH = 32;
 
 export class PersistenceLayer {
     save(data: any, key: string): Buffer {
@@ -8,8 +12,17 @@ export class PersistenceLayer {
         hmac.update(payload);
         const signature = hmac.digest();
 
-        const header = Buffer.from('.ctube');
-        return Buffer.concat([header, signature, Buffer.from(payload)]);
+        const payloadByteLength = Buffer.byteLength(payload, 'utf8');
+        const out = Buffer.allocUnsafe(HEADER_LENGTH + SIGNATURE_LENGTH + payloadByteLength);
+
+        // Zero-copy set of pre-allocated header
+        out.set(HEADER_MAGIC, 0);
+        // Zero-copy set of hmac signature
+        out.set(signature, HEADER_LENGTH);
+        // Direct UTF-8 write of the payload to avoid intermediate Buffer allocation
+        out.write(payload, HEADER_LENGTH + SIGNATURE_LENGTH, payloadByteLength, 'utf8');
+
+        return out;
     }
 
     verifyAndLoad(buffer: Buffer, key: string): any {
@@ -20,22 +33,29 @@ export class PersistenceLayer {
             throw new Error('Invalid format');
         }
 
-        const header = buffer.slice(0, 6).toString();
-        if (header !== '.ctube') throw new Error('Invalid format');
+        // Bolt Optimization: High-performance binary integer matching instead of .toString()
+        // avoids string allocations and decoding overhead on hot validation paths
+        if (buffer.readUInt32BE(0) !== 0x2e637475 || buffer.readUInt16BE(4) !== 0x6265) {
+            throw new Error('Invalid format');
+        }
 
-        const signature = buffer.slice(6, 38);
-        const payload = buffer.slice(38).toString();
+        // Bolt Optimization: Zero-copy subarray view instead of slice
+        const signature = buffer.subarray(6, 38);
+        const payloadSubarray = buffer.subarray(38);
 
         const hmac = crypto.createHmac('sha256', key);
-        hmac.update(payload);
+        // Pass Buffer subarray directly to hmac.update() to avoid string conversion overhead
+        hmac.update(payloadSubarray);
         const expectedSignature = hmac.digest();
 
         if (signature.length !== expectedSignature.length || !crypto.timingSafeEqual(signature, expectedSignature)) {
             throw new Error('Integrity check failed');
         }
 
+        // Decode payload to string only when passing to JSON.parse()
+        const payloadStr = payloadSubarray.toString('utf8');
         try {
-            return JSON.parse(payload);
+            return JSON.parse(payloadStr);
         } catch {
             throw new Error('Invalid JSON payload');
         }
