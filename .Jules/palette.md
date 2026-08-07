@@ -21,3 +21,7 @@
 ## 2026-07-04 - [Dynamic Info Regions for Mythic Discovery]
 **Learning:** Static tooltips or ARIA labels on complex visual elements (like Archetype nodes) provide accessibility but lack "discoverability" for sighted users. Adding a dedicated, dynamic info region that updates on hover/focus provides a persistent place for users to learn about the system's "mandates" without needing to wait for browser tooltips.
 **Action:** Pair complex visual nodes with a persistent status or info region (`aria-live="polite"`) that exposes deeper metadata upon interaction.
+
+## 2026-08-05 - [Theme-Aware Focus Visibility for Mythic Nodes]
+**Learning:** Overriding default focus outlines (`outline: none;`) to avoid aesthetic clutter without providing an accessible alternative removes visual guidance for keyboard users, violating WCAG requirements. Creating custom, high-contrast, theme-aware focus indicator rings (`3px solid var(--primary)`) with matching glow offsets guarantees beautiful discoverability on both light and dark backgrounds.
+**Action:** Never use `outline: none;` on focus/focus-visible elements without immediately replacing it with an explicit, highly visible custom outline using theme variables.

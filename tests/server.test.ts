@@ -117,4 +117,13 @@ describe("Server Security and Health", () => {
     );
     expect(response.text).toContain("node.addEventListener('blur', hideInfo);");
   });
+
+  it("should have highly visible and accessible focus outlines for cosmology map nodes", async () => {
+    const response = await request(app).get("/");
+    expect(response.status).toBe(200);
+    expect(response.text).toContain(".archetype-node:focus-visible");
+    expect(response.text).toContain("outline: 3px solid var(--primary)");
+    expect(response.text).toContain("outline-offset: 2px");
+    expect(response.text).toContain("box-shadow: 0 0 15px var(--primary)");
+  });
 });
