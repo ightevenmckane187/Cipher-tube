@@ -1,19 +1,32 @@
-import express, { Request, Response, Application } from 'express';
+import express, { Request, Response, NextFunction, Application } from 'express';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { cipherTubeGateway } from './gateway/sessionMiddleware';
 import { cache } from './cache/redisPool';
 
 export const app: Application = express();
 const PORT = process.env.GATEWAY_PORT || 8080;
 
+app.use(helmet({ hsts: { preload: true }, frameguard: { action: 'deny' } }));
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
+app.disable('x-powered-by');
+app.use(rateLimit({ windowMs: 900000, max: 1000, standardHeaders: true, legacyHeaders: false }));
+
 // Standard body parsers restricted to essential sizes to prevent buffer exhaustion attacks
 app.use(express.json({ limit: '10kb' }));
 
 /**
  * 📊 Live Gateway Telemetry Endpoint
- * Exposes core state diagnostics and cache performance metrics safely.
- * Sentinel: Guarded by cipherTubeGateway middleware to prevent unauthorized metrics exposure.
+ * Sentinel: Guarded by cipherTubeGateway and noCache headers.
  */
-app.get('/system/analytics', cipherTubeGateway, async (req: Request, res: Response) => {
+const noCache = (req: any, res: any, next: NextFunction) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  next();
+};
+app.get('/system/analytics', cipherTubeGateway, noCache, async (req: Request, res: Response) => {
     try {
         const cacheOpen = cache.rawClient.isOpen;
         // In a live environment, these are aggregated from internal memory markers
