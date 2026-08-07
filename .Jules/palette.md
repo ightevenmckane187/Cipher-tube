@@ -21,3 +21,7 @@
 ## 2026-07-04 - [Dynamic Info Regions for Mythic Discovery]
 **Learning:** Static tooltips or ARIA labels on complex visual elements (like Archetype nodes) provide accessibility but lack "discoverability" for sighted users. Adding a dedicated, dynamic info region that updates on hover/focus provides a persistent place for users to learn about the system's "mandates" without needing to wait for browser tooltips.
 **Action:** Pair complex visual nodes with a persistent status or info region (`aria-live="polite"`) that exposes deeper metadata upon interaction.
+
+## 2026-09-18 - [Accessible Focus States on Visual Custom Elements]
+**Learning:** Using `outline: none` on focus-visible elements, even when accompanied by custom glowing effects (such as `box-shadow`), destroys keyboard navigation visibility. This is especially true on white or light backgrounds where white shadows are practically invisible. Setting explicit high-contrast outlines with proper offsets ensures WCAG 2.1.1 (Keyboard) and 2.4.7 (Focus Visible) compliance across all color schemes.
+**Action:** Always provide standard high-contrast visible focus outlines with `outline-offset` instead of suppressing outlines with `outline: none` or using low-contrast shadows.
