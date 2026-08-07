@@ -116,5 +116,9 @@ describe("Server Security and Health", () => {
       "node.addEventListener('mouseleave', hideInfo);",
     );
     expect(response.text).toContain("node.addEventListener('blur', hideInfo);");
+    // Verify high-contrast accessibility focus visible styles
+    expect(response.text).toContain(".archetype-node:focus-visible");
+    expect(response.text).toContain("outline: 3px solid var(--primary);");
+    expect(response.text).toContain("outline-offset: 2px;");
   });
 });
