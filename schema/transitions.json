@@ -30,5 +30,11 @@
       "items": { "type": "string" }
     }
   },
-  "required": ["transition_id", "trigger_token", "source_state", "target_state", "requirements"]
+  "required": [
+    "transition_id",
+    "trigger_token",
+    "source_state",
+    "target_state",
+    "requirements"
+  ]
 }

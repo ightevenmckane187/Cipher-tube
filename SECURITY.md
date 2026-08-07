@@ -1,4 +1,3 @@
-
 Security Policy — Cipher-tube
 
 > Zero-trust by default. Every boundary is a checkpoint.
@@ -26,12 +25,12 @@ Table of Contents
 
 Supported Versions
 
-| Version | Supported | Notes |
-|---|---|---|
-| main (HEAD) | ✅ Yes | Active development — all patches applied |
-| Latest stable release (v..*) | ✅ Yes | Security patches backported |
-| Previous minor release (v.{n-1}.) | ⚠️ Critical only | Critical and high severity patches only |
-| Older releases | ❌ No | Upgrade required |
+| Version                           | Supported        | Notes                                    |
+| --------------------------------- | ---------------- | ---------------------------------------- |
+| main (HEAD)                       | ✅ Yes           | Active development — all patches applied |
+| Latest stable release (v..\*)     | ✅ Yes           | Security patches backported              |
+| Previous minor release (v.{n-1}.) | ⚠️ Critical only | Critical and high severity patches only  |
+| Older releases                    | ❌ No            | Upgrade required                         |
 
 If you are running an unsupported version, please upgrade before reporting. We cannot guarantee fixes for end-of-life releases.
 
@@ -68,18 +67,18 @@ What to Include
 
 A complete vulnerability report helps us triage and fix faster. Please include:
 
-| Field | Description |
-|---|---|
-| Summary | One-paragraph description of the vulnerability |
-| Affected component | Pillar (Sentinel / Bolt / Palette / Tube) and specific module or file path |
-| Affected versions | Version range or commit SHAs where the vulnerability exists |
-| Severity estimate | Your assessment using the Severity Matrix below |
-| Reproduction steps | Step-by-step instructions to trigger the vulnerability |
-| Proof of concept | Code, script, or screenshots demonstrating the issue (if available) |
-| Impact assessment | What an attacker could achieve — data exposure, privilege escalation, DoS, etc. |
-| Suggested fix | If you have a proposed patch or mitigation (optional but appreciated) |
-| Environment | OS, runtime versions, Docker version, relevant configuration |
-| Reporter identity | Name/handle and preferred contact method for follow-up |
+| Field              | Description                                                                     |
+| ------------------ | ------------------------------------------------------------------------------- |
+| Summary            | One-paragraph description of the vulnerability                                  |
+| Affected component | Pillar (Sentinel / Bolt / Palette / Tube) and specific module or file path      |
+| Affected versions  | Version range or commit SHAs where the vulnerability exists                     |
+| Severity estimate  | Your assessment using the Severity Matrix below                                 |
+| Reproduction steps | Step-by-step instructions to trigger the vulnerability                          |
+| Proof of concept   | Code, script, or screenshots demonstrating the issue (if available)             |
+| Impact assessment  | What an attacker could achieve — data exposure, privilege escalation, DoS, etc. |
+| Suggested fix      | If you have a proposed patch or mitigation (optional but appreciated)           |
+| Environment        | OS, runtime versions, Docker version, relevant configuration                    |
+| Reporter identity  | Name/handle and preferred contact method for follow-up                          |
 
 ---
 
@@ -97,16 +96,16 @@ Response SLAs
 
 We commit to the following response timelines from the moment a valid report is received:
 
-| Milestone | SLA |
-|---|---|
-| Acknowledgment | ≤ 24 hours |
-| Initial triage & severity classification | ≤ 48 hours |
-| Status update to reporter | Every 5 business days until resolution |
-| Critical fix developed | ≤ 7 calendar days |
-| High fix developed | ≤ 14 calendar days |
-| Medium fix developed | ≤ 30 calendar days |
-| Low fix developed | Next scheduled release cycle |
-| Advisory published | Within 48 hours of fix release |
+| Milestone                                | SLA                                    |
+| ---------------------------------------- | -------------------------------------- |
+| Acknowledgment                           | ≤ 24 hours                             |
+| Initial triage & severity classification | ≤ 48 hours                             |
+| Status update to reporter                | Every 5 business days until resolution |
+| Critical fix developed                   | ≤ 7 calendar days                      |
+| High fix developed                       | ≤ 14 calendar days                     |
+| Medium fix developed                     | ≤ 30 calendar days                     |
+| Low fix developed                        | Next scheduled release cycle           |
+| Advisory published                       | Within 48 hours of fix release         |
 
 If we cannot meet an SLA, we will communicate the delay and revised timeline to the reporter.
 
@@ -194,11 +193,11 @@ Phase 4 — Disclosure (Within 48 hours of fix release)
 
 Security Contacts
 
-| Role | Contact Method |
-|---|---|
-| Primary security contact | GitHub Security Advisory (preferred) |
-| Backup | Encrypted email to the address listed in security/CONTACTS.md |
-| PGP key | security/pgp-key.asc in this repository |
+| Role                     | Contact Method                                                |
+| ------------------------ | ------------------------------------------------------------- |
+| Primary security contact | GitHub Security Advisory (preferred)                          |
+| Backup                   | Encrypted email to the address listed in security/CONTACTS.md |
+| PGP key                  | security/pgp-key.asc in this repository                       |
 
 ---
 
@@ -225,14 +224,14 @@ Security Architecture Summary
 
 Cipher-tube's security model is built on the following principles:
 
-| Principle | Implementation |
-|---|---|
-| Zero Trust | Every inter-pillar call requires mTLS + Ed25519 token validation. No implicit trust. |
-| Least Privilege | RBAC/ABAC via OPA — deny-by-default. Agents scoped to their pillar. |
-| Defense in Depth | SAST, SCA, secret detection, signed commits, policy-as-code, hash-chain audit. |
-| Immutable Audit | Tamper-evident hash-chain ledger for all security-relevant actions. |
-| Separation of Duties | Cross-pillar review required for trust-boundary changes. No self-approval. |
-| Cryptographic Identity | Ed25519 keys for agents and contributors. Certificate rotation enforced. |
+| Principle              | Implementation                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------ |
+| Zero Trust             | Every inter-pillar call requires mTLS + Ed25519 token validation. No implicit trust. |
+| Least Privilege        | RBAC/ABAC via OPA — deny-by-default. Agents scoped to their pillar.                  |
+| Defense in Depth       | SAST, SCA, secret detection, signed commits, policy-as-code, hash-chain audit.       |
+| Immutable Audit        | Tamper-evident hash-chain ledger for all security-relevant actions.                  |
+| Separation of Duties   | Cross-pillar review required for trust-boundary changes. No self-approval.           |
+| Cryptographic Identity | Ed25519 keys for agents and contributors. Certificate rotation enforced.             |
 
 For full architecture details, see the Architecture Overview in CONTRIBUTING.md.
 
@@ -251,12 +250,12 @@ Dependency & Supply-Chain Policy
 
 Audit & Compliance
 
-| Framework | Status | Mapping Location |
-|---|---|---|
-| NIST 800-53 Rev. 5 | Active | governance/compliance/nist-800-53.json |
-| M-25-22 Zero Trust | Active | governance/compliance/m-25-22.json |
-| OWASP Agentic AI Top 10 | Active | governance/compliance/owasp-agentic-ai.json |
-| WCAG 2.2 AA | Active (Palette) | governance/compliance/wcag-2.2.json |
+| Framework               | Status           | Mapping Location                            |
+| ----------------------- | ---------------- | ------------------------------------------- |
+| NIST 800-53 Rev. 5      | Active           | governance/compliance/nist-800-53.json      |
+| M-25-22 Zero Trust      | Active           | governance/compliance/m-25-22.json          |
+| OWASP Agentic AI Top 10 | Active           | governance/compliance/owasp-agentic-ai.json |
+| WCAG 2.2 AA             | Active (Palette) | governance/compliance/wcag-2.2.json         |
 
 Compliance mappings are version-controlled and updated with every governance policy change. Mapping PRs follow the same review and cool-down process as policy changes (see CONTRIBUTING.md — Policy-as-Code).
 

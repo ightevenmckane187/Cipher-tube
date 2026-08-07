@@ -1522,12 +1522,10 @@ app.post(
         return res.status(400).json({ error: finalError });
       }
 
-      res
-        .status(500)
-        .json({
-          error:
-            "Internal server error: An unexpected error occurred during decryption.",
-        });
+      res.status(500).json({
+        error:
+          "Internal server error: An unexpected error occurred during decryption.",
+      });
     }
   },
 );
@@ -1574,11 +1572,9 @@ app.post(
 
     for (const key of cryptoKeys) {
       if (!Object.prototype.hasOwnProperty.call(packet.crypto_envelope, key)) {
-        return res
-          .status(400)
-          .json({
-            error: `Malformed packet: Missing ${key} in crypto_envelope`,
-          });
+        return res.status(400).json({
+          error: `Malformed packet: Missing ${key} in crypto_envelope`,
+        });
       }
     }
 

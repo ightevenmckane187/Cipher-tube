@@ -1,24 +1,29 @@
-import { CartesianPoint } from '../../os/spatial/NodePosition';
-import { SovereignNodeSpecies } from '../../os/taxonomy/NodeTaxonomy';
+import { CartesianPoint } from "../../os/spatial/NodePosition";
+import { SovereignNodeSpecies } from "../../os/taxonomy/NodeTaxonomy";
 
 export class NodeRenderer {
-  renderToCanvas(ctx: CanvasRenderingContext2D, id: string, pos: CartesianPoint, species: SovereignNodeSpecies) {
+  renderToCanvas(
+    ctx: CanvasRenderingContext2D,
+    id: string,
+    pos: CartesianPoint,
+    species: SovereignNodeSpecies,
+  ) {
     // Canvas Bridge for the Holland Hybrid Core
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, 10, 0, 2 * Math.PI);
 
     switch (species) {
       case SovereignNodeSpecies.ARCHETYPE:
-        ctx.fillStyle = 'gold';
+        ctx.fillStyle = "gold";
         break;
       case SovereignNodeSpecies.TOOLBOX:
-        ctx.fillStyle = 'blue';
+        ctx.fillStyle = "blue";
         break;
       case SovereignNodeSpecies.RITUAL:
-        ctx.fillStyle = 'purple';
+        ctx.fillStyle = "purple";
         break;
       case SovereignNodeSpecies.DIAGNOSTIC:
-        ctx.fillStyle = 'red';
+        ctx.fillStyle = "red";
         break;
     }
 

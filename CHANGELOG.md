@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.5.0] — 2026-05-15
 
 ### Fixed
+
 - Add missing 'path' import to `src/server.ts` to enable documentation serving.
 - Fix ReferenceError in session creation where `sessionKey` was undefined.
 - Standardize rate-limit error responses to JSON to prevent information leakage.
@@ -18,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Harden structural validation in `AuthorityChainValidator` for governance manifests.
 
 ### Added
+
 - Security Audit Report for v1.5.0 release (`SECURITY_AUDIT.md`).
 
 ---
@@ -25,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - Multi-agent governance framework with trust tiers T0–T4 and separation-of-duties enforcement
 - Safer-Tube 24-item security checklist embedded in PR workflow
 - OPA Rego policies: crosspillarreview, trust_tier, agent_boundary, safertubechecklist
@@ -59,6 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.0.0] — 2026-04-27
 
 ### Added
+
 - Repository initialization
 - Project structure with three pillars: Sentinel (security), Bolt (performance), Palette (UX/accessibility)
 - Tube Layer inter-pillar transport scaffold

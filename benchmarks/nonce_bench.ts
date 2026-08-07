@@ -1,43 +1,43 @@
-import crypto from 'crypto';
+import crypto from "crypto";
 
 const N = 100000;
 
 function benchNonceOld() {
-    console.time('randomBytes(16).toString("base64")');
-    for (let i = 0; i < N; i++) {
-        const nonce = crypto.randomBytes(16).toString('base64');
-    }
-    console.timeEnd('randomBytes(16).toString("base64")');
+  console.time('randomBytes(16).toString("base64")');
+  for (let i = 0; i < N; i++) {
+    const nonce = crypto.randomBytes(16).toString("base64");
+  }
+  console.timeEnd('randomBytes(16).toString("base64")');
 }
 
 function benchNonceNew() {
-    console.time('randomUUID()');
-    for (let i = 0; i < N; i++) {
-        const nonce = crypto.randomUUID();
-    }
-    console.timeEnd('randomUUID()');
+  console.time("randomUUID()");
+  for (let i = 0; i < N; i++) {
+    const nonce = crypto.randomUUID();
+  }
+  console.timeEnd("randomUUID()");
 }
 
 function benchWithConcatOld() {
-    console.time('randomBytes + concat');
-    for (let i = 0; i < N; i++) {
-        const nonce = crypto.randomBytes(16).toString('base64');
-        const cspNonce = `'nonce-${nonce}'`;
-        const s1 = cspNonce;
-        const s2 = cspNonce;
-    }
-    console.timeEnd('randomBytes + concat');
+  console.time("randomBytes + concat");
+  for (let i = 0; i < N; i++) {
+    const nonce = crypto.randomBytes(16).toString("base64");
+    const cspNonce = `'nonce-${nonce}'`;
+    const s1 = cspNonce;
+    const s2 = cspNonce;
+  }
+  console.timeEnd("randomBytes + concat");
 }
 
 function benchWithConcatNew() {
-    console.time('randomUUID + pre-concat');
-    for (let i = 0; i < N; i++) {
-        const nonce = crypto.randomUUID();
-        const cspNonce = `'nonce-${nonce}'`;
-        const s1 = cspNonce;
-        const s2 = cspNonce;
-    }
-    console.timeEnd('randomUUID + pre-concat');
+  console.time("randomUUID + pre-concat");
+  for (let i = 0; i < N; i++) {
+    const nonce = crypto.randomUUID();
+    const cspNonce = `'nonce-${nonce}'`;
+    const s1 = cspNonce;
+    const s2 = cspNonce;
+  }
+  console.timeEnd("randomUUID + pre-concat");
 }
 
 console.log(`Running benchmark with ${N} iterations...`);

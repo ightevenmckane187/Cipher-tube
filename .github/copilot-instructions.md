@@ -71,4 +71,3 @@ applyTo: "**/*"
 - Add `.github/agents/cipher-tube-api.agent.md` for API-focused tasks.
 - Add `.github/prompts/cipher-tube-testing.prompt.md` for adding test cases (
   includes standard test templates and expected coverage scope).
-

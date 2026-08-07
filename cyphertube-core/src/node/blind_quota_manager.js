@@ -46,16 +46,14 @@ export class BlindQuotaManager {
     byteSize,
     peerDid = "LOCAL",
   ) {
-    await this.db
-      .collection("storage_ledger")
-      .updateOne(
-        { canonical_blind_id: canonicalBlindId },
-        {
-          $inc: { allocated_bytes: byteSize, segment_count: 1 },
-          $set: { last_updated: new Date() },
-        },
-        { upsert: true },
-      );
+    await this.db.collection("storage_ledger").updateOne(
+      { canonical_blind_id: canonicalBlindId },
+      {
+        $inc: { allocated_bytes: byteSize, segment_count: 1 },
+        $set: { last_updated: new Date() },
+      },
+      { upsert: true },
+    );
     await this.db.collection("blind_block_manifest").insertOne({
       canonical_blind_id: canonicalBlindId,
       segment_index: Number(chunkIndex),
@@ -101,17 +99,15 @@ export class BlindQuotaManager {
         await this.db
           .collection("blind_block_manifest")
           .deleteOne({ _id: blockToPurge._id });
-        await this.db
-          .collection("storage_ledger")
-          .updateOne(
-            { canonical_blind_id: blockToPurge.canonical_blind_id },
-            {
-              $inc: {
-                allocated_bytes: -blockToPurge.byte_size,
-                segment_count: -1,
-              },
+        await this.db.collection("storage_ledger").updateOne(
+          { canonical_blind_id: blockToPurge.canonical_blind_id },
+          {
+            $inc: {
+              allocated_bytes: -blockToPurge.byte_size,
+              segment_count: -1,
             },
-          );
+          },
+        );
         break; // Re-evaluate total node constraints incrementally
       }
     }

@@ -5,6 +5,7 @@
 As of v1.5.0, Cipher Tube utilizes **AES-256-GCM** (Advanced Encryption Standard with Galois/Counter Mode) for its cryptographic operations.
 
 ### Why AES-256-GCM?
+
 - **Strength**: 256-bit keys provide a massive security margin against brute-force attacks.
 - **Integrity**: GCM provides both confidentiality and authenticity, ensuring that encrypted data has not been tampered with.
 - **Performance**: Hardware acceleration (AES-NI) ensures minimal latency.

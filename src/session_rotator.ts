@@ -1,6 +1,6 @@
-import crypto from 'crypto';
-import { fastHash } from './cta';
-import { RedisClientType } from 'redis';
+import crypto from "crypto";
+import { fastHash } from "./cta";
+import { RedisClientType } from "redis";
 
 /**
  * Calculates a blinded hash for a given session ID or token.
@@ -10,10 +10,10 @@ import { RedisClientType } from 'redis';
  * @returns The SHA-256 blinded hash as a hex string, or an empty string if invalid.
  */
 export function blindToken(token: string): string {
-    if (!token || typeof token !== 'string') {
-        return '';
-    }
-    return fastHash('sha256', token, 'hex');
+  if (!token || typeof token !== "string") {
+    return "";
+  }
+  return fastHash("sha256", token, "hex");
 }
 
 /**
@@ -24,8 +24,8 @@ export function blindToken(token: string): string {
  * @returns The SHA-256 blinded key prefixed with 'session:'.
  */
 export function getBlindedRedisKey(token: string): string {
-    const hashed = blindToken(token);
-    return hashed ? `session:${hashed}` : '';
+  const hashed = blindToken(token);
+  return hashed ? `session:${hashed}` : "";
 }
 
 /**
@@ -33,17 +33,21 @@ export function getBlindedRedisKey(token: string): string {
  * Bolt Optimization: Saves one redundant hashing operation in hot paths.
  */
 export function getRedisKeyFromHash(blindedHash: string): string {
-    return `session:${blindedHash}`;
+  return `session:${blindedHash}`;
 }
 
 /**
  * Creates a new session in Redis and returns the raw token.
  */
-export async function createSession(userId: string, redis: RedisClientType, ttl: number): Promise<string> {
-    const token = crypto.randomUUID();
-    const key = getBlindedRedisKey(token);
-    await redis.set(key, userId, { EX: ttl });
-    return token;
+export async function createSession(
+  userId: string,
+  redis: RedisClientType,
+  ttl: number,
+): Promise<string> {
+  const token = crypto.randomUUID();
+  const key = getBlindedRedisKey(token);
+  await redis.set(key, userId, { EX: ttl });
+  return token;
 }
 
 /**
@@ -51,22 +55,26 @@ export async function createSession(userId: string, redis: RedisClientType, ttl:
  * Bolt Optimization: Implements a 5-second grace period for the old token to prevent race conditions
  * during rapid concurrent requests.
  */
-export async function rotateSession(oldToken: string, redis: RedisClientType, ttl: number): Promise<{ newToken: string }> {
-    const oldKey = getBlindedRedisKey(oldToken);
-    const userId = await redis.get(oldKey);
+export async function rotateSession(
+  oldToken: string,
+  redis: RedisClientType,
+  ttl: number,
+): Promise<{ newToken: string }> {
+  const oldKey = getBlindedRedisKey(oldToken);
+  const userId = await redis.get(oldKey);
 
-    if (!userId) {
-        throw new Error("Session expired, revoked, or replayed.");
-    }
+  if (!userId) {
+    throw new Error("Session expired, revoked, or replayed.");
+  }
 
-    // Create new token
-    const newToken = await createSession(userId, redis, ttl);
+  // Create new token
+  const newToken = await createSession(userId, redis, ttl);
 
-    // Burn old token with a 5-second grace period instead of immediate deletion
-    // This allows in-flight requests with the old token to succeed.
-    await redis.expire(oldKey, 5);
+  // Burn old token with a 5-second grace period instead of immediate deletion
+  // This allows in-flight requests with the old token to succeed.
+  await redis.expire(oldKey, 5);
 
-    return { newToken };
+  return { newToken };
 }
 
 /**
@@ -75,11 +83,13 @@ export async function rotateSession(oldToken: string, redis: RedisClientType, tt
  * @param token - The raw session token.
  * @returns Object containing the blinded hash and the Redis-prefixed key.
  */
-export function getSessionKeys(token: string): { blindedKey: string; redisKey: string } {
-    const hashed = blindToken(token);
-    return {
-        blindedKey: hashed,
-        redisKey: hashed ? `session:${hashed}` : ''
-    };
+export function getSessionKeys(token: string): {
+  blindedKey: string;
+  redisKey: string;
+} {
+  const hashed = blindToken(token);
+  return {
+    blindedKey: hashed,
+    redisKey: hashed ? `session:${hashed}` : "",
+  };
 }
-

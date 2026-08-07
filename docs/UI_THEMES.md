@@ -18,7 +18,7 @@ Dark mode is implemented using CSS Custom Properties (Variables), ensuring zero 
   --text-color: #000000;
 }
 
-[data-theme='dark'] {
+[data-theme="dark"] {
   --bg-color: #121212;
   --text-color: #e0e0e0;
 }

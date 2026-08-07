@@ -1,6 +1,7 @@
 # Runtime Model Specification
 
 ## The Seven-Engine Matrix
+
 The OmniSpiral runtime is driven by a 7-engine matrix execution pipeline:
 
 1. **Myth-Physics Engine (MPE)**: Foundational rule layer. Mutates localized physical constants and entropy limits.
@@ -12,4 +13,5 @@ The OmniSpiral runtime is driven by a 7-engine matrix execution pipeline:
 7. **Paradox-Field Engine**: Synthesis layer. Converts logic contradictions into structural state ascension drivers (Rp > 1.0).
 
 ## State Resolution Loop
+
 When `Rp > 1.0`, the Paradox-Field Engine triggers a state resolution, leading to state ascension.

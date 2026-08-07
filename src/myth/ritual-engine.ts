@@ -1,10 +1,10 @@
-import crypto from 'crypto';
-import { SovereignCanon } from './canon/sovereign-canon';
+import crypto from "crypto";
+import { SovereignCanon } from "./canon/sovereign-canon";
 
 /**
  * Realms of the Sovereign Cypher-Tube
  */
-export type Realm = 'Pulse' | 'Drift' | 'Shadow' | 'Return' | 'Lineage';
+export type Realm = "Pulse" | "Drift" | "Shadow" | "Return" | "Lineage";
 
 /**
  * Archetype definition
@@ -22,40 +22,40 @@ export interface Archetype {
  */
 export const Archetypes: Record<string, Archetype> = {
   Archive: {
-    id: 'ARCHIVE',
-    name: 'The Archive',
-    realm: 'Lineage',
-    aura: 'Runic/Orbiting',
-    mandate: 'Keeper of the LineageLedger and historical truth.'
+    id: "ARCHIVE",
+    name: "The Archive",
+    realm: "Lineage",
+    aura: "Runic/Orbiting",
+    mandate: "Keeper of the LineageLedger and historical truth.",
   },
   Sentinel: {
-    id: 'SENTINEL',
-    name: 'The Sentinel',
-    realm: 'Pulse',
-    aura: 'Crystalline/Geometric',
-    mandate: 'Guardian of the Pulse through rigid vigilance.'
+    id: "SENTINEL",
+    name: "The Sentinel",
+    realm: "Pulse",
+    aura: "Crystalline/Geometric",
+    mandate: "Guardian of the Pulse through rigid vigilance.",
   },
   Wanderer: {
-    id: 'WANDERER',
-    name: 'The Wanderer',
-    realm: 'Drift',
-    aura: 'Particle-cloud/Fluid',
-    mandate: 'Navigator of Drift through aggressive inquiry.'
+    id: "WANDERER",
+    name: "The Wanderer",
+    realm: "Drift",
+    aura: "Particle-cloud/Fluid",
+    mandate: "Navigator of Drift through aggressive inquiry.",
   },
   Shade: {
-    id: 'SHADE',
-    name: 'The Shade',
-    realm: 'Shadow',
-    aura: 'Voronoi-fracture/Collapsing',
-    mandate: 'Judge of the Shadow through immutable trial protocols.'
+    id: "SHADE",
+    name: "The Shade",
+    realm: "Shadow",
+    aura: "Voronoi-fracture/Collapsing",
+    mandate: "Judge of the Shadow through immutable trial protocols.",
   },
   Healer: {
-    id: 'HEALER',
-    name: 'The Healer',
-    realm: 'Return',
-    aura: 'Harmonic-bloom/Radiant',
-    mandate: 'Agent of Restoration and Ascent.'
-  }
+    id: "HEALER",
+    name: "The Healer",
+    realm: "Return",
+    aura: "Harmonic-bloom/Radiant",
+    mandate: "Agent of Restoration and Ascent.",
+  },
 };
 
 /**
@@ -70,7 +70,7 @@ export class LineageLedger {
       event,
       archetypeId,
       metadata,
-      signature: `sig-${crypto.randomBytes(8).toString('hex')}`
+      signature: `sig-${crypto.randomBytes(8).toString("hex")}`,
     };
     this.entries.push(entry);
     console.log(`[LineageLedger] Recorded: ${event} by ${archetypeId}`);
@@ -90,16 +90,26 @@ export const globalLedger = new LineageLedger();
  */
 export class RitualEngine {
   dispatch(archetypeId: string, action: string, payload: any = {}) {
-    const archetype = Object.values(Archetypes).find(a => a.id === archetypeId);
+    const archetype = Object.values(Archetypes).find(
+      (a) => a.id === archetypeId,
+    );
 
     if (!archetype) {
-      throw new Error(`Unauthorized Force: Archetype ${archetypeId} not recognized.`);
+      throw new Error(
+        `Unauthorized Force: Archetype ${archetypeId} not recognized.`,
+      );
     }
 
-    console.log(`[RitualEngine] Archetype ${archetype.name} initiating '${action}' in realm ${archetype.realm}`);
+    console.log(
+      `[RitualEngine] Archetype ${archetype.name} initiating '${action}' in realm ${archetype.realm}`,
+    );
 
     // Enforce Canon
-    const audit = SovereignCanon.auditAction(archetypeId, action, archetype.realm);
+    const audit = SovereignCanon.auditAction(
+      archetypeId,
+      action,
+      archetype.realm,
+    );
     if (!audit.compliant) {
       throw new Error(`Canon Violation: ${action} by ${archetypeId} rejected.`);
     }
@@ -107,21 +117,21 @@ export class RitualEngine {
     // Record in Lineage
     globalLedger.record(action, archetypeId, payload);
 
-    if (action === 'TRI_SHIFT_UPLIFT') {
+    if (action === "TRI_SHIFT_UPLIFT") {
       return {
-        status: 'authorized',
+        status: "authorized",
         archetype: archetype.name,
         realm: archetype.realm,
         auditId: audit.auditId,
-        output: '+++'
+        output: "+++",
       };
     }
 
     return {
-      status: 'authorized',
+      status: "authorized",
       archetype: archetype.name,
       realm: archetype.realm,
-      auditId: audit.auditId
+      auditId: audit.auditId,
     };
   }
 }

@@ -1,4 +1,4 @@
-import { NodePosition, CartesianPoint } from './NodePosition';
+import { NodePosition, CartesianPoint } from "./NodePosition";
 
 export class ConstellationLayout {
   private nodePositions: Map<string, NodePosition> = new Map();
