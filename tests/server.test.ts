@@ -117,4 +117,12 @@ describe("Server Security and Health", () => {
     );
     expect(response.text).toContain("node.addEventListener('blur', hideInfo);");
   });
+
+  it("should render the WCAG 2.1.4 compliant Keyboard Shortcut Toggle button", async () => {
+    const response = await request(app).get("/");
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('id="toggle-shortcuts-btn"');
+    expect(response.text).toContain('aria-pressed=');
+    expect(response.text).toContain('body.shortcuts-disabled .kb-shortcut');
+  });
 });
