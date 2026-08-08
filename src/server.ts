@@ -329,6 +329,9 @@ export const PRE_RENDERED_STYLES = `
     }
     .archetype-name { font-weight: bold; margin-bottom: 2px; }
     .archetype-realm { font-size: 0.5rem; opacity: 0.7; }
+    body.shortcuts-disabled .kb-shortcut {
+        display: none !important;
+    }
     ${CosmologyMap.getAuraStyles()}
 `;
 
@@ -493,6 +496,10 @@ app.get("/", (req: Request, res: Response) => {
                 (function() {
                     const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
                     document.documentElement.setAttribute('data-theme', theme);
+                    const shortcuts = localStorage.getItem('keyboard-shortcuts') !== 'disabled';
+                    if (!shortcuts) {
+                        document.documentElement.classList.add('shortcuts-disabled');
+                    }
                 })();
             </script>
             <style nonce="${res.locals.nonce}">
@@ -801,6 +808,9 @@ app.get("/", (req: Request, res: Response) => {
                 }
                 .archetype-name { font-weight: bold; margin-bottom: 2px; }
                 .archetype-realm { font-size: 0.5rem; opacity: 0.7; }
+                body.shortcuts-disabled .kb-shortcut {
+                    display: none !important;
+                }
                 #archetype-info {
                     margin-top: 1rem;
                     padding: 0.75rem;
@@ -910,10 +920,17 @@ app.get("/", (req: Request, res: Response) => {
             </div>
 
             <footer role="contentinfo" aria-label="Page Footer">
-                <nav aria-label="Footer navigation">
-                    <a href="/health">Health Check</a> |
-                    <a href="/docs/USER_GUIDE.md" target="_blank" rel="noopener noreferrer">User Guide</a> |
-                    <a href="/docs/ACCESSIBILITY.md" target="_blank" rel="noopener noreferrer">Accessibility Statement</a>
+                <nav aria-label="Footer navigation" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between;">
+                    <div>
+                        <a href="/health">Health Check</a> |
+                        <a href="/docs/USER_GUIDE.md" target="_blank" rel="noopener noreferrer">User Guide</a> |
+                        <a href="/docs/ACCESSIBILITY.md" target="_blank" rel="noopener noreferrer">Accessibility Statement</a>
+                    </div>
+                    <div>
+                        <button id="toggle-shortcuts-btn" class="theme-toggle" style="float: none; margin: 0; padding: 4px 12px; border-radius: 4px;" aria-pressed="false">
+                            Enable/Disable Shortcuts
+                        </button>
+                    </div>
                 </nav>
                 <p>&copy; 2026 Sovereign Cypher-Tube</p>
             </footer>
@@ -1066,8 +1083,36 @@ app.get("/", (req: Request, res: Response) => {
                     }
                 });
 
+                // Toggle Shortcuts Button Logic
+                const toggleShortcutsBtn = document.getElementById('toggle-shortcuts-btn');
+                function updateShortcutsUI() {
+                    const shortcutsEnabled = localStorage.getItem('keyboard-shortcuts') !== 'disabled';
+                    if (shortcutsEnabled) {
+                        document.body.classList.remove('shortcuts-disabled');
+                        document.documentElement.classList.remove('shortcuts-disabled');
+                        toggleShortcutsBtn.setAttribute('aria-pressed', 'true');
+                        toggleShortcutsBtn.textContent = 'Shortcuts: Enabled';
+                    } else {
+                        document.body.classList.add('shortcuts-disabled');
+                        document.documentElement.classList.add('shortcuts-disabled');
+                        toggleShortcutsBtn.setAttribute('aria-pressed', 'false');
+                        toggleShortcutsBtn.textContent = 'Shortcuts: Disabled';
+                    }
+                }
+                if (toggleShortcutsBtn) {
+                    updateShortcutsUI();
+                    toggleShortcutsBtn.addEventListener('click', () => {
+                        const shortcutsEnabled = localStorage.getItem('keyboard-shortcuts') !== 'disabled';
+                        localStorage.setItem('keyboard-shortcuts', shortcutsEnabled ? 'disabled' : 'enabled');
+                        updateShortcutsUI();
+                    });
+                }
+
                 // Global Shortcuts
                 window.addEventListener('keydown', (e) => {
+                    const shortcutsEnabled = localStorage.getItem('keyboard-shortcuts') !== 'disabled';
+                    if (!shortcutsEnabled) return;
+
                     if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
                     if (e.ctrlKey || e.metaKey || e.altKey) return;
                     if (e.key === 'c') {
