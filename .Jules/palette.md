@@ -22,6 +22,6 @@
 **Learning:** Static tooltips or ARIA labels on complex visual elements (like Archetype nodes) provide accessibility but lack "discoverability" for sighted users. Adding a dedicated, dynamic info region that updates on hover/focus provides a persistent place for users to learn about the system's "mandates" without needing to wait for browser tooltips.
 **Action:** Pair complex visual nodes with a persistent status or info region (`aria-live="polite"`) that exposes deeper metadata upon interaction.
 
-## 2026-08-05 - [Theme-Aware Focus Visibility for Mythic Nodes]
-**Learning:** Overriding default focus outlines (`outline: none;`) to avoid aesthetic clutter without providing an accessible alternative removes visual guidance for keyboard users, violating WCAG requirements. Creating custom, high-contrast, theme-aware focus indicator rings (`3px solid var(--primary)`) with matching glow offsets guarantees beautiful discoverability on both light and dark backgrounds.
-**Action:** Never use `outline: none;` on focus/focus-visible elements without immediately replacing it with an explicit, highly visible custom outline using theme variables.
+## 2026-08-04 - [Visible Hover and Focus States Across Themes]
+**Learning:** Overriding browser default focus styles with `outline: none;` and replacing them with a visual-only indicator (like a white box-shadow) can create severe accessibility violations on light themes, where white shadows are completely invisible. Active indicators should use theme-adaptive variables (e.g., `var(--primary)`) and distinct outline definitions to guarantee they remain clearly perceivable on all background color schemes.
+**Action:** Ensure custom focus indicators utilize theme-appropriate CSS custom properties for shadows and borders, and never suppress native outlines without substituting a robust, high-contrast, theme-compliant fallback.

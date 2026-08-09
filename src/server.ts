@@ -323,7 +323,7 @@ export const PRE_RENDERED_STYLES = `
     .archetype-node:hover {
       transform: scale(1.1);
       z-index: 10;
-      box-shadow: 0 0 15px white;
+      box-shadow: 0 0 15px var(--primary);
     }
     .archetype-node:focus-visible {
       transform: scale(1.1);
@@ -800,7 +800,7 @@ app.get("/", (req: Request, res: Response) => {
                 .archetype-node:hover {
                   transform: scale(1.1);
                   z-index: 10;
-                  box-shadow: 0 0 15px white;
+                  box-shadow: 0 0 15px var(--primary);
                 }
                 .archetype-node:focus-visible {
                   transform: scale(1.1);
