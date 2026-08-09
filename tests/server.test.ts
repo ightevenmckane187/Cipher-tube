@@ -118,14 +118,15 @@ describe("Server Security and Health", () => {
     expect(response.text).toContain("node.addEventListener('blur', hideInfo);");
   });
 
-  it("should have accessible focus styles for .archetype-node in both stylesheet declarations", async () => {
+  it("should render accessible Cosmology Map nodes with visible hover and focus indicators", async () => {
     const response = await request(app).get("/");
     expect(response.status).toBe(200);
-
-    // Check that there's no "outline: none" on the focus state of archetype-node
-    // Instead we expect outline: 3px solid var(--primary) and box-shadow with var(--primary)
-    expect(response.text).toContain("outline: 3px solid var(--primary)");
-    expect(response.text).toContain("box-shadow: 0 0 15px var(--primary)");
-    expect(response.text).not.toContain("outline: none;\n                }");
+    // Ensure the old outline: none and white shadow are removed
+    expect(response.text).not.toContain("box-shadow: 0 0 15px white");
+    expect(response.text).not.toContain("outline: none;");
+    // Ensure the new primary-based styles are present
+    expect(response.text).toContain("box-shadow: 0 0 15px var(--primary);");
+    expect(response.text).toContain("outline: 3px solid var(--primary);");
+    expect(response.text).toContain("outline-offset: 2px;");
   });
 });
