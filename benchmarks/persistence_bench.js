@@ -1,8 +1,9 @@
-import { PersistenceLayer } from '../src/os/persistence/PersistenceLayer';
-
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const PersistenceLayer_1 = require("../src/os/persistence/PersistenceLayer");
 function runBenchmark() {
     console.log("--- PersistenceLayer Benchmark ---");
-    const persistence = new PersistenceLayer();
+    const persistence = new PersistenceLayer_1.PersistenceLayer();
     const testKey = 'sovereign-channel-key-for-testing';
     const payload = {
         secure: true,
@@ -15,33 +16,29 @@ function runBenchmark() {
             }
         }
     };
-
     // Warm up
     for (let i = 0; i < 5000; i++) {
         const buf = persistence.save(payload, testKey);
         persistence.verifyAndLoad(buf, testKey);
     }
-
     const iterations = 50000;
     const startSave = process.hrtime.bigint();
-    let savedBuf!: Buffer;
+    let savedBuf;
     for (let i = 0; i < iterations; i++) {
         savedBuf = persistence.save(payload, testKey);
     }
     const endSave = process.hrtime.bigint();
-    const saveDurationMs = Number(endSave - startSave) / 1_000_000;
-
+    const saveDurationMs = Number(endSave - startSave) / 1000000;
     const startLoad = process.hrtime.bigint();
     for (let i = 0; i < iterations; i++) {
         persistence.verifyAndLoad(savedBuf, testKey);
     }
     const endLoad = process.hrtime.bigint();
-    const loadDurationMs = Number(endLoad - startLoad) / 1_000_000;
-
+    const loadDurationMs = Number(endLoad - startLoad) / 1000000;
     console.log(`Saved ${iterations} iterations in ${saveDurationMs.toFixed(2)}ms (Avg: ${(saveDurationMs / iterations).toFixed(5)}ms per call)`);
     console.log(`Loaded/Verified ${iterations} iterations in ${loadDurationMs.toFixed(2)}ms (Avg: ${(loadDurationMs / iterations).toFixed(5)}ms per call)`);
     console.log(`Combined cycle average: ${((saveDurationMs + loadDurationMs) / iterations).toFixed(5)}ms`);
     console.log("----------------------------------");
 }
-
 runBenchmark();
+//# sourceMappingURL=persistence_bench.js.map

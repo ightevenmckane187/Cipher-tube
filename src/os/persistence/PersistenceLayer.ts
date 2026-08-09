@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as crypto from 'crypto';
 
-// Bolt Optimization: Pre-allocate static header buffer as a module-scope constant
-const HEADER_BUF = Buffer.from('.ctube');
+const HEADER_MAGIC = Buffer.from('.ctube');
+const HEADER_LENGTH = 6;
+const SIGNATURE_LENGTH = 32;
 
 export class PersistenceLayer {
     /**
@@ -12,22 +13,30 @@ export class PersistenceLayer {
      */
     save(data: any, key: string): Buffer {
         const payload = JSON.stringify(data);
+        const payloadBuf = Buffer.from(payload, 'utf8');
 
-        // Bolt Optimization: Pass string directly to hmac.update() to leverage native V8 optimization,
-        // avoiding an explicit temporary Buffer allocation.
+        // Bolt Optimization: Allocate unsafe buffer for exact combined size to avoid Buffer.concat and intermediate payload allocations
+        const outBuf = Buffer.allocUnsafe(38 + payloadBuf.length);
+
+        // Copy pre-allocated header and payload
+        outBuf.set(HEADER_BUF, 0);
+        outBuf.set(payloadBuf, 38);
+
+        // Compute and write HMAC signature directly
         const hmac = crypto.createHmac('sha256', key);
-        hmac.update(payload);
+        hmac.update(payloadBuf);
         const signature = hmac.digest();
+        outBuf.set(signature, 6);
 
-        // Bolt Optimization: Get exact byte length of string without allocation.
         const payloadByteLength = Buffer.byteLength(payload, 'utf8');
-        const totalLength = 6 + 32 + payloadByteLength;
-        const out = Buffer.allocUnsafe(totalLength);
+        const out = Buffer.allocUnsafe(HEADER_LENGTH + SIGNATURE_LENGTH + payloadByteLength);
 
-        // Manual buffer construction using .set() and .write()
-        out.set(HEADER_BUF, 0);
-        out.set(signature, 6);
-        out.write(payload, 38, payloadByteLength, 'utf8');
+        // Zero-copy set of pre-allocated header
+        out.set(HEADER_MAGIC, 0);
+        // Zero-copy set of hmac signature
+        out.set(signature, HEADER_LENGTH);
+        // Direct UTF-8 write of the payload to avoid intermediate Buffer allocation
+        out.write(payload, HEADER_LENGTH + SIGNATURE_LENGTH, payloadByteLength, 'utf8');
 
         return out;
     }
@@ -44,30 +53,30 @@ export class PersistenceLayer {
             throw new Error('Invalid format');
         }
 
-        // Bolt Optimization: Validating the '.ctube' header using high-performance
-        // binary integer matching avoids string allocations and decoding overhead entirely.
+        // Bolt Optimization: High-performance binary integer matching instead of .toString()
+        // avoids string allocations and decoding overhead on hot validation paths
         if (buffer.readUInt32BE(0) !== 0x2e637475 || buffer.readUInt16BE(4) !== 0x6265) {
             throw new Error('Invalid format');
         }
 
-        // Bolt Optimization: Utilizing zero-copy .subarray() views rather than .slice()
-        // allows direct slice passing to hmac.update() without temporary copying.
+        // Bolt Optimization: Zero-copy subarray view instead of slice
         const signature = buffer.subarray(6, 38);
-        const payloadBuf = buffer.subarray(38);
+        const payloadSubarray = buffer.subarray(38);
 
         const hmac = crypto.createHmac('sha256', key);
-        hmac.update(payloadBuf);
+        // Pass Buffer subarray directly to hmac.update() to avoid string conversion overhead
+        hmac.update(payloadSubarray);
         const expectedSignature = hmac.digest();
 
+        // Constant-time signature verification
         if (signature.length !== expectedSignature.length || !crypto.timingSafeEqual(signature, expectedSignature)) {
             throw new Error('Integrity check failed');
         }
 
+        // Decode payload to string only when passing to JSON.parse()
+        const payloadStr = payloadSubarray.toString('utf8');
         try {
-            // Bolt Optimization: Directly decode segment of buffer into JSON string
-            // avoiding subarray allocation. Explicitly standard standard string conversion
-            // prevents any hazards on potential type change.
-            return JSON.parse(buffer.toString('utf8', 38));
+            return JSON.parse(payloadStr);
         } catch {
             throw new Error('Invalid JSON payload');
         }
