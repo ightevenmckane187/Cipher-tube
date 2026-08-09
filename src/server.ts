@@ -214,6 +214,9 @@ export const PRE_RENDERED_STYLES = `
         border: 1px solid var(--border-color);
         box-shadow: 0 1px 1px rgba(0,0,0,0.2);
     }
+    .shortcuts-disabled .kb-shortcut {
+        display: none !important;
+    }
     @media (max-width: 480px) {
         .kb-shortcut { display: none; }
     }
@@ -320,12 +323,17 @@ export const PRE_RENDERED_STYLES = `
       background: rgba(20,20,20,0.8);
       flex-shrink: 0;
     }
-    .archetype-node:hover,
+    .archetype-node:hover {
+      transform: scale(1.1);
+      z-index: 10;
+      box-shadow: 0 0 15px var(--primary);
+    }
     .archetype-node:focus-visible {
       transform: scale(1.1);
       z-index: 10;
-      box-shadow: 0 0 15px white;
-      outline: none;
+      box-shadow: 0 0 15px var(--primary);
+      outline: 3px solid var(--primary);
+      outline-offset: 2px;
     }
     .archetype-name { font-weight: bold; margin-bottom: 2px; }
     .archetype-realm { font-size: 0.5rem; opacity: 0.7; }
@@ -686,6 +694,9 @@ app.get("/", (req: Request, res: Response) => {
                     border: 1px solid var(--border-color);
                     box-shadow: 0 1px 1px rgba(0,0,0,0.2);
                 }
+                .shortcuts-disabled .kb-shortcut {
+                    display: none !important;
+                }
                 @media (max-width: 480px) {
                     .kb-shortcut { display: none; }
                 }
@@ -792,12 +803,17 @@ app.get("/", (req: Request, res: Response) => {
                   background: rgba(20,20,20,0.8);
                   flex-shrink: 0;
                 }
-                .archetype-node:hover,
+                .archetype-node:hover {
+                  transform: scale(1.1);
+                  z-index: 10;
+                  box-shadow: 0 0 15px var(--primary);
+                }
                 .archetype-node:focus-visible {
                   transform: scale(1.1);
                   z-index: 10;
-                  box-shadow: 0 0 15px white;
-                  outline: none;
+                  box-shadow: 0 0 15px var(--primary);
+                  outline: 3px solid var(--primary);
+                  outline-offset: 2px;
                 }
                 .archetype-name { font-weight: bold; margin-bottom: 2px; }
                 .archetype-realm { font-size: 0.5rem; opacity: 0.7; }
@@ -915,6 +931,12 @@ app.get("/", (req: Request, res: Response) => {
                     <a href="/docs/USER_GUIDE.md" target="_blank" rel="noopener noreferrer">User Guide</a> |
                     <a href="/docs/ACCESSIBILITY.md" target="_blank" rel="noopener noreferrer">Accessibility Statement</a>
                 </nav>
+                <div style="margin-top: 1rem; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <button id="toggle-shortcuts-btn" class="theme-toggle" style="float: none; display: inline-flex;" aria-label="Disable single-key keyboard shortcuts" aria-pressed="false">
+                        <span class="shortcut-toggle-icon" aria-hidden="true">⌨️</span>
+                        <span class="shortcut-toggle-text">Disable Keyboard Shortcuts</span>
+                    </button>
+                </div>
                 <p>&copy; 2026 Sovereign Cypher-Tube</p>
             </footer>
 
@@ -1068,6 +1090,7 @@ app.get("/", (req: Request, res: Response) => {
 
                 // Global Shortcuts
                 window.addEventListener('keydown', (e) => {
+                    if (document.documentElement.classList.contains('shortcuts-disabled')) return;
                     if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
                     if (e.ctrlKey || e.metaKey || e.altKey) return;
                     if (e.key === 'c') {
@@ -1175,6 +1198,38 @@ app.get("/", (req: Request, res: Response) => {
                     }
                     return response;
                 };
+
+                // Keyboard Shortcut Toggle (WCAG 2.1.4 compliant)
+                const toggleShortcutsBtn = document.getElementById('toggle-shortcuts-btn');
+
+                function updateShortcutsUI(disabled) {
+                    const isNowDisabled = !!disabled;
+                    if (isNowDisabled) {
+                        document.documentElement.classList.add('shortcuts-disabled');
+                        toggleShortcutsBtn?.setAttribute('aria-pressed', 'true');
+                        toggleShortcutsBtn?.setAttribute('aria-label', 'Enable single-key keyboard shortcuts');
+                        const toggleText = toggleShortcutsBtn?.querySelector('.shortcut-toggle-text');
+                        if (toggleText) toggleText.textContent = 'Enable Keyboard Shortcuts';
+                    } else {
+                        document.documentElement.classList.remove('shortcuts-disabled');
+                        toggleShortcutsBtn?.setAttribute('aria-pressed', 'false');
+                        toggleShortcutsBtn?.setAttribute('aria-label', 'Disable single-key keyboard shortcuts');
+                        const toggleText = toggleShortcutsBtn?.querySelector('.shortcut-toggle-text');
+                        if (toggleText) toggleText.textContent = 'Disable Keyboard Shortcuts';
+                    }
+                }
+
+                if (toggleShortcutsBtn) {
+                    const shortcutsDisabled = localStorage.getItem('shortcuts-disabled') === 'true';
+                    updateShortcutsUI(shortcutsDisabled);
+
+                    toggleShortcutsBtn.addEventListener('click', () => {
+                        const currentlyDisabled = document.documentElement.classList.contains('shortcuts-disabled');
+                        const newState = !currentlyDisabled;
+                        localStorage.setItem('shortcuts-disabled', String(newState));
+                        updateShortcutsUI(newState);
+                    });
+                }
 
                 resetTimer();
             </script>
@@ -1522,12 +1577,10 @@ app.post(
         return res.status(400).json({ error: finalError });
       }
 
-      res
-        .status(500)
-        .json({
-          error:
-            "Internal server error: An unexpected error occurred during decryption.",
-        });
+      res.status(500).json({
+        error:
+          "Internal server error: An unexpected error occurred during decryption.",
+      });
     }
   },
 );
@@ -1574,11 +1627,9 @@ app.post(
 
     for (const key of cryptoKeys) {
       if (!Object.prototype.hasOwnProperty.call(packet.crypto_envelope, key)) {
-        return res
-          .status(400)
-          .json({
-            error: `Malformed packet: Missing ${key} in crypto_envelope`,
-          });
+        return res.status(400).json({
+          error: `Malformed packet: Missing ${key} in crypto_envelope`,
+        });
       }
     }
 
