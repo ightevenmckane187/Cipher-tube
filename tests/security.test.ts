@@ -1,6 +1,8 @@
 import request from "supertest";
 import { app } from "../src/server";
 import { createClient } from "redis";
+import { verifyCryptographicProof } from "../src/crypto/verifier";
+import crypto from "crypto";
 
 // Mock Redis client
 jest.mock("redis", () => {
@@ -9,6 +11,7 @@ jest.mock("redis", () => {
     connect: jest.fn().mockResolvedValue(null),
     set: jest.fn(),
     get: jest.fn(),
+    expire: jest.fn().mockResolvedValue(1),
   };
   return {
     createClient: jest.fn(() => mRedis),
@@ -18,6 +21,7 @@ jest.mock("redis", () => {
 describe("Security Validation", () => {
   let redisMock: any;
   let consoleSpy: jest.SpyInstance;
+  const sessionToken = "test-token";
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -40,12 +44,12 @@ describe("Security Validation", () => {
       expect(response.body.error).toContain("Invalid x-user-id");
     });
 
-    it("should reject x-user-id longer than 128 characters in GET /mcp/:sessionId/check", async () => {
+    it("should reject x-user-id longer than 128 characters in GET /mcp/check", async () => {
       const longUserId = "a".repeat(129);
-      const sessionId = "550e8400-e29b-41d4-8716-446655440000";
       const response = await request(app)
-        .get(`/mcp/${sessionId}/check`)
-        .set("x-user-id", longUserId);
+        .get(`/mcp/check`)
+        .set("x-user-id", longUserId)
+        .set("x-session-token", sessionToken);
 
       expect(response.status).toBe(400);
       expect(response.body.error).toContain("Invalid x-user-id");
@@ -76,11 +80,11 @@ describe("Security Validation", () => {
       (complexError as any).sensitiveInfo = "secret-password-456";
 
       redisMock.get.mockRejectedValueOnce(complexError);
-      const sessionId = "550e8400-e29b-41d4-8716-446655440000";
 
       await request(app)
-        .get(`/mcp/${sessionId}/check`)
-        .set("x-user-id", "user123");
+        .get(`/mcp/check`)
+        .set("x-user-id", "user123")
+        .set("x-session-token", sessionToken);
 
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining("Session ownership check failed:"),
@@ -91,7 +95,6 @@ describe("Security Validation", () => {
 
   describe("Decryption Fail-Secure", () => {
     const userId = "sentinel-user";
-    const sessionId = "550e8400-e29b-41d4-a716-446655440000";
     const masterSeed = "0".repeat(64);
 
     beforeEach(() => {
@@ -100,8 +103,9 @@ describe("Security Validation", () => {
 
     it("should return 400 for too short ciphertext", async () => {
       const response = await request(app)
-        .post(`/mcp/${sessionId}/decrypt`)
+        .post(`/mcp/decrypt`)
         .set("x-user-id", userId)
+        .set("x-session-token", sessionToken)
         .send({
           ciphertext: "00112233",
           masterSeed,
@@ -123,8 +127,9 @@ describe("Security Validation", () => {
 
     it("should return 400 for invalid hex in ciphertext", async () => {
       const response = await request(app)
-        .post(`/mcp/${sessionId}/decrypt`)
+        .post(`/mcp/decrypt`)
         .set("x-user-id", userId)
+        .set("x-session-token", sessionToken)
         .send({
           ciphertext: "not-hex-at-all",
           masterSeed,
@@ -146,8 +151,9 @@ describe("Security Validation", () => {
 
     it("should return 400 for missing tube fields", async () => {
       const response = await request(app)
-        .post(`/mcp/${sessionId}/decrypt`)
+        .post(`/mcp/decrypt`)
         .set("x-user-id", userId)
+        .set("x-session-token", sessionToken)
         .send({
           ciphertext: "0".repeat(800),
           masterSeed,
@@ -162,8 +168,9 @@ describe("Security Validation", () => {
 
     it('should return 400 for malformed tubes array (null element)', async () => {
         const response = await request(app)
-          .post(`/mcp/${sessionId}/decrypt`)
+          .post(`/mcp/decrypt`)
           .set('x-user-id', userId)
+          .set('x-session-token', sessionToken)
           .send({
             ciphertext: '0'.repeat(800),
             masterSeed,
@@ -176,8 +183,9 @@ describe("Security Validation", () => {
 
     it('should return 400 for missing or invalid fields in encryption tube', async () => {
         const response = await request(app)
-          .post(`/mcp/${sessionId}/decrypt`)
+          .post(`/mcp/decrypt`)
           .set('x-user-id', userId)
+          .set('x-session-token', sessionToken)
           .send({
             ciphertext: '0'.repeat(800),
             masterSeed,
@@ -192,8 +200,9 @@ describe("Security Validation", () => {
 
     it('should return 400 for invalid layer indexing', async () => {
         const response = await request(app)
-          .post(`/mcp/${sessionId}/decrypt`)
+          .post(`/mcp/decrypt`)
           .set('x-user-id', userId)
+          .set('x-session-token', sessionToken)
           .send({
             ciphertext: '0'.repeat(800),
             masterSeed,
@@ -204,6 +213,61 @@ describe("Security Validation", () => {
 
         expect(response.status).toBe(400);
         expect(response.body.error).toBe('Decryption failed');
+    });
+  });
+
+  describe("Cryptographic Verifier (src/crypto/verifier.ts)", () => {
+    it("should reject invalid JSON proof", async () => {
+      const invalidJson = Buffer.from("not-json").toString("base64");
+      const result = await verifyCryptographicProof(invalidJson);
+      expect(result).toBe(false);
+    });
+
+    it("should reject proof with timingSafeEqual length mismatch", async () => {
+      const salt = Date.now();
+      const payload = JSON.stringify({
+        salt,
+        structuralHash: "test",
+        challengeProof: "abc", // Too short
+      });
+      const proof = Buffer.from(payload).toString("base64");
+      const result = await verifyCryptographicProof(proof);
+      expect(result).toBe(false);
+    });
+
+    it("should reject proof with non-string structuralHash", async () => {
+      const salt = Date.now();
+      const payload = JSON.stringify({
+        salt,
+        structuralHash: 123,
+        challengeProof: "a".repeat(64),
+      });
+      const proof = Buffer.from(payload).toString("base64");
+      const result = await verifyCryptographicProof(proof);
+      expect(result).toBe(false);
+    });
+
+    it("should reject null payload", async () => {
+      const proof = Buffer.from("null").toString("base64");
+      const result = await verifyCryptographicProof(proof);
+      expect(result).toBe(false);
+    });
+
+    it("should verify a valid proof", async () => {
+      const salt = Date.now();
+      const structuralHash = "valid-hash";
+      const hmac = crypto.createHmac("sha256", String(salt));
+      hmac.update(structuralHash);
+      const challengeProof = hmac.digest("hex");
+
+      const payload = JSON.stringify({
+        salt,
+        structuralHash,
+        challengeProof,
+      });
+      const proof = Buffer.from(payload).toString("base64");
+      const result = await verifyCryptographicProof(proof);
+      expect(result).toBe(true);
     });
   });
 });

@@ -5,15 +5,21 @@ describe('Sentinel Security Enhancements', () => {
   describe('Security Headers', () => {
     it('should include Permissions-Policy on all responses', async () => {
       const response = await request(app).get('/');
-      expect(response.headers['permissions-policy']).toBe('geolocation=(), camera=(), microphone=(), interest-cohort=()');
+      // Sentinel: Enhanced policy includes more restricted features for defense-in-depth
+      expect(response.headers['permissions-policy']).toContain('geolocation=()');
+      expect(response.headers['permissions-policy']).toContain('camera=()');
+      expect(response.headers['permissions-policy']).toContain('microphone=()');
+      expect(response.headers['permissions-policy']).toContain('payment=()');
+      expect(response.headers['permissions-policy']).toContain('usb=()');
+      expect(response.headers['permissions-policy']).toContain('interest-cohort=()');
     });
 
     it('should include Cache-Control: no-store on sensitive endpoints', async () => {
-      const testSessionId = '00000000-0000-4000-8000-000000000000';
+
       const endpoints = [
         { path: '/mcp', method: 'post' },
-        { path: `/mcp/${testSessionId}/check`, method: 'get' },
-        { path: `/session/${testSessionId}/extend`, method: 'post' }
+        { path: `/mcp/check`, method: 'get' },
+        { path: `/session/extend`, method: 'post' }
       ];
 
       for (const { path, method } of endpoints) {

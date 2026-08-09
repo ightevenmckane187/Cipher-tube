@@ -10,5 +10,5 @@
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "exclude": ["tests", "node_modules"]
+  "exclude": ["tests", "node_modules", "perf-tests", "perf", "wizard", "sentinel", "bolt", "palette", "tube", "ui"]
 }

@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { app, redisClient, sessionCache } from '../src/server';
-import crypto from 'crypto';
+import { getBlindedRedisKey } from '../src/session_rotator';
 
 jest.mock('redis', () => {
   const mRedis = {
@@ -27,6 +27,7 @@ describe('Session Ownership API', () => {
         redisMock = createClient();
         redisMock.get.mockImplementation((key: string) => {
             if (key.includes('non-existent') || key.includes('440004')) return Promise.resolve(null);
+            // Default mock behavior for blinded keys
             return Promise.resolve(userId);
         });
     });
@@ -41,10 +42,11 @@ describe('Session Ownership API', () => {
             .set('x-user-id', userId);
 
         expect(res.status).toBe(201);
-        expect(res.body).toHaveProperty('sessionId');
+        expect(res.body).toHaveProperty('sessionToken');
 
+        const expectedBlindedKey = getBlindedRedisKey(res.body.sessionToken);
         expect(redisMock.set).toHaveBeenCalledWith(
-            expect.stringContaining(`session:${res.body.sessionId}:owner`),
+            expectedBlindedKey,
             userId,
             expect.any(Object)
         );
@@ -56,40 +58,46 @@ describe('Session Ownership API', () => {
     });
 
     it('should allow the owner to check their session', async () => {
-        // We use a real UUID for sessionId to satisfy validation
-        const sessionId = '550e8400-e29b-41d4-8716-446655440000';
+        // We use a real UUID for sessionToken to satisfy validation
+        const sessionToken = '550e8400-e29b-41d4-8716-446655440000';
+        const blindedKey = getBlindedRedisKey(sessionToken);
 
-        // Mock redisClient.get to return the owner
-        redisMock.get.mockResolvedValueOnce(userId);
+        // Mock redisClient.get to return the owner when called with blinded key
+        redisMock.get.mockImplementation((key: string) => {
+            if (key === blindedKey) return Promise.resolve(userId);
+            return Promise.resolve(null);
+        });
 
         const checkRes = await request(app)
-            .get(`/mcp/${sessionId}/check`)
-            .set('x-user-id', userId);
+            .get(`/mcp/check`)
+            .set('x-user-id', userId)
+            .set('x-session-token', sessionToken);
 
         expect(checkRes.status).toBe(200);
         expect(checkRes.body.status).toBe('owned');
+        expect(redisMock.get).toHaveBeenCalledWith(blindedKey);
     });
 
     it('should return 403 if a different user checks the session', async () => {
-        const sessionId = '550e8400-e29b-41d4-8716-446655440000';
-
-        // Mock redisClient.get to return the original owner
+        const sessionToken = '550e8400-e29b-41d4-8716-446655440000';
         redisMock.get.mockResolvedValueOnce(userId);
 
         const checkRes = await request(app)
-            .get(`/mcp/${sessionId}/check`)
-            .set('x-user-id', otherUserId);
+            .get(`/mcp/check`)
+            .set('x-user-id', otherUserId)
+            .set('x-session-token', sessionToken);
 
         expect(checkRes.status).toBe(403);
     });
 
     it('should return 404 if the session does not exist', async () => {
-        const sessionId = '550e8400-e29b-41d4-8716-446655440004';
+        const sessionToken = '550e8400-e29b-41d4-8716-446655440004';
         redisMock.get.mockResolvedValueOnce(null);
 
         const checkRes = await request(app)
-            .get(`/mcp/${sessionId}/check`)
-            .set('x-user-id', userId);
+            .get(`/mcp/check`)
+            .set('x-user-id', userId)
+            .set('x-session-token', sessionToken);
 
         expect(checkRes.status).toBe(404);
     });

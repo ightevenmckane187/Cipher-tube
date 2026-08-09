@@ -1,0 +1,15 @@
+{
+  "name": "@cipher-tube/core",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sovereign, Zero-Knowledge P2P Streaming Engine Core",
+  "type": "module",
+  "main": "src/node/zk_signaling_ring.js",
+  "scripts": {
+    "test": "echo 'Run tests from parent root'"
+  },
+  "dependencies": {},
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

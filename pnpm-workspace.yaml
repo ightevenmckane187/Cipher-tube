@@ -1,0 +1,9 @@
+packages:
+  - "."
+  - "sentinel"
+  - "bolt"
+  - "palette"
+  - "tube"
+  - "ui"
+  - "wizard"
+  - "vault"

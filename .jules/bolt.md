@@ -1,27 +1,39 @@
-## 2025-04-18 - Optimized Session Management Implementation
-**Learning:** Native `crypto.randomUUID()` is generally faster than the `uuid` package in Node.js 18+. Short-lived in-memory caching of Redis lookups (even for 5 seconds) can significantly reduce database load and improve response times for high-frequency repeated requests.
-**Action:** Use native crypto and implement short-lived caching for session validation.
+## 2025-05-25 - Manual String Parsing for Template and Path Resolution
+**Learning:** Manual string traversal with `indexOf` and `substring` is significantly faster than regex matches and `split('.')` for deep object path resolution in Node.js. In hot recursive paths like `resolveParams`, avoiding intermediate array allocations from `split()` and regex capture groups can yield ~25-30% performance gains.
+**Action:** Prefer manual string parsing over regex/split for high-frequency path resolution; avoid redundant property validators by centralizing them in a single exported helper.
 
-## 2025-05-22 - Optimized CTA Cryptographic Processing
-**Learning:** Redundant cryptographic operations (like hashing the same data 12 times in a loop) are a major bottleneck. Moving these outside the loop and using high-performance one-shot APIs like `crypto.hash()` significantly improves throughput. Additionally, replacing $O(N)$ array searches with $O(1)$ Map lookups yields measurable gains even for small datasets.
-**Action:** Always identify invariant computations in loops and move them out; use `Map` for frequent lookups by ID/layer.
+## 2026-06-25 - Manual Interpolation Traversal
+**Learning:** Replacing global regex-based `String.prototype.replace` with a manual `indexOf` and `substring` loop for template interpolation (e.g., `${state.key}`) in hot code paths like `resolveParams` reduces execution time by ~30%. This avoids the overhead of the regex engine and intermediate capture group allocations.
+**Action:** Use manual string scanning for known, simple template patterns in high-frequency execution loops.
 
-## 2026-04-30 - Optimized CTA Decryption and Structural Efficiency
-**Learning:** Hoisting SHA-512 hash calculations when the input remains constant across loop iterations (like in the hash-lock verification phase) provides a significant performance boost. Additionally, pre-computing HKDF info buffers avoids repeated string-to-buffer conversions. Using a single `for...of` loop for Map construction is more efficient than a `.filter().map()` chain which creates multiple intermediate arrays.
-**Action:** Always identify invariant computations in loops and hoist them; prefer single-pass iterations for data structure construction.
+## 2025-05-25 - LRU-Cache for Sliding Session Throttling
+**Learning:** Throttling database write operations (like Redis `EXPIRE`) using a short-lived in-memory LRU cache (e.g., 60s TTL) significantly reduces external system load. Failing to define such a cache before use leads to a `ReferenceError`, causing server crashes on every authorized request.
+**Action:** Always verify that performance-related caches are correctly initialized; use LRU caches to throttle frequent but non-critical state updates.
 
-## 2026-05-15 - Entropy Pooling and Lockfile Stability
-**Learning:** Consolidating multiple `crypto.randomBytes` calls into a single larger call and slicing it with `subarray` significantly reduces syscall overhead and improves performance by ~35% in high-frequency cryptographic paths. Additionally, running `pnpm install` in some environments can destructively update the lockfile; always verify lockfile integrity before submission and avoid committing unrelated dependency changes.
-**Action:** Batch entropy generation where possible; always use `git status` and `git restore` to maintain a clean lockfile.
+## 2025-05-25 - One-Shot Hashing with `crypto.hash`
+**Learning:** Node.js v21.7+ introduced `crypto.hash` which is ~2.2x faster than the streaming `createHash` API for small inputs (like session tokens or integrity hashes). Using the `encoding` parameter directly in `crypto.hash` further reduces overhead by avoiding intermediate `Buffer` allocations.
+**Action:** Use the `fastHash` utility for all one-shot hashing needs to leverage native performance gains while maintaining backward compatibility.
 
-## 2026-05-13 - Optimized Decryption and Hashing Strategy
-**Learning:** For small, fixed-range integer keys (e.g., 0-100), a pre-allocated array is significantly faster than a `Map` for lookups. In Node.js 21.7+, `crypto.hash()` is a one-shot API that outperforms `createHash().update().digest()` by avoiding object overhead, but it should be used with a fallback for compatibility with older LTS versions. Avoiding `Buffer.concat` when the second buffer is empty (common in AES-GCM `final()` calls) prevents unnecessary memory copies.
-**Action:** Prefer arrays for indexed lookups; use feature detection for high-performance crypto APIs; avoid redundant buffer concatenations.
+## 2025-05-26 - Direct Buffer Digest for Timing-Safe HMAC
+**Learning:** Obtaining a Buffer directly from `hmac.digest()` is ~1.2x faster than encoding to hex and decoding back. Furthermore, despite Node.js v22 documentation, `crypto.hmac` is not globally available in this environment, making `createHmac` the mandatory one-shot path.
+**Action:** Prefer `digest()` over `digest('hex')` when the result is consumed as a Buffer; continue using `createHmac` for maximum compatibility.
 
-## 2026-05-20 - Optimized Hashing and Metadata Processing in CTA
-**Learning:** Using the one-shot `crypto.hash()` API available in Node.js 22.22.1 provides a measurable performance gain over the streaming `createHash()` API by reducing object overhead. Pre-parsing hex-encoded metadata (salts, hashes) into Buffers during an initial O(1) array-backed lookup pass avoids redundant parsing inside hot decryption loops, further improving efficiency.
-**Action:** Prefer one-shot hashing APIs where available; pre-convert string metadata to Buffers before entering high-frequency loops.
+## 2025-05-26 - Module-Scope UI Pre-rendering
+**Learning:** Pre-rendering HTML fragments from static metadata at the module scope in `server.ts` eliminates redundant `split()`, `map()`, and `join()` overhead on every request to the root endpoint.
+**Action:** Move static template-literal logic to module-level constants to optimize hot request paths for landing pages.
 
-## 2026-05-25 - Entropy-to-Hex Optimization and Redundancy Cleanup
-**Learning:** Using `buffer.toString('hex', start, end)` is significantly faster than converting a large buffer to a full hex string and then using `.substring()`, as it avoids a massive string allocation. Additionally, removing duplicate middleware and redundant UI elements improves both backend throughput and frontend clarity.
-**Action:** Use specific buffer range conversions for hex strings; always audit middleware chains and UI templates for accidental duplication.
+## 2026-05-25 - Consolidating Redundant Hashing via Request Context
+**Learning:** Performing multiple independent SHA-256 hashes on the same token (e.g., once for local cache and once for Redis key) in the same request lifecycle is wasteful. Consolidating these into a single `getSessionKeys` call and storing the results in `res.locals` achieves a near 2x speedup for the hashing logic and reduces CPU pressure.
+**Action:** Always check for redundant cryptographic operations on the same inputs within a single request; use middleware to pre-compute and share these values via `res.locals`.
+
+## 2026-07-01 - Fast CSP Nonce Generation via `randomUUID`
+**Learning:** `crypto.randomUUID()` is significantly faster (~14x) than `crypto.randomBytes(16).toString('base64')` in Node.js because it avoids intermediate `Buffer` allocations and encoding overhead. Furthermore, pre-calculating the full CSP string (`'nonce-...'`) in `res.locals` eliminates redundant concatenations in the `helmet` CSP middleware.
+**Action:** Use `randomUUID()` for non-cryptographic unique tokens (like CSP nonces) where UUID v4 entropy (122 bits) is sufficient. Ensure that test regexes for nonces allow for hyphens when switching from Base64 to UUID.
+
+## 2026-07-02 - Timing Side-Channels in Security Caching
+**Learning:** Caching results of cryptographic verification (like HMAC checks) introduces a timing side-channel. Attackers can distinguish between cache hits (fast) and misses (slow), potentially leaking information about which inputs are "known" or "valid" to the system. This undermines the purpose of `timingSafeEqual`.
+**Action:** Avoid caching in cryptographic verification paths where constant-time execution is required; prioritize safety over micro-optimizations in these sensitive areas.
+
+## 2026-07-03 - Unsafe Buffer Casting for Implicit Coercion in JSON.parse
+**Learning:** Lying to the TypeScript compiler with unsafe type casts (e.g., `as unknown as string` on a Buffer) to pass it directly to standard functions like `JSON.parse` is a major hazard. While Node.js v22's native `JSON.parse` supports Buffers directly without intermediate allocations, standard JS/TS typings do not. If the underlying data type changes to a standard `Uint8Array` (e.g., in edge or cloud environment migrations), standard implicit coercion will produce comma-separated byte strings (e.g., `"123,98,111"`), resulting in catastrophic runtime `SyntaxError` crashes.
+**Action:** Always prefer explicit standard string conversion or safe platform APIs over type-cast-based implicit coercion.

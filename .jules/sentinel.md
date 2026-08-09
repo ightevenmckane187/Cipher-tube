@@ -62,3 +62,48 @@
 **Vulnerability:** Prototype pollution during recursive object resolution in orchestrator.
 **Learning:** Even if individual path resolution is protected, a recursive function that iterates over object entries and assigns them to a new object can still be vulnerable to prototype pollution if it encounters a `__proto__` key in the input object.
 **Prevention:** Always filter out sensitive keys like `__proto__`, `constructor`, and `prototype` when iterating over untrusted object entries and creating new objects based on them.
+
+## 2026-06-26 - Cache Penetration via Non-Existent Sessions
+**Vulnerability:** Denial of Service (DoS) via Cache Penetration.
+**Learning:** The application was vulnerable to resource exhaustion because it only cached successful session lookups. Attackers could flood the system with requests for non-existent session IDs, forcing a Redis lookup for every request and bypassing the in-memory cache entirely.
+**Prevention:** Implement negative caching by storing a sentinel value (e.g., "__NOT_FOUND__") in the local cache for keys that do not exist in the primary database. This ensures that repeated lookups for missing resources are handled at the cache layer, protecting the database from exhaustion.
+
+## 2026-06-27 - Prototype Pollution in Map-like Governance Objects
+**Vulnerability:** Prototype pollution and bypass via malicious keys in governance manifests.
+**Learning:** In TypeScript/JavaScript, iterating over `Object.entries()` of a user-supplied object used as a map (e.g., roles, lifecycle gates) can lead to prototype pollution if keys like `__proto__` or `constructor` are present. These can overwrite global object properties or bypass logic that uses `in` or direct property access.
+**Prevention:** Explicitly block forbidden keys (`__proto__`, `constructor`, `prototype`) when iterating over keys of map-like objects in security-critical validation logic. Use `Object.prototype.hasOwnProperty.call` for existence checks instead of the `in` operator.
+
+## 2026-06-28 - Time-Window Bypass via NaN Comparison
+**Vulnerability:** Non-numeric salt values in ZK proof payloads could bypass time-window checks due to NaN comparison results.
+**Learning:** In JavaScript, `Math.abs(currentEpoch - salt) > performanceWindow` evaluates to `false` if `salt` is a non-numeric type that results in `NaN`, effectively bypassing replay protection.
+**Prevention:** Always explicitly validate the type and value (e.g., `Number.isNaN`) of numeric inputs used in security-critical comparisons, especially when they originate from untrusted JSON payloads.
+
+## 2026-06-29 - IDOR in Session Rotation Endpoint
+**Vulnerability:** Insecure Direct Object Reference (IDOR) in the `/mcp/rotate` endpoint allowed unauthorized users to rotate sessions they did not own.
+**Learning:** Even if an endpoint requires a valid session token, it must also verify that the requester is the authorized owner of that specific session before performing state-changing operations like rotation.
+**Prevention:** Always apply ownership-verification middleware (like `ensureSessionOwner`) to all endpoints that perform actions on a specific session, ensuring the `x-user-id` matches the stored session owner.
+
+## 2026-06-30 - DoS via timingSafeEqual Length Mismatch
+**Vulnerability:** Denial of Service (DoS) in cryptographic verification due to unhandled exceptions in `timingSafeEqual`.
+**Learning:** Node.js `crypto.timingSafeEqual` throws a `RangeError` if the input buffers have different lengths. If this isn't caught, a malformed proof with a short or long challenge can crash the entire worker process.
+**Prevention:** Always perform a strict length check or format validation (e.g., regex check for hex length) before calling `timingSafeEqual`. Ensure that both inputs are compared as same-length buffers to prevent runtime crashes.
+
+## 2026-07-01 - Broken Cryptographic Proof Pipeline
+**Vulnerability:** Service-wide failure of cryptographic proof verification due to implementation errors (ReferenceError and Duplicate Declarations).
+**Learning:** A critical variable (`computedProof`) was missing from the `verifyCryptographicProof` function, while others (`challengeBuffer`, `computedBuffer`) were declared multiple times, causing runtime crashes that could be exploited for Denial of Service or to bypass security checks if errors were not handled securely.
+**Prevention:** Always implement comprehensive unit tests for cryptographic pipelines, including failure cases and "golden path" verification. Use static analysis tools to catch duplicate declarations and reference errors before deployment.
+
+## 2026-07-03 - Fatal Redundancy in Cryptographic Pipelines
+**Vulnerability:** Denial of Service (DoS) via redundant digest calls and duplicate variable declarations in security-critical code.
+**Learning:** In Node.js `crypto`, calling `.digest()` more than once on a single HMAC or Hash instance throws a `Error: digest already called`. When combined with a duplicate `const` declaration, this ensures the verification process crashes the entire request context, creating a high-availability risk.
+**Prevention:** Strictly separate data preparation from verification logic. Use unit tests that specifically target the compilation and execution of cryptographic hot-paths to ensure that manual porting of security fixes doesn't introduce fatal logic regressions.
+
+## 2026-07-04 - Cryptographic Proof Binding Enforcement
+**Vulnerability:** Proof re-use/substitution vulnerability due to lack of binding between proof payload and request headers.
+**Learning:** Verifying that a proof is cryptographically valid is insufficient if the proof itself contains structural parameters (like `structuralHash`) that are not matched against the actual resource being requested (`x-cipher-hash`). An attacker could potentially use a valid proof from one channel to authenticate requests for a different channel.
+**Prevention:** Always pass the expected resource identifier to the verification function and strictly compare it against the value embedded within the decrypted/verified proof payload to ensure strong binding.
+
+## 2026-07-05 - Type-Confusion and Unhandled Exceptions in Cryptographic Wrapper Decoders
+**Vulnerability:** Service-wide Denial of Service (DoS) and crash risk via unhandled TypeError exceptions in secure_unwrap.
+**Learning:** In Python, calling functions like `bytes.fromhex` on non-string inputs (or subscripting non-dictionary objects) raises a `TypeError`. If the cryptographic wrap/unwrap pipeline only catches standard decoding or parsing errors (like `KeyError` or `ValueError`), type-confusion payloads from untrusted sources will crash the execution context rather than failing gracefully.
+**Prevention:** Always enforce strict type checks (using `isinstance`) on security-critical inputs and explicitly catch `TypeError` alongside other data parsing exceptions in cryptographic utility entrypoints, mapping them to standard fallback errors (like `ValueError`) to ensure fail-secure behavior.

@@ -40,7 +40,7 @@ describe('Authority Chain Manifest', () => {
       framework: 'M-25-22',
       owner: 'test',
       roles: {
-        admin: { name: 'Admin', permissions: [] }
+        saop: { name: 'SAOP', permissions: [] }
       },
       lifecycle_gates: {
         gate1: {
@@ -52,7 +52,7 @@ describe('Authority Chain Manifest', () => {
       governance_controls: {
         high_impact_ai: {
           conditions: [],
-          mandatory_signatures: ['admin'],
+          mandatory_signatures: ['saop'],
           mandatory_artifacts: []
         },
         vendor_lockin_prevention: {
