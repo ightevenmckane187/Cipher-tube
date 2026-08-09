@@ -47,7 +47,9 @@ describe("Session Rotation and E2EE Data Plane", () => {
     it("should rotate the token and burn the old one (Replay Protection)", async () => {
       // 1. Create session
       redisMock.set.mockResolvedValue("OK");
-      const createRes = await request(app).post("/mcp").set("x-user-id", userId);
+      const createRes = await request(app)
+        .post("/mcp")
+        .set("x-user-id", userId);
       const oldToken = createRes.body.sessionToken;
 
       // 2. Rotate session
@@ -85,6 +87,41 @@ describe("Session Rotation and E2EE Data Plane", () => {
         .set("x-session-token", newToken);
 
       expect(checkRes.status).toBe(200);
+    });
+
+    it("should prevent double rotation of the same token within the grace period (Replay Protection)", async () => {
+      // 1. Create session
+      redisMock.set.mockResolvedValue("OK");
+      const createRes = await request(app)
+        .post("/mcp")
+        .set("x-user-id", userId);
+      const oldToken = createRes.body.sessionToken;
+
+      const oldKey = blindToken(oldToken);
+      const rotatedKey = `rotated-flag:session:${oldKey}`;
+
+      redisMock.get.mockResolvedValue(userId);
+
+      // Mock Redis: set of rotated-flag returns null when trying to set it again with NX: true
+      redisMock.set.mockImplementation(
+        (key: string, value: any, options?: any) => {
+          if (key === rotatedKey && options?.NX) {
+            return Promise.resolve(null); // Simulate lock already exists
+          }
+          return Promise.resolve("OK");
+        },
+      );
+
+      const response = await request(app)
+        .post("/mcp/rotate")
+        .set("x-user-id", userId)
+        .set("x-session-token", oldToken);
+
+      // Should be 401 Unauthorized/Error since session_rotator checks rotatedKey and throws
+      expect(response.status).toBe(401);
+      expect(response.body.error).toBe(
+        "Session expired, revoked, or replayed.",
+      );
     });
   });
 
@@ -144,7 +181,7 @@ describe("Session Rotation and E2EE Data Plane", () => {
 
       expect(res.status).toBe(403);
       expect(res.body.error).toBe(
-        "Session hash mismatch: Routing integrity failure"
+        "Session hash mismatch: Routing integrity failure",
       );
     });
 
@@ -190,7 +227,9 @@ describe("Session Rotation and E2EE Data Plane", () => {
 
       // Should be rejected because blinded_session_hash is not an OWN property
       expect(res.status).toBe(400);
-      expect(res.body.error).toBe("Malformed packet: Missing blinded_session_hash");
+      expect(res.body.error).toBe(
+        "Malformed packet: Missing blinded_session_hash",
+      );
     });
   });
 });
