@@ -22,6 +22,6 @@
 **Learning:** Static tooltips or ARIA labels on complex visual elements (like Archetype nodes) provide accessibility but lack "discoverability" for sighted users. Adding a dedicated, dynamic info region that updates on hover/focus provides a persistent place for users to learn about the system's "mandates" without needing to wait for browser tooltips.
 **Action:** Pair complex visual nodes with a persistent status or info region (`aria-live="polite"`) that exposes deeper metadata upon interaction.
 
-## 2026-10-15 - [High-Contrast Focus Indicators for Visual Nodes]
-**Learning:** Overwriting browser default focus states with `outline: none` or using a low-contrast indicator (such as a white `box-shadow` on a light background) makes visual interactive components entirely invisible to keyboard navigators. Focus states should always use prominent, high-contrast outlines (e.g., `outline: 3px solid var(--primary)`) that adapt seamlessly across light and dark themes.
-**Action:** Always pair interactive focus states with high-contrast outlines using theme-adaptive variables like `var(--primary)`.
+## 2026-08-04 - [Visible Hover and Focus States Across Themes]
+**Learning:** Overriding browser default focus styles with `outline: none;` and replacing them with a visual-only indicator (like a white box-shadow) can create severe accessibility violations on light themes, where white shadows are completely invisible. Active indicators should use theme-adaptive variables (e.g., `var(--primary)`) and distinct outline definitions to guarantee they remain clearly perceivable on all background color schemes.
+**Action:** Ensure custom focus indicators utilize theme-appropriate CSS custom properties for shadows and borders, and never suppress native outlines without substituting a robust, high-contrast, theme-compliant fallback.
