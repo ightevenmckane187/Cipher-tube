@@ -1,3 +1,7 @@
+## 2026-07-04 - Zero-Allocation Buffer Assembly & Binary Integer Matching
+**Learning:** For performance-critical persistent storage serialization/deserialization, avoiding multiple intermediate `Buffer` allocations via `Buffer.allocUnsafe()` with direct `.set()` and `.write(payload, offset, length, encoding)` is significantly faster than `Buffer.concat()`. Additionally, validating headers using fast big-endian binary integer comparisons (e.g. `readUInt32BE` & `readUInt16BE`) bypasses string allocation and decoding costs completely on validation hot-paths.
+**Action:** Use `Buffer.allocUnsafe()` coupled with manual `.set()` / `.write()` and binary integer comparison for hot-path buffer serialization and parsing to maximize throughput and minimize memory allocations.
+
 ## 2025-05-25 - Manual String Parsing for Template and Path Resolution
 **Learning:** Manual string traversal with `indexOf` and `substring` is significantly faster than regex matches and `split('.')` for deep object path resolution in Node.js. In hot recursive paths like `resolveParams`, avoiding intermediate array allocations from `split()` and regex capture groups can yield ~25-30% performance gains.
 **Action:** Prefer manual string parsing over regex/split for high-frequency path resolution; avoid redundant property validators by centralizing them in a single exported helper.
