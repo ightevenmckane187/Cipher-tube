@@ -23,7 +23,7 @@ export class PersistenceLayer {
         outBuf.set(payloadBuf, 38);
 
         // Compute and write HMAC signature directly
-        const hmac = crypto.createHmac('sha256', key);
+        const hmac = crypto.createHmac('sha256',. key);
         hmac.update(payloadBuf);
         const signature = hmac.digest();
         outBuf.set(signature, 6);
