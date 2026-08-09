@@ -21,3 +21,7 @@
 ## 2026-07-04 - [Dynamic Info Regions for Mythic Discovery]
 **Learning:** Static tooltips or ARIA labels on complex visual elements (like Archetype nodes) provide accessibility but lack "discoverability" for sighted users. Adding a dedicated, dynamic info region that updates on hover/focus provides a persistent place for users to learn about the system's "mandates" without needing to wait for browser tooltips.
 **Action:** Pair complex visual nodes with a persistent status or info region (`aria-live="polite"`) that exposes deeper metadata upon interaction.
+
+## 2026-10-15 - [Single-key Keyboard Shortcuts & WCAG 2.1.4 Compliance]
+**Learning:** Implementing single-key global keyboard shortcuts (like 'c', 't', 's', 'e', '/') creates significant accessibility barriers under WCAG 2.1.4 (Character Key Shortcuts) because screen reader or speech-input users can trigger actions accidentally. Exposing these shortcuts without a clear disabling mechanism hinders assistive technology navigation.
+**Action:** Always provide an easily discoverable toggle button (e.g., in the footer) to disable single-character keyboard shortcuts entirely, persist the user's preference in `localStorage`, and hide visual shortcut helper labels dynamically.
