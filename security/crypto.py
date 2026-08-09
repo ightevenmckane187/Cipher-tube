@@ -53,6 +53,8 @@ class PayloadEncryptor:
         Verifies computed signature against a reference signature in constant-time.
         Prevents timing analysis side-channel attacks.
         """
+        if not isinstance(payload_bytes, (bytes, bytearray)) or not isinstance(signature_bytes, (bytes, bytearray)):
+            return False
         expected_sig = self.sign_payload(payload_bytes)
         return hmac.compare_digest(expected_sig, signature_bytes)
 
@@ -75,10 +77,12 @@ class PayloadEncryptor:
         Raises ValueError if integrity/signature checks or decryption fails.
         """
         try:
+            if not isinstance(envelope, dict):
+                raise TypeError("Envelope must be a dictionary")
             nonce = bytes.fromhex(envelope["nonce_hex"])
             ciphertext = bytes.fromhex(envelope["ciphertext_hex"])
             signature = bytes.fromhex(envelope["signature_hex"])
-        except (KeyError, ValueError) as err:
+        except (KeyError, ValueError, TypeError) as err:
             raise ValueError(f"Invalid secure envelope format: {err}")
 
         # 1. Enforce payload signature verification (HMAC constant-time match)
