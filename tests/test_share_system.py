@@ -225,3 +225,55 @@ class TestShareSystem(unittest.TestCase):
         # Public access should now be forbidden
         access_res = self.client.get(f"/api/v1/share/access/{token}")
         self.assertEqual(access_res.status_code, 403)
+
+    def test_path_traversal_blocked(self):
+        # 1. Attempting to share directory breakouts
+        with self.assertRaises(ValueError):
+            self.service.create_share_link(
+                db=self.db,
+                video_id="traversal",
+                file_path="/etc/passwd"
+            )
+
+        with self.assertRaises(ValueError):
+            self.service.create_share_link(
+                db=self.db,
+                video_id="traversal",
+                file_path=os.path.join(os.getcwd(), "..", "etc", "passwd")
+            )
+
+    def test_hidden_files_blocked(self):
+        # 2. Attempting to share hidden files
+        with self.assertRaises(ValueError):
+            self.service.create_share_link(
+                db=self.db,
+                video_id="hidden",
+                file_path=os.path.join(os.getcwd(), ".env")
+            )
+
+        with self.assertRaises(ValueError):
+            self.service.create_share_link(
+                db=self.db,
+                video_id="hidden",
+                file_path=os.path.join(os.getcwd(), ".secrets.baseline")
+            )
+
+    def test_api_blocks_unauthorized_paths(self):
+        payload_passwd = {
+            "video_id": "traversal_api",
+            "file_path": "/etc/passwd",
+            "expire_hours": 1
+        }
+        headers = {"X-API-Key": CYPHER_API_KEY}
+        response = self.client.post("/api/v1/share/create", json=payload_passwd, headers=headers)
+        self.assertEqual(response.status_code, 500)
+        self.assertIn("Security Violation", response.json()["detail"])
+
+        payload_hidden = {
+            "video_id": "hidden_api",
+            "file_path": "./.env",
+            "expire_hours": 1
+        }
+        response_hidden = self.client.post("/api/v1/share/create", json=payload_hidden, headers=headers)
+        self.assertEqual(response_hidden.status_code, 500)
+        self.assertIn("Security Violation", response_hidden.json()["detail"])
