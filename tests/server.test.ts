@@ -133,4 +133,22 @@ describe("Server Security and Health", () => {
     expect(response.text).toContain("outline: 3px solid var(--primary);");
     expect(response.text).toContain("outline-offset: 2px;");
   });
+
+  it("should render high-contrast focus indicators for create and extend session buttons", async () => {
+    const response = await request(app).get("/");
+    expect(response.status).toBe(200);
+    expect(response.text).toContain("#create-session-btn:focus-visible");
+    expect(response.text).toContain("outline: 3px solid var(--text-color);");
+    expect(response.text).toContain("#extend-session-btn:focus-visible");
+    expect(response.text).toContain("outline: 3px solid #ffffff;");
+  });
+
+  it("should render client-side script for dynamic aria-keyshortcuts synchronization", async () => {
+    const response = await request(app).get("/");
+    expect(response.status).toBe(200);
+    expect(response.text).toContain("const elementsWithShortcuts =");
+    expect(response.text).toContain("selector: '.theme-toggle', key: 't'");
+    expect(response.text).toContain("el.removeAttribute('aria-keyshortcuts')");
+    expect(response.text).toContain("el.setAttribute('aria-keyshortcuts', key)");
+  });
 });

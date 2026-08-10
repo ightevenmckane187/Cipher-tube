@@ -278,6 +278,14 @@ export const PRE_RENDERED_STYLES = `
     #create-session-btn:active { transform: scale(0.98); }
     #create-session-btn:hover { opacity: 0.9; }
     #create-session-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    #create-session-btn:focus-visible {
+        outline: 3px solid var(--text-color);
+        outline-offset: 2px;
+    }
+    #extend-session-btn:focus-visible {
+        outline: 3px solid #ffffff;
+        outline-offset: 2px;
+    }
     .input-row {
         display: flex;
         gap: 8px;
@@ -758,6 +766,14 @@ app.get("/", (req: Request, res: Response) => {
                 #create-session-btn:active { transform: scale(0.98); }
                 #create-session-btn:hover { opacity: 0.9; }
                 #create-session-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+                #create-session-btn:focus-visible {
+                    outline: 3px solid var(--text-color);
+                    outline-offset: 2px;
+                }
+                #extend-session-btn:focus-visible {
+                    outline: 3px solid #ffffff;
+                    outline-offset: 2px;
+                }
                 .input-row {
                     display: flex;
                     gap: 8px;
@@ -1217,6 +1233,24 @@ app.get("/", (req: Request, res: Response) => {
                         const toggleText = toggleShortcutsBtn?.querySelector('.shortcut-toggle-text');
                         if (toggleText) toggleText.textContent = 'Disable Keyboard Shortcuts';
                     }
+
+                    const elementsWithShortcuts = [
+                        { selector: '.theme-toggle', key: 't' },
+                        { selector: '#copy-curl', key: 'c' },
+                        { selector: '#user-id-input', key: '/' },
+                        { selector: '#create-session-btn', key: 's' },
+                        { selector: '#extend-session-btn', key: 'e' }
+                    ];
+
+                    elementsWithShortcuts.forEach(({ selector, key }) => {
+                        document.querySelectorAll(selector).forEach(el => {
+                            if (isNowDisabled) {
+                                el.removeAttribute('aria-keyshortcuts');
+                            } else {
+                                el.setAttribute('aria-keyshortcuts', key);
+                            }
+                        });
+                    });
                 }
 
                 if (toggleShortcutsBtn) {
