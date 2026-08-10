@@ -25,3 +25,7 @@
 ## 2026-08-04 - [Visible Hover and Focus States Across Themes]
 **Learning:** Overriding browser default focus styles with `outline: none;` and replacing them with a visual-only indicator (like a white box-shadow) can create severe accessibility violations on light themes, where white shadows are completely invisible. Active indicators should use theme-adaptive variables (e.g., `var(--primary)`) and distinct outline definitions to guarantee they remain clearly perceivable on all background color schemes.
 **Action:** Ensure custom focus indicators utilize theme-appropriate CSS custom properties for shadows and borders, and never suppress native outlines without substituting a robust, high-contrast, theme-compliant fallback.
+
+## 2026-08-10 - [Dynamic ARIA Shortcut Synchronization & Primary Button Focus Contrast]
+**Learning:** Pairing client-side keyboard shortcut overrides with static `aria-keyshortcuts` creates accessibility mismatches when shortcuts are disabled. Dynamically removing/restoring the `aria-keyshortcuts` attributes ensures that screen readers only announce active shortcuts. Additionally, default focus rings on primary-colored buttons (e.g. blue) of the same primary color results in zero contrast, which can be mitigated by custom high-contrast focus rings.
+**Action:** Always dynamically synchronize ARIA attributes alongside behavior states (like toggles) and design high-contrast outlines for interactive components with strong background color themes.
