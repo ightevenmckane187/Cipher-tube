@@ -22,8 +22,34 @@ class ShareService:
         """
         Creates a time-limited secure share token for a specific video file or clip.
         """
-        if not os.path.exists(file_path):
+        # Sentinel Security: Resolve real/absolute path and enforce strict path boundaries.
+        abs_path = os.path.realpath(file_path)
+
+        # 1. Block access to hidden files and directories (those starting with a dot `.`).
+        base_name = os.path.basename(abs_path)
+        if base_name.startswith('.') or any(part.startswith('.') for part in abs_path.split(os.sep)):
+            raise ValueError("Security Violation: Accessing hidden files or directories is strictly prohibited.")
+
+        # 2. Block access to standard system configuration directories.
+        system_dirs = ["/etc", "/proc", "/sys", "/var", "/boot", "/dev"]
+        if any(abs_path.startswith(sys_dir + os.sep) or abs_path == sys_dir for sys_dir in system_dirs):
+            raise ValueError("Security Violation: Access to system configuration files is strictly prohibited.")
+
+        # 3. Only allow files within project root directory or temporary folders (for tests).
+        project_root = os.path.realpath(os.getcwd())
+        temp_dir = os.path.realpath("/tmp")
+
+        in_project = os.path.commonpath([project_root, abs_path]) == project_root
+        in_temp = os.path.commonpath([temp_dir, abs_path]) == temp_dir
+
+        if not (in_project or in_temp):
+            raise ValueError("Security Violation: Directory traversal detected. Path outside authorized boundaries.")
+
+        if not os.path.exists(abs_path):
             raise FileNotFoundError(f"File not found on disk: {file_path}")
+
+        # Use canonicalized path for storage
+        file_path = abs_path
 
         # Generate a cryptographically secure random share token
         share_token = secrets.token_urlsafe(32)
