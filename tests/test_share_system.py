@@ -225,3 +225,47 @@ class TestShareSystem(unittest.TestCase):
         # Public access should now be forbidden
         access_res = self.client.get(f"/api/v1/share/access/{token}")
         self.assertEqual(access_res.status_code, 403)
+
+    def test_path_traversal_prevention(self):
+        # 1. Traversal outside allowed roots
+        with self.assertRaises(ValueError) as context:
+            self.service.create_share_link(
+                db=self.db,
+                video_id="vid_bad_1",
+                file_path=os.path.join(self.temp_file.name, "../../../etc/passwd")
+            )
+        self.assertIn("Path traversal detected", str(context.exception))
+
+        # 2. Block access to sensitive system/configuration files even if they happen to exist in allowed dirs
+        env_file = tempfile.NamedTemporaryFile(suffix=".env", delete=False)
+        env_file.write(b"SENSITIVE_KEY=supersecret")
+        env_file.close()
+
+        try:
+            with self.assertRaises(ValueError) as context:
+                self.service.create_share_link(
+                    db=self.db,
+                    video_id="vid_bad_2",
+                    file_path=env_file.name
+                )
+            self.assertIn("Access Denied", str(context.exception))
+        finally:
+            if os.path.exists(env_file.name):
+                os.remove(env_file.name)
+
+        # 3. Block access to hidden files (starting with .)
+        hidden_file = tempfile.NamedTemporaryFile(prefix=".hidden_", delete=False)
+        hidden_file.write(b"hidden")
+        hidden_file.close()
+
+        try:
+            with self.assertRaises(ValueError) as context:
+                self.service.create_share_link(
+                    db=self.db,
+                    video_id="vid_bad_3",
+                    file_path=hidden_file.name
+                )
+            self.assertIn("Access Denied", str(context.exception))
+        finally:
+            if os.path.exists(hidden_file.name):
+                os.remove(hidden_file.name)

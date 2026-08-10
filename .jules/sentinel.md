@@ -107,3 +107,8 @@
 **Vulnerability:** Service-wide Denial of Service (DoS) and crash risk via unhandled TypeError exceptions in secure_unwrap.
 **Learning:** In Python, calling functions like `bytes.fromhex` on non-string inputs (or subscripting non-dictionary objects) raises a `TypeError`. If the cryptographic wrap/unwrap pipeline only catches standard decoding or parsing errors (like `KeyError` or `ValueError`), type-confusion payloads from untrusted sources will crash the execution context rather than failing gracefully.
 **Prevention:** Always enforce strict type checks (using `isinstance`) on security-critical inputs and explicitly catch `TypeError` alongside other data parsing exceptions in cryptographic utility entrypoints, mapping them to standard fallback errors (like `ValueError`) to ensure fail-secure behavior.
+
+## 2026-08-10 - Path Traversal & Directory Containment in Python File Sharing
+**Vulnerability:** Arbitrary file sharing / path traversal vulnerability allowing access to private files and configuration secrets.
+**Learning:** Merely checking `os.path.exists()` is insufficient because input paths can use parent directory traversal (`../`) or absolute paths to access system configurations, secrets (`.env`), or internal databases (`shared_files.db`).
+**Prevention:** Always resolve the absolute canonical path via `os.path.realpath()`, and enforce that it is contained within allowed directory roots (e.g., the current working directory or system temp directory) using `os.path.commonpath()`. Additionally, explicitly block sharing of files that start with `.` or match specific forbidden filenames.

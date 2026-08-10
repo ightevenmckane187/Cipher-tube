@@ -1,5 +1,6 @@
 import os
 import secrets
+import tempfile
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
@@ -21,9 +22,41 @@ class ShareService:
     ) -> Dict[str, Any]:
         """
         Creates a time-limited secure share token for a specific video file or clip.
+        Implements strict path traversal protection and secure file filtering.
         """
-        if not os.path.exists(file_path):
+        # Resolve to absolute real path to handle symlinks and relative traversal (e.g. "../")
+        real_path = os.path.realpath(file_path)
+
+        if not os.path.exists(real_path):
             raise FileNotFoundError(f"File not found on disk: {file_path}")
+
+        # Define allowed directories (workspace root and system temp folder)
+        allowed_dirs = [
+            os.path.realpath(os.getcwd()),
+            os.path.realpath(tempfile.gettempdir())
+        ]
+
+        # Ensure the file is inside one of the allowed directories (strict containment)
+        is_allowed = False
+        for allowed_dir in allowed_dirs:
+            common = os.path.commonpath([allowed_dir, real_path])
+            if common == allowed_dir:
+                is_allowed = True
+                break
+
+        if not is_allowed:
+            raise ValueError("Path traversal detected: Access to files outside of designated directories is denied.")
+
+        # Hardened check: Prevent sharing critical configuration files, system databases, or hidden files/folders (starting with .)
+        filename = os.path.basename(real_path)
+        if (
+            filename.startswith(".") or
+            filename in ("shared_files.db", "vault.env", "package.json", "package-lock.json", "pnpm-lock.yaml", "pnpm-workspace.yaml") or
+            real_path.endswith(".env") or
+            ".git" in real_path.split(os.sep) or
+            ".jules" in real_path.split(os.sep)
+        ):
+            raise ValueError("Access Denied: Sharing of sensitive configuration, system database, or hidden files is strictly prohibited.")
 
         # Generate a cryptographically secure random share token
         share_token = secrets.token_urlsafe(32)
@@ -32,7 +65,7 @@ class ShareService:
         shared_entry = SharedFile(
             video_id=video_id,
             share_token=share_token,
-            file_path=file_path,
+            file_path=real_path,
             file_type=file_type,
             max_views=max_views,
             expires_at=expiration,
