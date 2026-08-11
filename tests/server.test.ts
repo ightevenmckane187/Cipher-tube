@@ -133,4 +133,15 @@ describe("Server Security and Health", () => {
     expect(response.text).toContain("outline: 3px solid var(--primary);");
     expect(response.text).toContain("outline-offset: 2px;");
   });
+
+  it("should contain updated updateShortcutsUI javascript function with dynamic aria-keyshortcuts toggling", async () => {
+    const response = await request(app).get("/");
+    expect(response.status).toBe(200);
+    expect(response.text).toContain("function updateShortcutsUI(disabled)");
+    expect(response.text).toContain("const shortcutElements = document.querySelectorAll('[aria-keyshortcuts], [data-keyshortcuts]')");
+    expect(response.text).toContain("el.setAttribute('data-keyshortcuts', shortcut)");
+    expect(response.text).toContain("el.removeAttribute('aria-keyshortcuts')");
+    expect(response.text).toContain("el.setAttribute('aria-keyshortcuts', shortcut)");
+    expect(response.text).toContain("el.removeAttribute('data-keyshortcuts')");
+  });
 });
