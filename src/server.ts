@@ -1204,6 +1204,25 @@ app.get("/", (req: Request, res: Response) => {
 
                 function updateShortcutsUI(disabled) {
                     const isNowDisabled = !!disabled;
+
+                    // Dynamically manage aria-keyshortcuts attributes to align with current shortcuts availability
+                    const shortcutElements = document.querySelectorAll('[aria-keyshortcuts], [data-keyshortcuts]');
+                    shortcutElements.forEach(el => {
+                        if (isNowDisabled) {
+                            const shortcut = el.getAttribute('aria-keyshortcuts');
+                            if (shortcut) {
+                                el.setAttribute('data-keyshortcuts', shortcut);
+                                el.removeAttribute('aria-keyshortcuts');
+                            }
+                        } else {
+                            const shortcut = el.getAttribute('data-keyshortcuts');
+                            if (shortcut) {
+                                el.setAttribute('aria-keyshortcuts', shortcut);
+                                el.removeAttribute('data-keyshortcuts');
+                            }
+                        }
+                    });
+
                     if (isNowDisabled) {
                         document.documentElement.classList.add('shortcuts-disabled');
                         toggleShortcutsBtn?.setAttribute('aria-pressed', 'true');

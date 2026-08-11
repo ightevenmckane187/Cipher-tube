@@ -25,3 +25,7 @@
 ## 2026-08-04 - [Visible Hover and Focus States Across Themes]
 **Learning:** Overriding browser default focus styles with `outline: none;` and replacing them with a visual-only indicator (like a white box-shadow) can create severe accessibility violations on light themes, where white shadows are completely invisible. Active indicators should use theme-adaptive variables (e.g., `var(--primary)`) and distinct outline definitions to guarantee they remain clearly perceivable on all background color schemes.
 **Action:** Ensure custom focus indicators utilize theme-appropriate CSS custom properties for shadows and borders, and never suppress native outlines without substituting a robust, high-contrast, theme-compliant fallback.
+
+## 2026-09-10 - [Dynamic ARIA Keyshortcuts Toggling]
+**Learning:** When global character key shortcuts are disabled (WCAG 2.1.4), static `aria-keyshortcuts` attributes on interactive elements remain readable by screen readers, leading to confusing announcements of shortcuts that are actually inactive.
+**Action:** Dynamically add and remove `aria-keyshortcuts` attributes when keyboard shortcuts are toggled on or off, using a temporary state holder attribute like `data-keyshortcuts` to store the values for restoration.
