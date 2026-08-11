@@ -107,3 +107,8 @@
 **Vulnerability:** Service-wide Denial of Service (DoS) and crash risk via unhandled TypeError exceptions in secure_unwrap.
 **Learning:** In Python, calling functions like `bytes.fromhex` on non-string inputs (or subscripting non-dictionary objects) raises a `TypeError`. If the cryptographic wrap/unwrap pipeline only catches standard decoding or parsing errors (like `KeyError` or `ValueError`), type-confusion payloads from untrusted sources will crash the execution context rather than failing gracefully.
 **Prevention:** Always enforce strict type checks (using `isinstance`) on security-critical inputs and explicitly catch `TypeError` alongside other data parsing exceptions in cryptographic utility entrypoints, mapping them to standard fallback errors (like `ValueError`) to ensure fail-secure behavior.
+
+## 2026-07-06 - Compilation and Syntax Errors in Security-Critical Subsystems
+**Vulnerability:** Service-wide Denial of Service (DoS) and complete failure of persistence integrity validation due to compilation/syntax errors in security-critical modules.
+**Learning:** A broken syntax and undefined variable (`HEADER_BUF`) inside the `save` method of `PersistenceLayer` completely blocked compiling and testing security-critical components. Such regressions can bypass automated tests if compilation flags are not strictly enforced during CI/CD, or create immediate service-wide availability risks.
+**Prevention:** Always ensure security-critical files are thoroughly unit tested and that all typescript compilation and syntax checks are executed automatically. Avoid redundant code blocks and ensure every code path is covered by test suites to catch broken allocations or undefined references early.
