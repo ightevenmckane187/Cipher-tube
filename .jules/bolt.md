@@ -41,3 +41,7 @@
 ## 2026-07-03 - Unsafe Buffer Casting for Implicit Coercion in JSON.parse
 **Learning:** Lying to the TypeScript compiler with unsafe type casts (e.g., `as unknown as string` on a Buffer) to pass it directly to standard functions like `JSON.parse` is a major hazard. While Node.js v22's native `JSON.parse` supports Buffers directly without intermediate allocations, standard JS/TS typings do not. If the underlying data type changes to a standard `Uint8Array` (e.g., in edge or cloud environment migrations), standard implicit coercion will produce comma-separated byte strings (e.g., `"123,98,111"`), resulting in catastrophic runtime `SyntaxError` crashes.
 **Action:** Always prefer explicit standard string conversion or safe platform APIs over type-cast-based implicit coercion.
+
+## 2026-07-05 - In-Memory LRU Throttling for Gateway Rolling Expiry
+**Learning:** Issuing Redis `EXPIRE` writes on every single API request to keep gateway sessions alive introduces substantial write overhead on the cache layer. By employing a small bounded in-memory `LRUCache` (e.g., 60s TTL) on the hot gateway path, we can safely throttle rolling updates. If the session update is already cached, we skip the `cache.expire(...)` Redis write, significantly reducing write load.
+**Action:** Use bounded local LRU caches to throttle frequent Redis and database write operations in hot middleware execution paths.
