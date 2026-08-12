@@ -1,6 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
+import { LRUCache } from 'lru-cache';
 import { cache } from '../cache/redisPool';
 import { verifyCryptographicProof } from '../crypto/verifier';
+
+// Bolt Optimization: Cache to throttle Redis EXPIRE calls (Activity Refresh)
+// Sentinel: TTL of 60s matches the throttling logic in ensureSessionOwner.
+export const sessionUpdateCache = new LRUCache<string, boolean>({
+    max: 1000,
+    ttl: 60 * 1000, // 60 seconds throttle
+});
 
 /**
  * Core validation gateway layer.
@@ -43,7 +51,12 @@ export async function cipherTubeGateway(req: Request, res: Response, next: NextF
         const persistentState = await cache.get(`state:${hash}`);
         if (persistentState) {
             // Keep window dynamic via rolling expiry (3600 seconds)
-            await cache.expire(`state:${hash}`, 3600);
+            // Bolt Optimization: Throttle Redis EXPIRE calls to once per 60 seconds using local LRU cache
+            const needsUpdate = !sessionUpdateCache.has(hash);
+            if (needsUpdate) {
+                await cache.expire(`state:${hash}`, 3600);
+                sessionUpdateCache.set(hash, true);
+            }
             (req as any).cipherState = JSON.parse(persistentState);
             return next();
         }
