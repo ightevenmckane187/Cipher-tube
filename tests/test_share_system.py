@@ -1,6 +1,7 @@
 import unittest
 import os
 import tempfile
+from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
@@ -225,3 +226,76 @@ class TestShareSystem(unittest.TestCase):
         # Public access should now be forbidden
         access_res = self.client.get(f"/api/v1/share/access/{token}")
         self.assertEqual(access_res.status_code, 403)
+
+    @patch("os.path.exists")
+    def test_path_traversal_detection(self, mock_exists):
+        mock_exists.return_value = True
+
+        # Test absolute path outside allowed bases
+        with self.assertRaises(ValueError) as context:
+            self.service.create_share_link(
+                db=self.db,
+                video_id="vid_traversal",
+                file_path="/etc/passwd"
+            )
+        self.assertIn("restricted", str(context.exception))
+
+        # Test relative path attempting to escape
+        with self.assertRaises(ValueError) as context:
+            self.service.create_share_link(
+                db=self.db,
+                video_id="vid_traversal",
+                file_path="../../etc/passwd"
+            )
+        self.assertIn("restricted", str(context.exception))
+
+    @patch("os.path.exists")
+    def test_hidden_files_detection(self, mock_exists):
+        mock_exists.return_value = True
+
+        # Test hidden file in base directory
+        with self.assertRaises(ValueError) as context:
+            self.service.create_share_link(
+                db=self.db,
+                video_id="vid_hidden",
+                file_path="./.env"
+            )
+        self.assertIn("restricted", str(context.exception))
+
+        # Test hidden subdirectory
+        with self.assertRaises(ValueError) as context:
+            self.service.create_share_link(
+                db=self.db,
+                video_id="vid_hidden",
+                file_path="./.git/config"
+            )
+        self.assertIn("restricted", str(context.exception))
+
+    @patch("os.path.exists")
+    def test_sensitive_files_detection(self, mock_exists):
+        mock_exists.return_value = True
+
+        # Test files with sensitive names/extensions
+        sensitive_paths = ["vault.env", "app_config.json", "database.db"]
+        for path in sensitive_paths:
+            with self.assertRaises(ValueError) as context:
+                self.service.create_share_link(
+                    db=self.db,
+                    video_id="vid_sensitive",
+                    file_path=path
+                )
+            self.assertIn("restricted", str(context.exception))
+
+    @patch("os.path.exists")
+    def test_api_endpoints_path_traversal(self, mock_exists):
+        mock_exists.return_value = True
+
+        payload = {
+            "video_id": "vid_api_traversal",
+            "file_path": "/etc/passwd",
+            "expire_hours": 1
+        }
+        headers = {"X-API-Key": CYPHER_API_KEY}
+        response = self.client.post("/api/v1/share/create", json=payload, headers=headers)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("restricted", response.json()["detail"])

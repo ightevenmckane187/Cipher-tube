@@ -1,5 +1,6 @@
 import os
 import secrets
+import tempfile
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
@@ -24,6 +25,53 @@ class ShareService:
         """
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"File not found on disk: {file_path}")
+
+        # 1. Resolve canonical/absolute path to defeat path traversal attacks
+        canonical_path = os.path.realpath(file_path)
+
+        # 2. Validate directory containment (Defense-in-depth)
+        allowed_bases = [
+            os.path.realpath(os.getcwd()),
+            os.path.realpath(tempfile.gettempdir())
+        ]
+
+        is_contained = False
+        for base in allowed_bases:
+            try:
+                if os.path.commonpath([base, canonical_path]) == base:
+                    is_contained = True
+                    break
+            except ValueError:
+                # May occur if paths are on different drive letters (e.g., Windows)
+                continue
+
+        if not is_contained:
+            raise ValueError("Access to the specified path is restricted (unauthorized directory location).")
+
+        # 3. Block access to hidden files/directories (starting with '.')
+        basename = os.path.basename(canonical_path)
+        if basename.startswith('.'):
+            raise ValueError("Access to hidden files is restricted.")
+
+        # Check relative path components to prevent access inside hidden subdirectories
+        for base in allowed_bases:
+            is_sub = False
+            try:
+                if os.path.commonpath([base, canonical_path]) == base:
+                    is_sub = True
+            except ValueError:
+                continue
+
+            if is_sub:
+                rel_path = os.path.relpath(canonical_path, base)
+                if any(part.startswith('.') for part in rel_path.split(os.sep) if part not in ('', '.', '..')):
+                    raise ValueError("Access to hidden files or directories is restricted.")
+
+        # 4. Block access to sensitive or system configuration names/extensions
+        sensitive_patterns = [".env", "vault.env", "config.json", "settings.json", "database.db"]
+        for pattern in sensitive_patterns:
+            if pattern in basename.lower() or pattern in canonical_path.lower():
+                raise ValueError("Access to sensitive configuration or system files is restricted.")
 
         # Generate a cryptographically secure random share token
         share_token = secrets.token_urlsafe(32)
