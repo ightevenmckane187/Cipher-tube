@@ -158,6 +158,33 @@ class TestShareSystem(unittest.TestCase):
         response = self.client.post("/api/v1/share/create", json=payload, headers=headers)
         self.assertEqual(response.status_code, 403)  # Invalid key
 
+    def test_api_create_share_link_timing_safety(self):
+        payload = {
+            "video_id": "vid_api_1",
+            "file_path": self.temp_file.name,
+            "expire_hours": 10,
+            "max_views": 5
+        }
+        # Test keys of various lengths, empty, and containing special characters to ensure robust constant-time comparison rejection
+        test_keys = [
+            "",
+            "a",
+            "short",
+            "cypher_secure_secret_token_2026_too_long",
+            "cypher_secure_secret_token_202x", # off by last character
+            "xypher_secure_secret_token_2026", # off by first character
+            "cypher\0secure", # embedded null byte
+            "!@#$%^&*()_+", # special characters
+        ]
+        for key in test_keys:
+            headers = {"X-API-Key": key}
+            response = self.client.post("/api/v1/share/create", json=payload, headers=headers)
+            # Empty key should result in 401 Unauthorized (Missing key)
+            if key == "":
+                self.assertEqual(response.status_code, 401, f"Empty key '{key}' should have been rejected with 401")
+            else:
+                self.assertEqual(response.status_code, 403, f"Key '{key}' should have been rejected with 403")
+
     def test_api_create_share_link_authenticated(self):
         payload = {
             "video_id": "vid_api_2",
