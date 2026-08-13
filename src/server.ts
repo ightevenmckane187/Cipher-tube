@@ -83,6 +83,10 @@ export const PRE_RENDERED_STYLES = `
         text-decoration: none;
     }
     .skip-link:focus { top: 0; }
+    .skip-link:focus-visible {
+        outline: 3px solid var(--text-color);
+        outline-offset: -4px;
+    }
     .status-dot {
         display: inline-block;
         width: 10px;
@@ -544,6 +548,10 @@ app.get("/", (req: Request, res: Response) => {
                     text-decoration: none;
                 }
                 .skip-link:focus { top: 0; }
+                .skip-link:focus-visible {
+                    outline: 3px solid var(--text-color);
+                    outline-offset: -4px;
+                }
                 .status-dot {
                     display: inline-block;
                     width: 10px;
@@ -1210,12 +1218,30 @@ app.get("/", (req: Request, res: Response) => {
                         toggleShortcutsBtn?.setAttribute('aria-label', 'Enable single-key keyboard shortcuts');
                         const toggleText = toggleShortcutsBtn?.querySelector('.shortcut-toggle-text');
                         if (toggleText) toggleText.textContent = 'Enable Keyboard Shortcuts';
+
+                        // Dynamically strip aria-keyshortcuts to prevent misleading screen reader announcements
+                        document.querySelectorAll('[aria-keyshortcuts]').forEach(el => {
+                            const val = el.getAttribute('aria-keyshortcuts');
+                            if (val) {
+                                el.setAttribute('data-keyshortcuts-backup', val);
+                                el.removeAttribute('aria-keyshortcuts');
+                            }
+                        });
                     } else {
                         document.documentElement.classList.remove('shortcuts-disabled');
                         toggleShortcutsBtn?.setAttribute('aria-pressed', 'false');
                         toggleShortcutsBtn?.setAttribute('aria-label', 'Disable single-key keyboard shortcuts');
                         const toggleText = toggleShortcutsBtn?.querySelector('.shortcut-toggle-text');
                         if (toggleText) toggleText.textContent = 'Disable Keyboard Shortcuts';
+
+                        // Restore aria-keyshortcuts from backups
+                        document.querySelectorAll('[data-keyshortcuts-backup]').forEach(el => {
+                            const val = el.getAttribute('data-keyshortcuts-backup');
+                            if (val) {
+                                el.setAttribute('aria-keyshortcuts', val);
+                                el.removeAttribute('data-keyshortcuts-backup');
+                            }
+                        });
                     }
                 }
 
