@@ -33,3 +33,7 @@
 ## 2026-06-17 - [Context-Aware Keyboard Shortcuts]
 **Learning:** Global single-key shortcuts (e.g., 's' for "Save" or "Create") can severely degrade UX by interfering with text entry in form fields. Implementing a simple check for active elements like `INPUT` or `TEXTAREA` ensures shortcuts only trigger when the user is not actively typing.
 **Action:** Always wrap global keyboard listeners in a check for `document.activeElement.tagName` to prevent shortcut collision during data entry. Pair this with visual shortcuts hints (`<kbd>`) that are preserved even during asynchronous state changes.
+
+## 2026-06-18 - [Ensuring Context-Specific Screen Reader Clarity during Shortcut Toggles]
+**Learning:** Global character shortcut keys (WCAG 2.1.4 compliance) are great for accessibility and efficiency, but leaving `aria-keyshortcuts` attributes on elements after the user disables keyboard shortcuts causes misleading announcements by screen readers. Stripping them dynamically (and backing them up to custom dataset attributes) preserves proper ARIA semantics.
+**Action:** When implementing shortcut toggles, dynamically back up and remove standard `aria-keyshortcuts` attributes, and restore them when shortcuts are enabled.

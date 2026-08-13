@@ -133,4 +133,19 @@ describe("Server Security and Health", () => {
     expect(response.text).toContain("outline: 3px solid var(--primary);");
     expect(response.text).toContain("outline-offset: 2px;");
   });
+
+  it("should render high-contrast skip-link styles and dynamic keyshortcuts backup/restore script", async () => {
+    const response = await request(app).get("/");
+    expect(response.status).toBe(200);
+
+    // Verify the high-contrast skip-link styling is present
+    expect(response.text).toContain(".skip-link:focus-visible");
+    expect(response.text).toContain("outline: 3px solid var(--text-color);");
+    expect(response.text).toContain("outline-offset: -4px;");
+
+    // Verify the dynamic aria-keyshortcuts strip/restore functionality is present in script
+    expect(response.text).toContain("Dynamically strip aria-keyshortcuts");
+    expect(response.text).toContain("data-keyshortcuts-backup");
+    expect(response.text).toContain("Restore aria-keyshortcuts from backups");
+  });
 });
