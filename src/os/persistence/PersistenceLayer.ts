@@ -7,36 +7,28 @@ const SIGNATURE_LENGTH = 32;
 
 export class PersistenceLayer {
     /**
-     * Bolt Optimization: Explicitly typed as Buffer.
-     * Constructs output buffer using Buffer.allocUnsafe() with manual .set() and .write() copying,
-     * which is significantly faster (~15%) than Buffer.concat() and avoids multiple buffer allocations.
+     * Constructs output buffer safely without uninitialized heap memory leak hazards.
+     * Direct UTF-8 write of the payload and zero-copy HMAC computation avoids intermediate Buffer allocations.
      */
     save(data: any, key: string): Buffer {
         const payload = JSON.stringify(data);
-        const payloadBuf = Buffer.from(payload, 'utf8');
-
-        // Bolt Optimization: Allocate unsafe buffer for exact combined size to avoid Buffer.concat and intermediate payload allocations
-        const outBuf = Buffer.allocUnsafe(38 + payloadBuf.length);
-
-        // Copy pre-allocated header and payload
-        outBuf.set(HEADER_BUF, 0);
-        outBuf.set(payloadBuf, 38);
-
-        // Compute and write HMAC signature directly
-        const hmac = crypto.createHmac('sha256',. key);
-        hmac.update(payloadBuf);
-        const signature = hmac.digest();
-        outBuf.set(signature, 6);
-
         const payloadByteLength = Buffer.byteLength(payload, 'utf8');
-        const out = Buffer.allocUnsafe(HEADER_LENGTH + SIGNATURE_LENGTH + payloadByteLength);
+        const out = Buffer.alloc(HEADER_LENGTH + SIGNATURE_LENGTH + payloadByteLength);
 
         // Zero-copy set of pre-allocated header
         out.set(HEADER_MAGIC, 0);
-        // Zero-copy set of hmac signature
-        out.set(signature, HEADER_LENGTH);
-        // Direct UTF-8 write of the payload to avoid intermediate Buffer allocation
+
+        // Direct UTF-8 write of payload to output buffer
         out.write(payload, HEADER_LENGTH + SIGNATURE_LENGTH, payloadByteLength, 'utf8');
+
+        // Zero-copy subarray view of payload region to calculate HMAC signature
+        const payloadView = out.subarray(HEADER_LENGTH + SIGNATURE_LENGTH);
+        const hmac = crypto.createHmac('sha256', key);
+        hmac.update(payloadView);
+        const signature = hmac.digest();
+
+        // Zero-copy set of HMAC signature
+        out.set(signature, HEADER_LENGTH);
 
         return out;
     }
