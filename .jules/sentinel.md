@@ -107,3 +107,8 @@
 **Vulnerability:** Service-wide Denial of Service (DoS) and crash risk via unhandled TypeError exceptions in secure_unwrap.
 **Learning:** In Python, calling functions like `bytes.fromhex` on non-string inputs (or subscripting non-dictionary objects) raises a `TypeError`. If the cryptographic wrap/unwrap pipeline only catches standard decoding or parsing errors (like `KeyError` or `ValueError`), type-confusion payloads from untrusted sources will crash the execution context rather than failing gracefully.
 **Prevention:** Always enforce strict type checks (using `isinstance`) on security-critical inputs and explicitly catch `TypeError` alongside other data parsing exceptions in cryptographic utility entrypoints, mapping them to standard fallback errors (like `ValueError`) to ensure fail-secure behavior.
+
+## 2026-08-14 - Heap Memory Disclosure via uninitialized Buffer.allocUnsafe
+**Vulnerability:** Information disclosure and memory leakage via uninitialized Node.js Heap buffer allocation in PersistenceLayer.
+**Learning:** Using `Buffer.allocUnsafe()` allocates a segment of memory from the Node.js/V8 heap without zero-initializing it first. If any of this uninitialized region is returned directly to the user or serialized into output files, it can leak sensitive system details, previous cryptographic keys, or user data that existed on the heap.
+**Prevention:** For security-critical serialization routines, always substitute `Buffer.allocUnsafe` with `Buffer.alloc` to guarantee that the output buffer is completely zeroed and initialized before populating and returning it.
