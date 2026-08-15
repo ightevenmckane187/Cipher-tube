@@ -278,6 +278,19 @@ export const PRE_RENDERED_STYLES = `
     #create-session-btn:active { transform: scale(0.98); }
     #create-session-btn:hover { opacity: 0.9; }
     #create-session-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .spinner {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        flex-shrink: 0;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
     .input-row {
         display: flex;
         gap: 8px;
@@ -555,7 +568,7 @@ app.get("/", (req: Request, res: Response) => {
                     animation: pulse 2s infinite;
                 }
                 @media (prefers-reduced-motion: reduce) {
-                    .status-dot {
+                    .status-dot, .spinner {
                         animation: none;
                     }
                     * {
@@ -1027,13 +1040,12 @@ app.get("/", (req: Request, res: Response) => {
 
                 createSessionBtn.addEventListener('click', async () => {
                     const userId = userIdInput.value.trim() || 'demo-user';
-                    const btnText = createSessionBtn.querySelector('.btn-text');
                     const originalHTML = createSessionBtn.innerHTML;
 
                     try {
                         createSessionBtn.disabled = true;
                         createSessionBtn.setAttribute('aria-busy', 'true');
-                        if (btnText) btnText.textContent = 'Creating...';
+                        createSessionBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span> <span class="btn-text">Creating...</span>';
 
                         const response = await fetch('/mcp', {
                             method: 'POST',
@@ -1047,14 +1059,14 @@ app.get("/", (req: Request, res: Response) => {
                         if (response.ok) {
                             const data = await response.json();
                             window.currentSessionId = data.sessionId;
-                            if (btnText) btnText.textContent = 'Created! ✅';
+                            createSessionBtn.innerHTML = '<span aria-hidden="true">🔑</span> <span class="btn-text">Created! ✅</span>';
                             setTimeout(() => {
                                 createSessionBtn.innerHTML = originalHTML;
                                 createSessionBtn.disabled = false;
                                 createSessionBtn.setAttribute('aria-busy', 'false');
                             }, 2000);
                         } else {
-                            if (btnText) btnText.textContent = 'Failed. Try again ❌';
+                            createSessionBtn.innerHTML = '<span aria-hidden="true">🔑</span> <span class="btn-text">Failed. Try again ❌</span>';
                             setTimeout(() => {
                                 createSessionBtn.innerHTML = originalHTML;
                                 createSessionBtn.disabled = false;
@@ -1063,7 +1075,7 @@ app.get("/", (req: Request, res: Response) => {
                         }
                     } catch (err) {
                         console.error('Session creation failed:', err);
-                        if (btnText) btnText.textContent = 'Error ❌';
+                        createSessionBtn.innerHTML = '<span aria-hidden="true">🔑</span> <span class="btn-text">Error ❌</span>';
                         setTimeout(() => {
                             createSessionBtn.innerHTML = originalHTML;
                             createSessionBtn.disabled = false;
