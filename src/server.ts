@@ -843,7 +843,7 @@ app.get("/", (req: Request, res: Response) => {
                 <nav aria-label="Main Navigation">
                      <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: bold; color: var(--primary);">Sovereign Cypher-Tube</span>
-                        <button class="theme-toggle" aria-label="Switch to Dark Mode" aria-pressed="false" aria-keyshortcuts="t">
+                        <button class="theme-toggle" aria-label="Switch to Dark Mode" aria-pressed="false" aria-keyshortcuts="t" data-keyshortcut="t">
                             <span class="theme-icon" aria-hidden="true">🌙</span>
                             <span class="theme-text">Switch to Dark</span>
                             <kbd aria-hidden="true" class="kb-shortcut">(t)</kbd>
@@ -894,10 +894,10 @@ app.get("/", (req: Request, res: Response) => {
                         <label for="user-id-input">Customize your User ID: <kbd aria-hidden="true" class="kb-shortcut">/</kbd></label>
                         <span id="user-id-counter" aria-live="polite">0 of 128 characters used</span>
                     </div>
-                    <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter" aria-keyshortcuts="/">
+                    <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter" aria-keyshortcuts="/" data-keyshortcut="/">
                 </div>
                 <div class="input-row">
-                    <button id="create-session-btn" aria-keyshortcuts="s" aria-busy="false">
+                    <button id="create-session-btn" aria-keyshortcuts="s" data-keyshortcut="s" aria-busy="false">
                         <span aria-hidden="true">🔑</span>
                         <span class="btn-text">Create Session</span>
                         <kbd aria-hidden="true" class="kb-shortcut">(s)</kbd>
@@ -905,7 +905,7 @@ app.get("/", (req: Request, res: Response) => {
                 </div>
                 <p>Alternatively, create a session via the API:</p>
                 <div class="code-container">
-                    <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard" aria-keyshortcuts="c">
+                    <button class="copy-button" id="copy-curl" aria-label="Copy command to clipboard" title="Copy to clipboard" aria-keyshortcuts="c" data-keyshortcut="c">
                         <svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
                         <svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
                         <span id="copy-text" aria-live="polite">Copy</span>
@@ -917,7 +917,7 @@ app.get("/", (req: Request, res: Response) => {
 
             <div id="timeout-banner" role="alert">
                 <span>Session expires in 1 minute.</span>
-                <button id="extend-session-btn" aria-keyshortcuts="e" aria-busy="false">
+                <button id="extend-session-btn" aria-keyshortcuts="e" data-keyshortcut="e" aria-busy="false">
                     <span aria-hidden="true">⏳</span>
                     <span class="btn-text">Extend Session</span>
                     <kbd aria-hidden="true" class="kb-shortcut">(e)</kbd>
@@ -1204,6 +1204,15 @@ app.get("/", (req: Request, res: Response) => {
 
                 function updateShortcutsUI(disabled) {
                     const isNowDisabled = !!disabled;
+                    const shortcutElements = document.querySelectorAll('[data-keyshortcut]');
+                    shortcutElements.forEach(el => {
+                        if (isNowDisabled) {
+                            el.removeAttribute('aria-keyshortcuts');
+                        } else {
+                            const shortcut = el.getAttribute('data-keyshortcut');
+                            if (shortcut) el.setAttribute('aria-keyshortcuts', shortcut);
+                        }
+                    });
                     if (isNowDisabled) {
                         document.documentElement.classList.add('shortcuts-disabled');
                         toggleShortcutsBtn?.setAttribute('aria-pressed', 'true');
