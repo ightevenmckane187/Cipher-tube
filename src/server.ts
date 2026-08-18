@@ -897,11 +897,12 @@ app.get("/", (req: Request, res: Response) => {
                     <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter" aria-keyshortcuts="/">
                 </div>
                 <div class="input-row">
-                    <button id="create-session-btn" aria-keyshortcuts="s" aria-busy="false">
+                    <button id="create-session-btn" aria-keyshortcuts="s" aria-busy="false" aria-label="Create Session">
                         <span aria-hidden="true">🔑</span>
                         <span class="btn-text">Create Session</span>
                         <kbd aria-hidden="true" class="kb-shortcut">(s)</kbd>
                     </button>
+                    <span id="session-create-status" aria-live="polite" style="margin-left: 8px; font-weight: 500; font-size: 0.875rem; align-self: center;"></span>
                 </div>
                 <p>Alternatively, create a session via the API:</p>
                 <div class="code-container">
@@ -1025,6 +1026,20 @@ app.get("/", (req: Request, res: Response) => {
                 });
                 updateCurlCommand();
 
+                const sessionCreateStatus = document.getElementById('session-create-status');
+                let sessionCreateStatusTimeout;
+
+                function showSessionStatus(msg, isError = false) {
+                    if (sessionCreateStatusTimeout) clearTimeout(sessionCreateStatusTimeout);
+                    if (sessionCreateStatus) {
+                        sessionCreateStatus.textContent = msg;
+                        sessionCreateStatus.style.color = isError ? 'var(--error)' : 'var(--success)';
+                        sessionCreateStatusTimeout = setTimeout(() => {
+                            sessionCreateStatus.textContent = '';
+                        }, 3000);
+                    }
+                }
+
                 createSessionBtn.addEventListener('click', async () => {
                     const userId = userIdInput.value.trim() || 'demo-user';
                     const btnText = createSessionBtn.querySelector('.btn-text');
@@ -1048,6 +1063,7 @@ app.get("/", (req: Request, res: Response) => {
                             const data = await response.json();
                             window.currentSessionId = data.sessionId;
                             if (btnText) btnText.textContent = 'Created! ✅';
+                            showSessionStatus('Session created successfully! ✅');
                             setTimeout(() => {
                                 createSessionBtn.innerHTML = originalHTML;
                                 createSessionBtn.disabled = false;
@@ -1055,6 +1071,7 @@ app.get("/", (req: Request, res: Response) => {
                             }, 2000);
                         } else {
                             if (btnText) btnText.textContent = 'Failed. Try again ❌';
+                            showSessionStatus('Session creation failed ❌', true);
                             setTimeout(() => {
                                 createSessionBtn.innerHTML = originalHTML;
                                 createSessionBtn.disabled = false;
@@ -1064,6 +1081,7 @@ app.get("/", (req: Request, res: Response) => {
                     } catch (err) {
                         console.error('Session creation failed:', err);
                         if (btnText) btnText.textContent = 'Error ❌';
+                        showSessionStatus('Session creation error ❌', true);
                         setTimeout(() => {
                             createSessionBtn.innerHTML = originalHTML;
                             createSessionBtn.disabled = false;
