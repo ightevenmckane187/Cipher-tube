@@ -84,7 +84,7 @@ export async function verifyCryptographicProof(rawProof: string, expectedHash?: 
     } catch (error) {
         // Sentinel: Log only unexpected errors to prevent log flooding from malformed client input
         if (!(error instanceof SyntaxError)) {
-            console.error("Critical: Security framework evaluation failure inside verifier engine:", error);
+            console.error("Critical: Security framework evaluation failure inside verifier engine:", error instanceof Error ? error.message : String(error));
         }
         return false;
     }
