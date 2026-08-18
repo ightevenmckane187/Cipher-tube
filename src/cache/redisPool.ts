@@ -21,7 +21,7 @@ client.on('connect', () => {
 });
 
 client.on('error', (err: any) => {
-    console.error('🚨 [Cache Critical] Redis memory pool encountered an error:', err);
+    console.error('🚨 [Cache Critical] Redis memory pool encountered an error:', err instanceof Error ? err.message : String(err));
 });
 
 client.on('end', () => {
@@ -34,7 +34,7 @@ if (process.env.NODE_ENV !== 'test') {
         try {
             await client.connect();
         } catch (err) {
-            console.error('🚨 [Cache Fault] Immediate initialization failed. Running in degraded failover state.', err);
+            console.error('🚨 [Cache Fault] Immediate initialization failed. Running in degraded failover state.', err instanceof Error ? err.message : String(err));
         }
     })();
 }
