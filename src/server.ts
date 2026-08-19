@@ -136,17 +136,42 @@ export const PRE_RENDERED_STYLES = `
         font-weight: 500;
         margin-bottom: 0.5rem;
     }
+    #user-id-wrapper {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+        max-width: 300px;
+    }
     #user-id-input {
         background: var(--bg-color);
         border: 1px solid var(--border-color);
         color: var(--text-color);
-        padding: 8px 12px;
+        padding: 8px 32px 8px 12px;
         border-radius: 6px;
         font-size: 1rem;
         width: 100%;
-        max-width: 300px;
+        box-sizing: border-box;
         transition: border-color 0.2s;
     }
+    #clear-user-id-btn {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: var(--text-color);
+        opacity: 0.6;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 50%;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        font-size: 0.875rem;
+    }
+    #clear-user-id-btn:hover { opacity: 1; }
     .theme-icon {
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         display: inline-block;
@@ -616,17 +641,42 @@ app.get("/", (req: Request, res: Response) => {
                     font-weight: 500;
                     margin-bottom: 0.5rem;
                 }
+                #user-id-wrapper {
+                    position: relative;
+                    display: inline-block;
+                    width: 100%;
+                    max-width: 300px;
+                }
                 #user-id-input {
                     background: var(--bg-color);
                     border: 1px solid var(--border-color);
                     color: var(--text-color);
-                    padding: 8px 12px;
+                    padding: 8px 32px 8px 12px;
                     border-radius: 6px;
                     font-size: 1rem;
                     width: 100%;
-                    max-width: 300px;
+                    box-sizing: border-box;
                     transition: border-color 0.2s;
                 }
+                #clear-user-id-btn {
+                    position: absolute;
+                    right: 8px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: none;
+                    border: none;
+                    color: var(--text-color);
+                    opacity: 0.6;
+                    cursor: pointer;
+                    padding: 4px;
+                    border-radius: 50%;
+                    display: none;
+                    align-items: center;
+                    justify-content: center;
+                    line-height: 1;
+                    font-size: 0.875rem;
+                }
+                #clear-user-id-btn:hover { opacity: 1; }
                 .theme-icon {
                     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                     display: inline-block;
@@ -894,7 +944,12 @@ app.get("/", (req: Request, res: Response) => {
                         <label for="user-id-input">Customize your User ID: <kbd aria-hidden="true" class="kb-shortcut">/</kbd></label>
                         <span id="user-id-counter" aria-live="polite">0 of 128 characters used</span>
                     </div>
-                    <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter" aria-keyshortcuts="/">
+                    <div id="user-id-wrapper">
+                        <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter" aria-keyshortcuts="/">
+                        <button type="button" id="clear-user-id-btn" aria-label="Clear User ID" title="Clear User ID">
+                            <span aria-hidden="true">✕</span>
+                        </button>
+                    </div>
                 </div>
                 <div class="input-row">
                     <button id="create-session-btn" aria-keyshortcuts="s" aria-busy="false">
@@ -995,6 +1050,7 @@ app.get("/", (req: Request, res: Response) => {
                 const curlCommand = document.getElementById('curl-command');
                 const userIdInput = document.getElementById('user-id-input');
                 const userIdCounter = document.getElementById('user-id-counter');
+                const clearUserIdBtn = document.getElementById('clear-user-id-btn');
                 const createSessionBtn = document.getElementById('create-session-btn');
 
                 function updateCurlCommand() {
@@ -1014,6 +1070,18 @@ app.get("/", (req: Request, res: Response) => {
                     } else {
                         userIdCounter.classList.remove('near-limit');
                     }
+
+                    if (clearUserIdBtn) {
+                        clearUserIdBtn.style.display = userIdInput.value.length > 0 ? 'inline-flex' : 'none';
+                    }
+                }
+
+                if (clearUserIdBtn) {
+                    clearUserIdBtn.addEventListener('click', () => {
+                        userIdInput.value = '';
+                        updateCurlCommand();
+                        userIdInput.focus();
+                    });
                 }
 
                 userIdInput.addEventListener('input', updateCurlCommand);
