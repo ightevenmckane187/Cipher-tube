@@ -136,16 +136,38 @@ export const PRE_RENDERED_STYLES = `
         font-weight: 500;
         margin-bottom: 0.5rem;
     }
+    .input-wrapper {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        width: 100%;
+        max-width: 300px;
+    }
     #user-id-input {
         background: var(--bg-color);
         border: 1px solid var(--border-color);
         color: var(--text-color);
-        padding: 8px 12px;
+        padding: 8px 32px 8px 12px;
         border-radius: 6px;
         font-size: 1rem;
         width: 100%;
-        max-width: 300px;
         transition: border-color 0.2s;
+    }
+    #clear-user-id-btn {
+        position: absolute;
+        right: 8px;
+        background: none;
+        border: none;
+        color: var(--text-color);
+        opacity: 0.6;
+        cursor: pointer;
+        padding: 2px 6px;
+        font-size: 0.875rem;
+        border-radius: 50%;
+        transition: opacity 0.2s;
+    }
+    #clear-user-id-btn:hover {
+        opacity: 1;
     }
     .theme-icon {
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -616,16 +638,38 @@ app.get("/", (req: Request, res: Response) => {
                     font-weight: 500;
                     margin-bottom: 0.5rem;
                 }
+                .input-wrapper {
+                    position: relative;
+                    display: inline-flex;
+                    align-items: center;
+                    width: 100%;
+                    max-width: 300px;
+                }
                 #user-id-input {
                     background: var(--bg-color);
                     border: 1px solid var(--border-color);
                     color: var(--text-color);
-                    padding: 8px 12px;
+                    padding: 8px 32px 8px 12px;
                     border-radius: 6px;
                     font-size: 1rem;
                     width: 100%;
-                    max-width: 300px;
                     transition: border-color 0.2s;
+                }
+                #clear-user-id-btn {
+                    position: absolute;
+                    right: 8px;
+                    background: none;
+                    border: none;
+                    color: var(--text-color);
+                    opacity: 0.6;
+                    cursor: pointer;
+                    padding: 2px 6px;
+                    font-size: 0.875rem;
+                    border-radius: 50%;
+                    transition: opacity 0.2s;
+                }
+                #clear-user-id-btn:hover {
+                    opacity: 1;
                 }
                 .theme-icon {
                     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -894,7 +938,10 @@ app.get("/", (req: Request, res: Response) => {
                         <label for="user-id-input">Customize your User ID: <kbd aria-hidden="true" class="kb-shortcut">/</kbd></label>
                         <span id="user-id-counter" aria-live="polite">0 of 128 characters used</span>
                     </div>
-                    <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter" aria-keyshortcuts="/">
+                    <div class="input-wrapper">
+                        <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter" aria-keyshortcuts="/">
+                        <button id="clear-user-id-btn" type="button" aria-label="Clear User ID" style="display: none;">✕</button>
+                    </div>
                 </div>
                 <div class="input-row">
                     <button id="create-session-btn" aria-keyshortcuts="s" aria-busy="false">
@@ -994,6 +1041,7 @@ app.get("/", (req: Request, res: Response) => {
                 const copyText = document.getElementById('copy-text');
                 const curlCommand = document.getElementById('curl-command');
                 const userIdInput = document.getElementById('user-id-input');
+                const clearUserIdBtn = document.getElementById('clear-user-id-btn');
                 const userIdCounter = document.getElementById('user-id-counter');
                 const createSessionBtn = document.getElementById('create-session-btn');
 
@@ -1014,9 +1062,20 @@ app.get("/", (req: Request, res: Response) => {
                     } else {
                         userIdCounter.classList.remove('near-limit');
                     }
+
+                    if (clearUserIdBtn) {
+                        clearUserIdBtn.style.display = length > 0 ? 'inline-block' : 'none';
+                    }
                 }
 
                 userIdInput.addEventListener('input', updateCurlCommand);
+                if (clearUserIdBtn) {
+                    clearUserIdBtn.addEventListener('click', () => {
+                        userIdInput.value = '';
+                        updateCurlCommand();
+                        userIdInput.focus();
+                    });
+                }
                 userIdInput.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
                         e.preventDefault();
