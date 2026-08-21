@@ -7,64 +7,53 @@ const SIGNATURE_LENGTH = 32;
 
 export class PersistenceLayer {
     /**
-     * Bolt Optimization: Explicitly typed as Buffer.
-     * Constructs output buffer using Buffer.allocUnsafe() with manual .set() and .write() copying,
-     * which is significantly faster (~15%) than Buffer.concat() and avoids multiple buffer allocations.
+     * Serializes payload data with header magic and HMAC-SHA256 signature into a Buffer.
+     * Uses Buffer.alloc to eliminate uninitialized memory leak risks.
      */
     save(data: any, key: string): Buffer {
         const payload = JSON.stringify(data);
-        const payloadBuf = Buffer.from(payload, 'utf8');
-
-        // Bolt Optimization: Allocate unsafe buffer for exact combined size to avoid Buffer.concat and intermediate payload allocations
-        const outBuf = Buffer.allocUnsafe(38 + payloadBuf.length);
-
-        // Copy pre-allocated header and payload
-        outBuf.set(HEADER_BUF, 0);
-        outBuf.set(payloadBuf, 38);
-
-        // Compute and write HMAC signature directly
-        const hmac = crypto.createHmac('sha256',. key);
-        hmac.update(payloadBuf);
-        const signature = hmac.digest();
-        outBuf.set(signature, 6);
-
         const payloadByteLength = Buffer.byteLength(payload, 'utf8');
-        const out = Buffer.allocUnsafe(HEADER_LENGTH + SIGNATURE_LENGTH + payloadByteLength);
 
-        // Zero-copy set of pre-allocated header
+        // Compute HMAC-SHA256 over UTF-8 payload bytes directly
+        const hmac = crypto.createHmac('sha256', key);
+        hmac.update(payload, 'utf8');
+        const signature = hmac.digest();
+
+        // Safely allocate zero-filled buffer for header (6 bytes) + signature (32 bytes) + payload
+        const out = Buffer.alloc(HEADER_LENGTH + SIGNATURE_LENGTH + payloadByteLength);
+
+        // Copy magic header
         out.set(HEADER_MAGIC, 0);
-        // Zero-copy set of hmac signature
+        // Copy HMAC signature
         out.set(signature, HEADER_LENGTH);
-        // Direct UTF-8 write of the payload to avoid intermediate Buffer allocation
+        // Direct UTF-8 write of payload
         out.write(payload, HEADER_LENGTH + SIGNATURE_LENGTH, payloadByteLength, 'utf8');
 
         return out;
     }
 
     /**
-     * Bolt Optimization: Keeps return type as any for unit test compatibility.
+     * Verifies payload integrity via HMAC-SHA256 and deserializes JSON content.
      * Uses zero-copy subarray views and fast binary integer header validation.
      */
     verifyAndLoad(buffer: Buffer, key: string): any {
         if (!Buffer.isBuffer(buffer)) {
             throw new Error('Input must be a Buffer');
         }
-        if (buffer.length < 38) {
+        if (buffer.length < HEADER_LENGTH + SIGNATURE_LENGTH) {
             throw new Error('Invalid format');
         }
 
-        // Bolt Optimization: High-performance binary integer matching instead of .toString()
-        // avoids string allocations and decoding overhead on hot validation paths
+        // High-performance binary integer matching for '.ctube' magic header
         if (buffer.readUInt32BE(0) !== 0x2e637475 || buffer.readUInt16BE(4) !== 0x6265) {
             throw new Error('Invalid format');
         }
 
-        // Bolt Optimization: Zero-copy subarray view instead of slice
-        const signature = buffer.subarray(6, 38);
-        const payloadSubarray = buffer.subarray(38);
+        // Zero-copy subarray views
+        const signature = buffer.subarray(HEADER_LENGTH, HEADER_LENGTH + SIGNATURE_LENGTH);
+        const payloadSubarray = buffer.subarray(HEADER_LENGTH + SIGNATURE_LENGTH);
 
         const hmac = crypto.createHmac('sha256', key);
-        // Pass Buffer subarray directly to hmac.update() to avoid string conversion overhead
         hmac.update(payloadSubarray);
         const expectedSignature = hmac.digest();
 
