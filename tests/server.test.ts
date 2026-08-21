@@ -133,4 +133,14 @@ describe("Server Security and Health", () => {
     expect(response.text).toContain("outline: 3px solid var(--primary);");
     expect(response.text).toContain("outline-offset: 2px;");
   });
+
+  it("should render the clear user ID button with accessible labels and input event listener script", async () => {
+    const response = await request(app).get("/");
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('id="clear-user-id-btn"');
+    expect(response.text).toContain('aria-label="Clear User ID"');
+    expect(response.text).toContain('title="Clear User ID"');
+    expect(response.text).toContain('toggleClearButton');
+    expect(response.text).toContain('userIdInput.focus()');
+  });
 });
