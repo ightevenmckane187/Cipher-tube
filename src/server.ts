@@ -136,16 +136,44 @@ export const PRE_RENDERED_STYLES = `
         font-weight: 500;
         margin-bottom: 0.5rem;
     }
+    .input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        width: 100%;
+        max-width: 300px;
+    }
     #user-id-input {
         background: var(--bg-color);
         border: 1px solid var(--border-color);
         color: var(--text-color);
-        padding: 8px 12px;
+        padding: 8px 28px 8px 12px;
         border-radius: 6px;
         font-size: 1rem;
         width: 100%;
         max-width: 300px;
         transition: border-color 0.2s;
+    }
+    #clear-user-id-btn {
+        display: none;
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: var(--text-color);
+        cursor: pointer;
+        padding: 4px;
+        opacity: 0.7;
+        font-size: 0.875rem;
+        line-height: 1;
+        z-index: 2;
+    }
+    #clear-user-id-btn:hover { opacity: 1; }
+    #clear-user-id-btn:focus-visible {
+        outline: 2px solid var(--primary);
+        border-radius: 4px;
     }
     .theme-icon {
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -230,7 +258,7 @@ export const PRE_RENDERED_STYLES = `
     .copy-button.copied .check-icon { display: block; }
     .input-group { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
     .input-group label { font-size: 0.875rem; font-weight: 500; }
-    .input-group input { background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 8px 12px; border-radius: 6px; font-size: 0.875rem; width: 100%; max-width: 300px; }
+    .input-group input { background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 8px 28px 8px 12px; border-radius: 6px; font-size: 0.875rem; width: 100%; max-width: 300px; box-sizing: border-box; }
     .counter-container { display: flex; justify-content: space-between; max-width: 300px; align-items: baseline; flex-wrap: wrap; gap: 8px; }
     #user-id-counter { font-size: 0.75rem; opacity: 0.7; }
     #user-id-counter.near-limit { color: #d63031; opacity: 1; font-weight: bold; }
@@ -894,7 +922,10 @@ app.get("/", (req: Request, res: Response) => {
                         <label for="user-id-input">Customize your User ID: <kbd aria-hidden="true" class="kb-shortcut">/</kbd></label>
                         <span id="user-id-counter" aria-live="polite">0 of 128 characters used</span>
                     </div>
-                    <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter" aria-keyshortcuts="/">
+                    <div class="input-wrapper">
+                        <input type="text" id="user-id-input" placeholder="demo-user" maxlength="128" spellcheck="false" aria-describedby="user-id-counter" aria-keyshortcuts="/">
+                        <button type="button" id="clear-user-id-btn" aria-label="Clear User ID" title="Clear User ID">✕</button>
+                    </div>
                 </div>
                 <div class="input-row">
                     <button id="create-session-btn" aria-keyshortcuts="s" aria-busy="false">
@@ -1016,7 +1047,27 @@ app.get("/", (req: Request, res: Response) => {
                     }
                 }
 
-                userIdInput.addEventListener('input', updateCurlCommand);
+                const clearUserIdBtn = document.getElementById('clear-user-id-btn');
+
+                function toggleClearButton() {
+                    if (clearUserIdBtn) {
+                        clearUserIdBtn.style.display = userIdInput.value.length > 0 ? 'block' : 'none';
+                    }
+                }
+
+                userIdInput.addEventListener('input', () => {
+                    updateCurlCommand();
+                    toggleClearButton();
+                });
+
+                if (clearUserIdBtn) {
+                    clearUserIdBtn.addEventListener('click', () => {
+                        userIdInput.value = '';
+                        updateCurlCommand();
+                        toggleClearButton();
+                        userIdInput.focus();
+                    });
+                }
                 userIdInput.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
                         e.preventDefault();
@@ -1024,6 +1075,7 @@ app.get("/", (req: Request, res: Response) => {
                     }
                 });
                 updateCurlCommand();
+                toggleClearButton();
 
                 createSessionBtn.addEventListener('click', async () => {
                     const userId = userIdInput.value.trim() || 'demo-user';
