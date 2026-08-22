@@ -196,13 +196,21 @@ export const PRE_RENDERED_STYLES = `
         border-radius: 4px;
         cursor: pointer;
         font-size: 0.75rem;
-        transition: transform 0.1s, background-color 0.2s;
+        transition: transform 0.1s, background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
         display: flex;
         align-items: center;
         gap: 4px;
     }
     .copy-button:hover { background: rgba(255, 255, 255, 0.2); }
     .copy-button:active { transform: scale(0.95); }
+    .copy-button:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
+    }
+    .copy-button.copied {
+        border-color: var(--success);
+        box-shadow: 0 0 8px var(--success-glow);
+    }
     .kb-shortcut {
         margin-left: 4px;
         opacity: 0.9;
@@ -676,13 +684,21 @@ app.get("/", (req: Request, res: Response) => {
                     border-radius: 4px;
                     cursor: pointer;
                     font-size: 0.75rem;
-                    transition: transform 0.1s, background-color 0.2s;
+                    transition: transform 0.1s, background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
                     display: flex;
                     align-items: center;
                     gap: 4px;
                 }
                 .copy-button:hover { background: rgba(255, 255, 255, 0.2); }
                 .copy-button:active { transform: scale(0.95); }
+                .copy-button:focus-visible {
+                    outline: 2px solid var(--primary);
+                    outline-offset: 2px;
+                }
+                .copy-button.copied {
+                    border-color: var(--success);
+                    box-shadow: 0 0 8px var(--success-glow);
+                }
                 .kb-shortcut {
                     margin-left: 4px;
                     opacity: 0.9;
@@ -1085,6 +1101,12 @@ app.get("/", (req: Request, res: Response) => {
                         }, 2000);
                     } catch (err) {
                         console.error('Failed to copy: ', err);
+                        copyText.textContent = 'Error!';
+                        copyButton.setAttribute('aria-label', 'Failed to copy command to clipboard');
+                        setTimeout(() => {
+                            copyButton.setAttribute('aria-label', 'Copy command to clipboard');
+                            copyText.textContent = 'Copy';
+                        }, 2000);
                     }
                 });
 
